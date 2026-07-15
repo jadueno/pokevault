@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  /* Tema oscuro fijo: "vitrina de coleccionista" — casi negro de fondo, rojo Poké Ball
+     como acento vivo principal, dorado como acento secundario cálido (grading/rareza).
+     Paleta propia, distinta de rumbo (amarillo/violeta), nous (arcilla/musgo) y faro (navy/cian). */
+  --page: #0c0a0d;
+  --surface-1: #171215;
+  --surface-2: #211a1e;
+  --text-primary: #f7f2f0;
+  --text-secondary: #cdbfc2;
+  --text-muted: #8f7f83;
+  --gridline: #332a2e;
+  --border: rgba(255, 255, 255, 0.1);
+
+  /* --beacon/--amber son los nombres de los tokens de acento en toda la familia de
+     proyectos (rumbo/nous/faro); aquí llevan los colores propios de PokéVault en vez de
+     renombrarlos, para poder reutilizar el kit de componentes (Button/Card/...) tal cual. */
+  --beacon: #e0263b;
+  --on-beacon: #ffffff;
+  --amber: #d9a441;
+  --on-amber: #251a05;
+
+  --ink: var(--text-primary);
+  --on-ink: var(--page);
+  --accent-beacon-blob: color-mix(in srgb, var(--beacon) 12%, transparent);
+  --accent-amber-blob: color-mix(in srgb, var(--amber) 8%, transparent);
+
+  /* Estados (condición de carta, prioridad de wishlist, etc.) */
+  --status-good: #34b57a;
+  --status-warning: #d9a441;
+  --status-critical: #e0263b;
+  --status-info: #3b82c4;
+  --status-neutral: #8f7f83;
+
+  --on-status-good: #06210f;
+  --on-status-warning: #251a05;
+  --on-status-critical: #ffffff;
+  --on-status-info: #04141f;
+  --on-status-neutral: #171215;
+
+  --shadow-tint: 0, 0, 0;
+}
+
+html {
+  color-scheme: dark;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior-x: none;
+  background: var(--page);
+  color: var(--text-primary);
+  font-feature-settings: "tnum" 1;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+.app-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(50rem 28rem at 15% -10%, var(--accent-beacon-blob), transparent),
+    radial-gradient(46rem 26rem at 110% 10%, var(--accent-amber-blob), transparent);
+}
+
+@utility shadow-card {
+  box-shadow: 0 1px 2px rgba(var(--shadow-tint), 0.05);
+}
+
+@utility shadow-card-hover {
+  box-shadow: 0 4px 12px -4px rgba(var(--shadow-tint), 0.14);
+}
+
+@utility shadow-float {
+  box-shadow:
+    0 2px 8px rgba(var(--shadow-tint), 0.08),
+    0 12px 28px -10px rgba(var(--shadow-tint), 0.2);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      var(--gridline) 30%,
+      color-mix(in srgb, var(--gridline) 40%, var(--surface-1)) 50%,
+      var(--gridline) 70%
+    );
+    background-size: 250% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+}

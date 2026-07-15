@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pokevault}
+      POSTGRES_USER: ${POSTGRES_USER:-pokevault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en tu .env (copia .env.example y pon una contraseña propia)}
+    ports:
+      - "${POSTGRES_PORT:-5436}:5432"
+    volumes:
+      - pokevault-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pokevault}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  # Nombre real fijado explícitamente: si no, el nombre de proyecto de Docker Compose
+  # se deriva del nombre de la carpeta, y renombrarla crearía un volumen nuevo vacío
+  # dejando este huérfano. Fijar el nombre hace que Compose lo reutilice si ya existe
+  # o lo cree si no (clon nuevo en otra máquina) — funciona igual en los dos casos.
+  pokevault-db:
+    name: pokevault_pokevault-db

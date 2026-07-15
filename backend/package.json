@@ -1,0 +1,38 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "API de PokéVault",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "migrate": "node-pg-migrate --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts",
+    "migrate:up": "node-pg-migrate up --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts",
+    "migrate:down": "node-pg-migrate down --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts",
+    "sync:catalog": "tsx src/infrastructure/catalog/syncCatalog.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:migrate": "node-pg-migrate up --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts -d TEST_DATABASE_URL"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^11.1.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.10.0",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "@types/pg": "^8.20.0",
+    "node-pg-migrate": "^8.0.4",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
