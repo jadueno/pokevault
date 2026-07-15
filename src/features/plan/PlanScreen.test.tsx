@@ -17,9 +17,17 @@ function item(overrides: Partial<PlanItem> = {}): PlanItem {
   };
 }
 
-const settings: PlanSettings = { monthlyBudget: 150, yearRules: "Regla de ejemplo", yearGoal: "Objetivo de ejemplo" };
+function planSettings(overrides: Partial<PlanSettings> = {}): PlanSettings {
+  return {
+    monthlyBudget: 150,
+    yearRules: "Regla de ejemplo",
+    yearGoal: "Objetivo de ejemplo",
+    shoppingLinks: [],
+    ...overrides,
+  };
+}
 
-function renderScreen(items: PlanItem[]) {
+function renderScreen(items: PlanItem[], settings: PlanSettings = planSettings()) {
   const handlers = {
     onAdd: vi.fn().mockResolvedValue(undefined),
     onUpdate: vi.fn().mockResolvedValue(undefined),
@@ -104,5 +112,37 @@ describe("PlanScreen", () => {
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(handlers.onUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyBudget: 200 }));
+  });
+
+  it("añade una página de compra desde la caja de arriba", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()]);
+
+    await user.type(screen.getByPlaceholderText("Nombre, p. ej. Cardmarket"), "Cardmarket");
+    await user.type(screen.getByPlaceholderText("https://..."), "https://www.cardmarket.com");
+    await user.click(screen.getByRole("button", { name: "+ Añadir página" }));
+
+    expect(handlers.onUpdateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }] }),
+    );
+  });
+
+  it("muestra las páginas de compra ya guardadas como enlaces", () => {
+    renderScreen([item()], planSettings({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }] }));
+    const link = screen.getByRole("link", { name: "Cardmarket" });
+    expect(link).toHaveAttribute("href", "https://www.cardmarket.com");
+  });
+
+  it("quita una página de compra existente", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen(
+      [item()],
+      planSettings({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }] }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Quitar Cardmarket de las páginas de compra" }));
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+
+    expect(handlers.onUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ shoppingLinks: [] }));
   });
 });

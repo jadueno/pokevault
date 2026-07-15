@@ -324,17 +324,23 @@ describe("/plan-settings", () => {
     const update = await app.inject({
       method: "PUT",
       url: "/plan-settings",
-      payload: { monthlyBudget: 200, yearRules: "Regla nueva", yearGoal: "Objetivo nuevo" },
+      payload: {
+        monthlyBudget: 200,
+        yearRules: "Regla nueva",
+        yearGoal: "Objetivo nuevo",
+        shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }],
+      },
     });
     expect(update.statusCode).toBe(200);
     expect(update.json().monthlyBudget).toBe(200);
+    expect(update.json().shoppingLinks).toEqual([{ label: "Cardmarket", url: "https://www.cardmarket.com" }]);
   });
 
   it("responde 400 con un presupuesto negativo", async () => {
     const res = await app.inject({
       method: "PUT",
       url: "/plan-settings",
-      payload: { monthlyBudget: -10, yearRules: null, yearGoal: null },
+      payload: { monthlyBudget: -10, yearRules: null, yearGoal: null, shoppingLinks: [] },
     });
     expect(res.statusCode).toBe(400);
   });

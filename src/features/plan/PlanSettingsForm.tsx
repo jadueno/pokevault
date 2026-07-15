@@ -26,6 +26,8 @@ export function PlanSettingsForm({
         monthlyBudget: monthlyBudget ? Number(monthlyBudget) : null,
         yearRules: yearRules || null,
         yearGoal: yearGoal || null,
+        // Las páginas de compra se editan directamente en la pantalla del plan, no aquí.
+        shoppingLinks: settings.shoppingLinks,
       });
     } finally {
       setSaving(false);

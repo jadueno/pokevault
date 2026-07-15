@@ -174,8 +174,14 @@ export interface PlanItem {
 
 export type NewPlanItem = Omit<PlanItem, "id">;
 
+export interface ShoppingLink {
+  label: string;
+  url: string;
+}
+
 export interface PlanSettings {
   monthlyBudget: number | null;
   yearRules: string | null;
   yearGoal: string | null;
+  shoppingLinks: ShoppingLink[];
 }

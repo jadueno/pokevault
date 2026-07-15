@@ -1,11 +1,92 @@
 import { useState } from "react";
-import type { NewPlanItem, PlanCategory, PlanItem, PlanSettings } from "../../domain/types";
+import type { NewPlanItem, PlanCategory, PlanItem, PlanSettings, ShoppingLink } from "../../domain/types";
 import { PLAN_CATEGORIES, PLAN_CATEGORY_LABELS, formatMoney, groupPlanByMonth, monthLabel } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
 import { inputClass } from "../../components/Field";
 import { PlanSettingsForm } from "./PlanSettingsForm";
+
+function ShoppingLinksCard({
+  settings,
+  onUpdateSettings,
+}: {
+  settings: PlanSettings;
+  onUpdateSettings: (entity: PlanSettings) => Promise<void>;
+}) {
+  const confirm = useConfirm();
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function saveLinks(links: ShoppingLink[]) {
+    setSaving(true);
+    try {
+      await onUpdateSettings({ ...settings, shoppingLinks: links });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!label.trim() || !url.trim()) return;
+    await saveLinks([...settings.shoppingLinks, { label: label.trim(), url: url.trim() }]);
+    setLabel("");
+    setUrl("");
+  }
+
+  async function handleRemove(index: number) {
+    const link = settings.shoppingLinks[index];
+    if (await confirm(`¿Quitar "${link.label}" de las páginas de compra?`)) {
+      await saveLinks(settings.shoppingLinks.filter((_, i) => i !== index));
+    }
+  }
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <p className="text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase">Páginas donde comprar</p>
+
+      {settings.shoppingLinks.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {settings.shoppingLinks.map((link, i) => (
+            <li key={i} className="flex items-center gap-1.5 rounded-full border border-[var(--border)] py-1 pr-1.5 pl-3 text-sm">
+              <a href={link.url} target="_blank" rel="noreferrer" className="font-medium text-[var(--beacon)] hover:underline">
+                {link.label}
+              </a>
+              <button
+                type="button"
+                onClick={() => handleRemove(i)}
+                aria-label={`Quitar ${link.label} de las páginas de compra`}
+                className="rounded-full px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handleAdd} className="flex flex-wrap gap-2">
+        <input
+          className={`${inputClass} w-auto min-w-32 flex-1 py-1.5 text-sm`}
+          placeholder="Nombre, p. ej. Cardmarket"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+        />
+        <input
+          className={`${inputClass} w-auto min-w-48 flex-[2] py-1.5 text-sm`}
+          placeholder="https://..."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <Button type="submit" size="sm" variant="ghost" disabled={saving || !label.trim() || !url.trim()}>
+          + Añadir página
+        </Button>
+      </form>
+    </Card>
+  );
+}
 
 function PlanItemRow({
   item,
@@ -45,13 +126,13 @@ function PlanItemRow({
   }
 
   return (
-    <li className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-[var(--gridline)]">
+    <li className="flex items-start gap-2.5 rounded-xl px-2 py-1.5 hover:bg-[var(--gridline)]">
       <input
         type="checkbox"
         checked={item.done}
         onChange={() => onToggleDone(item.id)}
         aria-label={`Marcar "${item.description}" como hecho`}
-        className="size-4 shrink-0 accent-[var(--beacon)]"
+        className="mt-1 size-4 shrink-0 accent-[var(--beacon)]"
       />
       {editing ? (
         <input
@@ -72,7 +153,7 @@ function PlanItemRow({
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className={`flex-1 truncate text-left text-sm ${
+          className={`flex-1 py-1 text-left text-sm break-words whitespace-normal ${
             item.done ? "text-[var(--text-muted)] line-through" : "text-[var(--text-primary)]"
           }`}
         >
@@ -83,7 +164,7 @@ function PlanItemRow({
         type="button"
         onClick={handleRemove}
         aria-label={`Quitar ${item.description} del plan`}
-        className="shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
+        className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
       >
         ×
       </button>
@@ -162,6 +243,8 @@ export function PlanScreen({
           Ajustes del plan
         </Button>
       </div>
+
+      {settings && <ShoppingLinksCard settings={settings} onUpdateSettings={onUpdateSettings} />}
 
       {settings && (
         <Card className="flex flex-wrap items-center gap-x-8 gap-y-2">
