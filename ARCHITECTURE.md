@@ -72,6 +72,19 @@ Las primeras migraciones usaban `date` para `release_date`/`purchase_date`. Al l
 
 `wishlist_items.target_month` (`"YYYY-MM"`, nullable) es toda la funcionalidad: la pantalla "Wishlist" agrupa por ese campo (`groupWishlistByMonth`, `src/domain/calculations.ts`) para dar directamente "en agosto quiero esto, en septiembre esto otro", reutilizando prioridad y precio máximo que ya existían. No hace falta una entidad de planificación aparte.
 
+## "Plan" vs "Wishlist": por qué son dos cosas distintas
+
+Al importar el plan de compra real del usuario (agosto 2026 - julio 2027) resultó que casi ningún ítem es una carta de catálogo concreta: son accesorios (fundas, toploaders, archivador), cantidades por rareza ("9x Illustration Rare de temática cotidiana"), producto sellado con una acción asociada (comprar/abrir/guardar), o una carta a elegir entre varias opciones ("Pikachu, Gengar, Mew, Dragonite, Lugia o Charizard"). Nada de eso encaja en `wishlist_items`, que exige un `catalog_card_id` real.
+
+Por eso el plan vive en sus propias tablas, independientes de la wishlist:
+
+- **`plan_items`**: `month` (`"YYYY-MM"`), `category` (`comprar`/`abrir`/`guardar_sellado`, el mismo desglose que usa el propio plan del usuario), `description` (texto libre), `done`, `position` (orden dentro de mes+categoría). Sin FK a `catalog_cards` — es una lista de tareas, no un vínculo a producto.
+- **`plan_settings`** (singleton, mismo patrón que `profile`): presupuesto mensual y las dos notas generales del plan (reglas del año, objetivo final) que no pertenecen a ningún mes concreto.
+
+**"Hecho" es una casilla independiente, no un alias de "Ya la tengo".** Wishlist usa `moveToCollection` para pasar un deseo a la colección real (exige idioma/estado/precio y cuenta en el dashboard). El plan es solo seguimiento de una lista de la compra: `toggleDone` (`application/planItems.ts`) marca/desmarca sin tocar `collection_items` ni `sealed_purchases`, y por tanto sin afectar a `totalValue`/`totalInvested`. Decisión explícita del usuario al preguntarle cómo debía comportarse "marcar como hecho".
+
+La wishlist sigue teniendo su propio uso, distinto del plan: deseos puntuales de una carta concreta que todavía no se tiene, fuera de lo ya planificado mes a mes.
+
 ## Rigor de pruebas: bugs reales encontrados, no solo cobertura
 
 - El bug de fechas de arriba, con test de regresión en `server.test.ts` que compara la fecha exacta enviada contra la devuelta.
@@ -80,9 +93,9 @@ Las primeras migraciones usaban `date` para `release_date`/`purchase_date`. Al l
 
 ## Estructura del repositorio
 
-- `src/domain/` — tipos y cálculos puros (`formatMoney`, `groupWishlistByMonth`).
-- `src/data/` — un hook por área (`useCatalogData`, `useCollectionData`, `useWishlistData`, `useSealedData`) + `api.ts`.
-- `src/features/` — una pantalla por carpeta: `buscar/`, `coleccion/`, `wishlist/`, `sellado/`, `dashboard/`.
+- `src/domain/` — tipos y cálculos puros (`formatMoney`, `groupWishlistByMonth`, `groupPlanByMonth`).
+- `src/data/` — un hook por área (`useCatalogData`, `useCollectionData`, `useWishlistData`, `useSealedData`, `usePlanData`) + `api.ts`.
+- `src/features/` — una pantalla por carpeta: `buscar/`, `coleccion/`, `wishlist/`, `sellado/`, `dashboard/`, `plan/`.
 - `backend/src/domain|application|infrastructure/` — ver arquitectura hexagonal arriba.
 - `docker-compose.yml` — Postgres local, puerto 5436.
 

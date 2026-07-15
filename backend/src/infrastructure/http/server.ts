@@ -8,14 +8,19 @@ import { registerCatalogRoutes } from "./catalogRoutes.js";
 import { registerCollectionRoutes } from "./collectionRoutes.js";
 import { registerWishlistRoutes } from "./wishlistRoutes.js";
 import { registerSealedPurchaseRoutes } from "./sealedPurchaseRoutes.js";
+import { registerPlanRoutes } from "./planRoutes.js";
 import { createCatalogRepository } from "../db/repositories/catalogRepository.js";
 import { createCollectionItemRepository } from "../db/repositories/collectionItemRepository.js";
 import { createWishlistItemRepository } from "../db/repositories/wishlistItemRepository.js";
 import { createSealedPurchaseRepository } from "../db/repositories/sealedPurchaseRepository.js";
+import { createPlanItemRepository } from "../db/repositories/planItemRepository.js";
+import { createPlanSettingsRepository } from "../db/repositories/planSettingsRepository.js";
 import { createCatalogUseCases } from "../../application/catalog.js";
 import { createCollectionItemUseCases } from "../../application/collectionItems.js";
 import { createWishlistItemUseCases } from "../../application/wishlistItems.js";
 import { createSealedPurchaseUseCases } from "../../application/sealedPurchases.js";
+import { createPlanItemUseCases } from "../../application/planItems.js";
+import { createPlanSettingsUseCases } from "../../application/planSettings.js";
 
 export interface BuildServerOptions {
   logger?: boolean;
@@ -40,6 +45,8 @@ export async function buildServer(pool: Pool, options: BuildServerOptions = {}) 
   const collectionItemRepository = createCollectionItemRepository(pool);
   const wishlistItemRepository = createWishlistItemRepository(pool);
   const sealedPurchaseRepository = createSealedPurchaseRepository(pool);
+  const planItemRepository = createPlanItemRepository(pool);
+  const planSettingsRepository = createPlanSettingsRepository(pool);
 
   const catalogUseCases = createCatalogUseCases(catalogRepository);
   const collectionItemUseCases = createCollectionItemUseCases(collectionItemRepository, catalogRepository);
@@ -49,11 +56,14 @@ export async function buildServer(pool: Pool, options: BuildServerOptions = {}) 
     collectionItemRepository,
   );
   const sealedPurchaseUseCases = createSealedPurchaseUseCases(sealedPurchaseRepository);
+  const planItemUseCases = createPlanItemUseCases(planItemRepository);
+  const planSettingsUseCases = createPlanSettingsUseCases(planSettingsRepository);
 
   registerCatalogRoutes(app, catalogUseCases);
   registerCollectionRoutes(app, collectionItemUseCases);
   registerWishlistRoutes(app, wishlistItemUseCases);
   registerSealedPurchaseRoutes(app, sealedPurchaseUseCases);
+  registerPlanRoutes(app, planItemUseCases, planSettingsUseCases);
 
   return app;
 }

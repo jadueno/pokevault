@@ -2,8 +2,11 @@ import type {
   CardSearchFilters,
   MoveToCollectionDetails,
   NewCollectionItem,
+  NewPlanItem,
   NewSealedPurchase,
   NewWishlistItem,
+  PlanItem,
+  PlanSettings,
   SealedPurchase,
 } from "../domain/types";
 
@@ -119,4 +122,20 @@ export const sealedPurchaseClient = createCrudClient<SealedPurchase, NewSealedPu
 
 export function overrideSealedPurchaseValue<T>(id: string, value: number, note: string | null): Promise<T> {
   return request(`/sealed-purchases/${id}/estimated-value`, { method: "PUT", body: JSON.stringify({ value, note }) });
+}
+
+// ---- Plan de compra mensual ----
+
+export const planItemClient = createCrudClient<PlanItem, NewPlanItem>("/plan-items");
+
+export function togglePlanItemDone<T>(id: string): Promise<T> {
+  return request(`/plan-items/${id}/toggle-done`, { method: "POST" });
+}
+
+export function getPlanSettings<T>(): Promise<T> {
+  return request("/plan-settings");
+}
+
+export function updatePlanSettings<T>(entity: PlanSettings): Promise<T> {
+  return request("/plan-settings", { method: "PUT", body: JSON.stringify(entity) });
 }

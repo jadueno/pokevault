@@ -4,10 +4,13 @@ import { Pool } from "pg";
 // catalog_sets/catalog_cards/catalog_sync_log sí se truncan entre tests (a diferencia de
 // "profile" en faro): aquí no son un singleton sembrado una vez, son fixtures de catálogo
 // que cada test de integración necesita poder poblar desde cero.
+// "plan_settings" no está aquí a propósito: es una tabla singleton (mismo patrón que
+// "profile" en faro), no una colección de fixtures que tenga sentido vaciar entre tests.
 const TABLES = [
   "wishlist_items",
   "collection_items",
   "sealed_purchases",
+  "plan_items",
   "catalog_sync_log",
   "catalog_cards",
   "catalog_sets",

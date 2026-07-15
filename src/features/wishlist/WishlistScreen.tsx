@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { MoveToCollectionDetails, NewWishlistItem, WishlistItemWithCard, WishlistPriority } from "../../domain/types";
-import { formatMoney, groupWishlistByMonth } from "../../domain/calculations";
+import { formatMoney, groupWishlistByMonth, monthLabel } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
@@ -8,14 +8,6 @@ import { inputClass } from "../../components/Field";
 import { MoveToCollectionForm } from "./MoveToCollectionForm";
 
 const PRIORITY_LABELS: Record<WishlistPriority, string> = { low: "Baja", medium: "Media", high: "Alta" };
-
-function monthLabel(month: string | null): string {
-  if (!month) return "Sin mes objetivo";
-  const [year, m] = month.split("-");
-  const date = new Date(Number(year), Number(m) - 1, 1);
-  const label = date.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
 
 function WishlistItemCard({
   item,

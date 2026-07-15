@@ -3,17 +3,20 @@ import { useCatalogData } from "./data/useCatalogData";
 import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
+import { usePlanData } from "./data/usePlanData";
 import { BuscarScreen } from "./features/buscar/BuscarScreen";
 import { ColeccionScreen } from "./features/coleccion/ColeccionScreen";
 import { SelladoScreen } from "./features/sellado/SelladoScreen";
 import { WishlistScreen } from "./features/wishlist/WishlistScreen";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
+import { PlanScreen } from "./features/plan/PlanScreen";
 import { LoadingState } from "./components/LoadingState";
 
-type Section = "dashboard" | "buscar" | "coleccion" | "wishlist" | "sellado";
+type Section = "dashboard" | "plan" | "buscar" | "coleccion" | "wishlist" | "sellado";
 
 const sections: { id: Section; label: string }[] = [
   { id: "dashboard", label: "Resumen" },
+  { id: "plan", label: "Plan" },
   { id: "buscar", label: "Buscar" },
   { id: "coleccion", label: "Mi colección" },
   { id: "wishlist", label: "Wishlist" },
@@ -26,9 +29,10 @@ export default function App() {
   const collection = useCollectionData();
   const wishlist = useWishlistData();
   const sealed = useSealedData();
+  const plan = usePlanData();
 
   const loading = collection.loading && !collection.summary;
-  const error = collection.error ?? wishlist.error ?? sealed.error;
+  const error = collection.error ?? wishlist.error ?? sealed.error ?? plan.error;
 
   return (
     <div className="app-shell flex min-h-screen flex-col sm:flex-row">
@@ -79,6 +83,17 @@ export default function App() {
           {!loading && (
             <>
               {section === "dashboard" && <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />}
+              {section === "plan" && (
+                <PlanScreen
+                  items={plan.items}
+                  settings={plan.settings}
+                  onAdd={plan.addItem}
+                  onUpdate={plan.updateItem}
+                  onRemove={plan.removeItem}
+                  onToggleDone={plan.toggleDone}
+                  onUpdateSettings={plan.updateSettings}
+                />
+              )}
               {section === "buscar" && (
                 <BuscarScreen
                   catalog={catalog}

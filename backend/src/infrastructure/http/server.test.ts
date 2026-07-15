@@ -278,6 +278,68 @@ describe("/sealed-purchases", () => {
   });
 });
 
+describe("/plan-items", () => {
+  it("crea, lista, marca como hecho y borra un ítem del plan, sin tocar la colección", async () => {
+    const payload = { month: "2026-08", category: "comprar", description: "1x ETB Megaevolución (ES)", done: false, position: 0 };
+    const create = await app.inject({ method: "POST", url: "/plan-items", payload });
+    expect(create.statusCode).toBe(201);
+    expect(create.json().done).toBe(false);
+
+    const list = await app.inject({ method: "GET", url: "/plan-items" });
+    expect(list.json()).toHaveLength(1);
+
+    const toggle = await app.inject({ method: "POST", url: `/plan-items/${create.json().id}/toggle-done` });
+    expect(toggle.statusCode).toBe(200);
+    expect(toggle.json().done).toBe(true);
+
+    // "hecho" en el plan es independiente de "Ya la tengo": no debe aparecer nada en la colección.
+    expect((await app.inject({ method: "GET", url: "/collection-items" })).json()).toEqual([]);
+
+    const remove = await app.inject({ method: "DELETE", url: `/plan-items/${create.json().id}` });
+    expect(remove.statusCode).toBe(204);
+  });
+
+  it("responde 400 con un mes mal formado o una categoría no reconocida", async () => {
+    const badMonth = await app.inject({
+      method: "POST",
+      url: "/plan-items",
+      payload: { month: "agosto-2026", category: "comprar", description: "Algo", done: false, position: 0 },
+    });
+    expect(badMonth.statusCode).toBe(400);
+
+    const badCategory = await app.inject({
+      method: "POST",
+      url: "/plan-items",
+      payload: { month: "2026-08", category: "vender", description: "Algo", done: false, position: 0 },
+    });
+    expect(badCategory.statusCode).toBe(400);
+  });
+});
+
+describe("/plan-settings", () => {
+  it("lee y actualiza el presupuesto mensual y las notas del plan", async () => {
+    const get = await app.inject({ method: "GET", url: "/plan-settings" });
+    expect(get.statusCode).toBe(200);
+
+    const update = await app.inject({
+      method: "PUT",
+      url: "/plan-settings",
+      payload: { monthlyBudget: 200, yearRules: "Regla nueva", yearGoal: "Objetivo nuevo" },
+    });
+    expect(update.statusCode).toBe(200);
+    expect(update.json().monthlyBudget).toBe(200);
+  });
+
+  it("responde 400 con un presupuesto negativo", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: "/plan-settings",
+      payload: { monthlyBudget: -10, yearRules: null, yearGoal: null },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
   it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
     const authedApp = await buildServer(pool, { logger: false, apiToken: "demo-token" });

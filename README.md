@@ -70,6 +70,7 @@ npm run test:e2e
 - **Buscar**: busca en el catálogo sincronizado por nombre, filtra por expansión, y desde el detalle de una carta la añades a tu colección (idioma, estado de conservación, cantidad, precio de compra, si es graduada) o a tu wishlist.
 - **Mi colección**: todos tus ejemplares, con su valor de mercado actual (o una corrección manual tuya, si prefieres tu propia estimación) y la diferencia frente a lo que pagaste.
 - **Producto sellado**: sobres, cajas, ETBs — registro de compra con ubicación física, sin depender de un precio de mercado automático (no existe para sellado) porque se estima a mano.
+- **Plan**: tu checklist de compra mes a mes (comprar / abrir / guardar sellado), con presupuesto mensual y notas generales del año. El "hecho" de cada ítem es una casilla de seguimiento independiente — no registra nada en tu colección ni cuenta en el valor total.
 - **Wishlist**: prioridad, precio máximo, y un **mes objetivo de compra** ("en agosto esto, en septiembre esto otro") — agrupa la propia wishlist por mes, sin necesitar una pantalla aparte. "Ya la tengo" mueve el deseo a tu colección registrando la compra real.
 - **Resumen**: valor total (cartas + sellado), lo invertido, ganancia o pérdida estimada — y un aviso aparte para lo que no tiene valor de mercado conocido todavía (nunca se cuenta como 0€ en silencio).
 

@@ -153,3 +153,29 @@ export interface CollectionSummary {
   itemsWithoutValue: number;
   totalInvested: number;
 }
+
+// ---- Plan de compra mensual ----
+// Lista de tareas de texto libre, distinta de la wishlist: la mayoría de ítems del plan
+// real del usuario no son una carta de catálogo concreta (accesorios, cantidades por
+// rareza, sellado, o "una carta de entre varias opciones"). "done" es una casilla
+// independiente de "Ya la tengo": no exige idioma/estado/precio ni cuenta en el dashboard.
+
+export type PlanCategory = "comprar" | "abrir" | "guardar_sellado";
+
+export interface PlanItem {
+  id: string;
+  /** Formato "YYYY-MM". */
+  month: string;
+  category: PlanCategory;
+  description: string;
+  done: boolean;
+  position: number;
+}
+
+export type NewPlanItem = Omit<PlanItem, "id">;
+
+export interface PlanSettings {
+  monthlyBudget: number | null;
+  yearRules: string | null;
+  yearGoal: string | null;
+}

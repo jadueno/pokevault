@@ -125,3 +125,22 @@ export interface CollectionSummary {
   itemsWithoutValue: number;
   totalInvested: number;
 }
+
+export type PlanCategory = "comprar" | "abrir" | "guardar_sellado";
+
+export interface PlanItem {
+  id: string;
+  month: string;
+  category: PlanCategory;
+  description: string;
+  done: boolean;
+  position: number;
+}
+
+export type NewPlanItem = Omit<PlanItem, "id">;
+
+export interface PlanSettings {
+  monthlyBudget: number | null;
+  yearRules: string | null;
+  yearGoal: string | null;
+}

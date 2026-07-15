@@ -6,8 +6,11 @@ import type {
   CatalogSyncStatus,
   CollectionItem,
   NewCollectionItem,
+  NewPlanItem,
   NewSealedPurchase,
   NewWishlistItem,
+  PlanItem,
+  PlanSettings,
   SealedPurchase,
   WishlistItem,
 } from "./types.js";
@@ -22,6 +25,12 @@ export interface Repository<T, TNew> {
 export type SealedPurchaseRepository = Repository<SealedPurchase, NewSealedPurchase>;
 export type CollectionItemRepository = Repository<CollectionItem, NewCollectionItem>;
 export type WishlistItemRepository = Repository<WishlistItem, NewWishlistItem>;
+export type PlanItemRepository = Repository<PlanItem, NewPlanItem>;
+
+export interface PlanSettingsRepository {
+  get(): Promise<PlanSettings>;
+  update(entity: PlanSettings): Promise<PlanSettings>;
+}
 
 export interface CatalogRepository {
   listSets(): Promise<CatalogSet[]>;
