@@ -1,62 +1,3 @@
-// ---- Catálogo: espejo local del proveedor externo (ver domain/ports.ts: CatalogProvider) ----
-
-export interface CatalogSet {
-  id: string;
-  provider: string;
-  externalId: string;
-  name: string;
-  series: string | null;
-  printedTotal: number | null;
-  total: number | null;
-  /** Formato "YYYY-MM-DD", como texto (ver migración: nunca "date" de Postgres, para
-   * no arrastrar el desfase de zona horaria al leerla de vuelta). */
-  releaseDate: string | null;
-  symbolUrl: string | null;
-  logoUrl: string | null;
-}
-
-export interface CatalogCard {
-  id: string;
-  provider: string;
-  externalId: string;
-  setId: string;
-  name: string;
-  number: string;
-  rarity: string | null;
-  artist: string | null;
-  supertype: string;
-  subtypes: string[];
-  types: string[];
-  imageSmallUrl: string | null;
-  imageLargeUrl: string | null;
-  currentPrice: number | null;
-  currentPriceCurrency: string | null;
-  /** ISO 8601. Regla de negocio: siempre se muestra junto a priceSource, nunca a solas. */
-  priceUpdatedAt: string | null;
-  priceSource: string | null;
-}
-
-export type CatalogSyncStatus = "running" | "success" | "failed";
-
-export interface CatalogSyncLog {
-  id: string;
-  provider: string;
-  startedAt: string;
-  finishedAt: string | null;
-  status: CatalogSyncStatus;
-  setsSynced: number | null;
-  cardsSynced: number | null;
-  error: string | null;
-}
-
-export interface CardSearchFilters {
-  query?: string;
-  setId?: string;
-  rarity?: string;
-  page?: number;
-  pageSize?: number;
-}
-
 // ---- Producto sellado ----
 
 export type SealedProductType = "booster_pack" | "booster_box" | "elite_trainer_box" | "bundle" | "tin" | "other";
@@ -64,20 +5,22 @@ export type SealedProductType = "booster_pack" | "booster_box" | "elite_trainer_
 export interface SealedPurchase {
   id: string;
   productName: string;
-  catalogSetId: string | null;
   productType: SealedProductType;
   quantity: number;
   purchasePrice: number | null;
   purchaseCurrency: string;
-  /** Formato "YYYY-MM-DD", como texto (mismo motivo que CatalogSet.releaseDate). */
+  /** Formato "YYYY-MM-DD", como texto: nunca "date" de Postgres (desfase de zona horaria
+   * al leerla de vuelta con `new Date(...).toISOString()`, ver ARCHITECTURE.md). */
   purchaseDate: string | null;
-  /** No hay precio de mercado automático para sellado: se estima a mano, y la
-   * corrección queda identificada como tal (fecha + nota), igual que en CollectionItem. */
+  /** No hay precio de mercado automático: se estima a mano, y la corrección queda
+   * identificada como tal (fecha + nota). */
   estimatedValueOverride: number | null;
   estimatedValueOverrideAt: string | null;
   estimatedValueOverrideNote: string | null;
   location: string | null;
   notes: string | null;
+  /** Data URL de la foto de la caja/sobre, opcional. */
+  photo: string | null;
 }
 
 export type NewSealedPurchase = Omit<SealedPurchase, "id">;
@@ -88,12 +31,17 @@ export type CardLanguage = "en" | "es" | "fr" | "de" | "it" | "pt" | "ja" | "ko"
 export type CardCondition = "mint" | "near_mint" | "excellent" | "good" | "light_played" | "played" | "poor";
 export type AcquisitionType = "purchased_single" | "pulled_from_pack" | "trade" | "gift";
 
-/** Un ejemplar físico que posee el usuario — no la carta de catálogo en sí. La misma
- * carta puede tener varias filas (distinto idioma, estado, graduación...), cada una con
- * su propio historial de compra. */
+/** Un ejemplar físico que posee el usuario, con sus propios datos (no hay catálogo
+ * externo: ver domain/ports.ts VisualMatchProvider — los datos vienen de reconocer una
+ * foto, y siempre se revisan/editan a mano antes de guardar). La misma carta puede tener
+ * varias filas (distinto idioma, estado, graduación...), cada una con su propio
+ * historial de compra. */
 export interface CollectionItem {
   id: string;
-  catalogCardId: string;
+  name: string;
+  setName: string | null;
+  number: string | null;
+  rarity: string | null;
   language: CardLanguage;
   condition: CardCondition;
   quantity: number;
@@ -104,15 +52,19 @@ export interface CollectionItem {
    * rellena con 0 para no mentir sobre un coste que no se sabe. */
   purchasePrice: number | null;
   purchaseCurrency: string;
-  /** Formato "YYYY-MM-DD", como texto (mismo motivo que CatalogSet.releaseDate). */
+  /** Formato "YYYY-MM-DD", como texto (mismo motivo que en SealedPurchase). */
   purchaseDate: string | null;
   isGraded: boolean;
   gradingCompany: string | null;
   grade: number | null;
+  /** Sin precio de mercado automático: es la única fuente de valor estimado, siempre
+   * identificada con fecha y nota. */
   estimatedValueOverride: number | null;
   estimatedValueOverrideAt: string | null;
   estimatedValueOverrideNote: string | null;
   notes: string | null;
+  /** Data URL de la foto de la carta, opcional. */
+  photo: string | null;
 }
 
 export type NewCollectionItem = Omit<CollectionItem, "id">;
@@ -123,25 +75,17 @@ export type WishlistPriority = "low" | "medium" | "high";
 
 export interface WishlistItem {
   id: string;
-  catalogCardId: string;
+  name: string;
+  setName: string | null;
   priority: WishlistPriority;
   maxPrice: number | null;
   /** Formato "YYYY-MM", null si no tiene mes objetivo asignado. */
   targetMonth: string | null;
   notes: string | null;
+  photo: string | null;
 }
 
 export type NewWishlistItem = Omit<WishlistItem, "id">;
-
-// ---- Vistas compuestas para la UI (join hecho en application/, no en el repositorio) ----
-
-export interface CollectionItemWithCard extends CollectionItem {
-  card: CatalogCard;
-}
-
-export interface WishlistItemWithCard extends WishlistItem {
-  card: CatalogCard;
-}
 
 export interface CollectionSummary {
   totalItems: number;
@@ -152,6 +96,20 @@ export interface CollectionSummary {
    * (regla de negocio: no tratar "sin precio" como valor cero silenciosamente). */
   itemsWithoutValue: number;
   totalInvested: number;
+}
+
+// ---- Reconocimiento de cartas/producto a partir de una foto ----
+// Ver domain/ports.ts VisualMatchProvider. Nunca se da de alta nada automáticamente: el
+// resultado siempre se muestra en un formulario para revisar/editar antes de guardar.
+
+export type RecognitionConfidence = "high" | "medium" | "low";
+
+export interface RecognizedCardData {
+  name: string | null;
+  setName: string | null;
+  number: string | null;
+  rarity: string | null;
+  confidence: RecognitionConfidence | null;
 }
 
 // ---- Plan de compra mensual ----

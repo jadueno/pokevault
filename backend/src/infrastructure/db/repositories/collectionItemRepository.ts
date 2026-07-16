@@ -10,7 +10,10 @@ import type { CollectionItemRepository } from "../../../domain/ports.js";
 
 interface CollectionItemRow {
   id: string;
-  catalog_card_id: string;
+  name: string;
+  set_name: string | null;
+  number: string | null;
+  rarity: string | null;
   language: CardLanguage;
   condition: CardCondition;
   quantity: number;
@@ -26,16 +29,20 @@ interface CollectionItemRow {
   estimated_value_override_at: string | null;
   estimated_value_override_note: string | null;
   notes: string | null;
+  photo: string | null;
 }
 
-const COLUMNS = `id, catalog_card_id, language, condition, quantity, acquisition_type, sealed_purchase_id,
-  purchase_price, purchase_currency, purchase_date, is_graded, grading_company, grade, estimated_value_override,
-  estimated_value_override_at, estimated_value_override_note, notes`;
+const COLUMNS = `id, name, set_name, number, rarity, language, condition, quantity, acquisition_type,
+  sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded, grading_company, grade,
+  estimated_value_override, estimated_value_override_at, estimated_value_override_note, notes, photo`;
 
 function toCollectionItem(row: CollectionItemRow): CollectionItem {
   return {
     id: row.id,
-    catalogCardId: row.catalog_card_id,
+    name: row.name,
+    setName: row.set_name,
+    number: row.number,
+    rarity: row.rarity,
     language: row.language,
     condition: row.condition,
     quantity: row.quantity,
@@ -53,6 +60,7 @@ function toCollectionItem(row: CollectionItemRow): CollectionItem {
       : null,
     estimatedValueOverrideNote: row.estimated_value_override_note,
     notes: row.notes,
+    photo: row.photo,
   };
 }
 
@@ -65,13 +73,17 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
 
     async create(entity: NewCollectionItem) {
       const { rows } = await pool.query<CollectionItemRow>(
-        `insert into collection_items (catalog_card_id, language, condition, quantity, acquisition_type,
-           sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded, grading_company,
-           grade, estimated_value_override, estimated_value_override_at, estimated_value_override_note, notes)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        `insert into collection_items (name, set_name, number, rarity, language, condition, quantity,
+           acquisition_type, sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded,
+           grading_company, grade, estimated_value_override, estimated_value_override_at,
+           estimated_value_override_note, notes, photo)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          returning ${COLUMNS}`,
         [
-          entity.catalogCardId,
+          entity.name,
+          entity.setName,
+          entity.number,
+          entity.rarity,
           entity.language,
           entity.condition,
           entity.quantity,
@@ -87,6 +99,7 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
           entity.estimatedValueOverrideAt,
           entity.estimatedValueOverrideNote,
           entity.notes,
+          entity.photo,
         ],
       );
       return toCollectionItem(rows[0]);
@@ -95,14 +108,18 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
     async update(id: string, entity: NewCollectionItem) {
       const { rows } = await pool.query<CollectionItemRow>(
         `update collection_items
-         set catalog_card_id = $1, language = $2, condition = $3, quantity = $4, acquisition_type = $5,
-             sealed_purchase_id = $6, purchase_price = $7, purchase_currency = $8, purchase_date = $9,
-             is_graded = $10, grading_company = $11, grade = $12, estimated_value_override = $13,
-             estimated_value_override_at = $14, estimated_value_override_note = $15, notes = $16, updated_at = now()
-         where id = $17
+         set name = $1, set_name = $2, number = $3, rarity = $4, language = $5, condition = $6, quantity = $7,
+             acquisition_type = $8, sealed_purchase_id = $9, purchase_price = $10, purchase_currency = $11,
+             purchase_date = $12, is_graded = $13, grading_company = $14, grade = $15,
+             estimated_value_override = $16, estimated_value_override_at = $17, estimated_value_override_note = $18,
+             notes = $19, photo = $20, updated_at = now()
+         where id = $21
          returning ${COLUMNS}`,
         [
-          entity.catalogCardId,
+          entity.name,
+          entity.setName,
+          entity.number,
+          entity.rarity,
           entity.language,
           entity.condition,
           entity.quantity,
@@ -118,6 +135,7 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
           entity.estimatedValueOverrideAt,
           entity.estimatedValueOverrideNote,
           entity.notes,
+          entity.photo,
           id,
         ],
       );

@@ -1,39 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { WishlistItemWithCard } from "./types";
+import type { WishlistItem } from "./types";
 import { formatMoney, groupWishlistByMonth } from "./calculations";
 
-function card(overrides: Partial<WishlistItemWithCard["card"]> = {}) {
-  return {
-    id: "c1",
-    provider: "fake",
-    externalId: "base1-4",
-    setId: "s1",
-    name: "Charizard",
-    number: "4",
-    rarity: "Rare Holo",
-    artist: null,
-    supertype: "Pokémon",
-    subtypes: [],
-    types: ["Fire"],
-    imageSmallUrl: null,
-    imageLargeUrl: null,
-    currentPrice: 120,
-    currentPriceCurrency: "EUR",
-    priceUpdatedAt: null,
-    priceSource: null,
-    ...overrides,
-  };
-}
-
-function wishlistItem(overrides: Partial<WishlistItemWithCard> = {}): WishlistItemWithCard {
+function wishlistItem(overrides: Partial<WishlistItem> = {}): WishlistItem {
   return {
     id: "w1",
-    catalogCardId: "c1",
+    name: "Charizard",
+    setName: "Base",
     priority: "medium",
     maxPrice: null,
     targetMonth: null,
     notes: null,
-    card: card(),
+    photo: null,
     ...overrides,
   };
 }
@@ -61,10 +39,7 @@ describe("groupWishlistByMonth", () => {
   });
 
   it("deja los elementos sin mes objetivo al final, en su propio grupo", () => {
-    const items = [
-      wishlistItem({ id: "w1", targetMonth: null }),
-      wishlistItem({ id: "w2", targetMonth: "2026-08" }),
-    ];
+    const items = [wishlistItem({ id: "w1", targetMonth: null }), wishlistItem({ id: "w2", targetMonth: "2026-08" })];
     const groups = groupWishlistByMonth(items);
     expect(groups.map((g) => g.month)).toEqual(["2026-08", null]);
   });

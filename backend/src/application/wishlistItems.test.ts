@@ -1,90 +1,67 @@
 import { describe, expect, it } from "vitest";
 import type { CollectionItem, NewCollectionItem, NewWishlistItem, WishlistItem } from "../domain/types.js";
-import { createFakeCatalogRepository } from "../test/fakeCatalogRepository.js";
 import { callAsync } from "../test/callAsync.js";
 import { createFakeRepository } from "../test/fakeRepository.js";
 import { createWishlistItemUseCases } from "./wishlistItems.js";
 
-function validItem(overrides: Partial<NewWishlistItem> = {}, catalogCardId: string): NewWishlistItem {
+function validItem(overrides: Partial<NewWishlistItem> = {}): NewWishlistItem {
   return {
-    catalogCardId,
+    name: "Charizard",
+    setName: "Base",
     priority: "medium",
     maxPrice: null,
     targetMonth: null,
     notes: null,
+    photo: null,
     ...overrides,
   };
 }
 
-async function setup() {
-  const catalogRepo = createFakeCatalogRepository();
-  const set = await catalogRepo.upsertSet("fake", {
-    externalId: "swsh1",
-    name: "Escarlata y Púrpura",
-    series: null,
-    printedTotal: null,
-    total: null,
-    releaseDate: null,
-    symbolUrl: null,
-    logoUrl: null,
-  });
-  const card = await catalogRepo.upsertCard("fake", set.id, {
-    externalId: "swsh1-4",
-    setExternalId: "swsh1",
-    name: "Charizard",
-    number: "4",
-    rarity: "Rare Holo",
-    artist: null,
-    supertype: "Pokémon",
-    subtypes: [],
-    types: ["Fire"],
-    imageSmallUrl: null,
-    imageLargeUrl: null,
-    price: { amount: 120, currency: "EUR" },
-  });
+function setup() {
   const repo = createFakeRepository<WishlistItem, NewWishlistItem>();
   const collectionRepo = createFakeRepository<CollectionItem, NewCollectionItem>();
-  const useCases = createWishlistItemUseCases(repo, catalogRepo, collectionRepo);
-  return { useCases, repo, collectionRepo, card };
+  const useCases = createWishlistItemUseCases(repo, collectionRepo);
+  return { useCases, repo, collectionRepo };
 }
 
 describe("createWishlistItemUseCases", () => {
   it("añade un elemento válido", async () => {
-    const { useCases, card } = await setup();
-    const created = await useCases.create(validItem({ priority: "high" }, card.id));
+    const { useCases } = setup();
+    const created = await useCases.create(validItem({ priority: "high" }));
     expect(created.priority).toBe("high");
+    expect(created.name).toBe("Charizard");
+  });
+
+  it("rechaza un nombre vacío", async () => {
+    const { useCases } = setup();
+    await expect(callAsync(() => useCases.create(validItem({ name: "  " })))).rejects.toThrow(
+      "no puede estar vacío",
+    );
   });
 
   it("rechaza una prioridad no reconocida", async () => {
-    const { useCases, card } = await setup();
+    const { useCases } = setup();
     await expect(
-      callAsync(() => useCases.create(validItem({ priority: "urgentísimo" as never }, card.id))),
+      callAsync(() => useCases.create(validItem({ priority: "urgentísimo" as never }))),
     ).rejects.toThrow("La prioridad debe ser una de");
   });
 
   it("acepta un mes objetivo con formato AAAA-MM", async () => {
-    const { useCases, card } = await setup();
-    const created = await useCases.create(validItem({ targetMonth: "2026-08" }, card.id));
+    const { useCases } = setup();
+    const created = await useCases.create(validItem({ targetMonth: "2026-08" }));
     expect(created.targetMonth).toBe("2026-08");
   });
 
   it("rechaza un mes objetivo con formato inválido", async () => {
-    const { useCases, card } = await setup();
-    await expect(
-      callAsync(() => useCases.create(validItem({ targetMonth: "agosto-2026" }, card.id))),
-    ).rejects.toThrow("formato AAAA-MM");
-  });
-
-  it("list() devuelve los deseos con la carta de catálogo ya unida", async () => {
-    const { useCases, card } = await setup();
-    await useCases.create(validItem({}, card.id));
-    const [item] = await useCases.list();
-    expect(item.card.name).toBe("Charizard");
+    const { useCases } = setup();
+    await expect(callAsync(() => useCases.create(validItem({ targetMonth: "agosto-2026" })))).rejects.toThrow(
+      "formato AAAA-MM",
+    );
   });
 
   it("moveToCollection registra la compra en la colección y quita el elemento de la wishlist", async () => {
-    const { useCases, repo, collectionRepo, card } = await setup();
-    const wish = await useCases.create(validItem({}, card.id));
+    const { useCases, repo, collectionRepo } = setup();
+    const wish = await useCases.create(validItem());
 
     const created = await useCases.moveToCollection(wish.id, {
       language: "es",
@@ -96,7 +73,7 @@ describe("createWishlistItemUseCases", () => {
       notes: null,
     });
 
-    expect(created.catalogCardId).toBe(card.id);
+    expect(created.name).toBe("Charizard");
     expect(created.acquisitionType).toBe("purchased_single");
     expect(created.purchasePrice).toBe(130);
     expect(await collectionRepo.list()).toHaveLength(1);
@@ -104,7 +81,7 @@ describe("createWishlistItemUseCases", () => {
   });
 
   it("rechaza moveToCollection para un elemento inexistente", async () => {
-    const { useCases } = await setup();
+    const { useCases } = setup();
     await expect(
       callAsync(() =>
         useCases.moveToCollection("no-existe", {

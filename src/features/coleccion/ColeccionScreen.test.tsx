@@ -2,13 +2,16 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
-import type { CollectionItemWithCard } from "../../domain/types";
+import type { CollectionItem } from "../../domain/types";
 import { ColeccionScreen } from "./ColeccionScreen";
 
-function item(overrides: Partial<CollectionItemWithCard> = {}): CollectionItemWithCard {
+function item(overrides: Partial<CollectionItem> = {}): CollectionItem {
   return {
     id: "i1",
-    catalogCardId: "c1",
+    name: "Charizard",
+    setName: "Base",
+    number: "4",
+    rarity: "Rare Holo",
     language: "es",
     condition: "near_mint",
     quantity: 1,
@@ -20,34 +23,16 @@ function item(overrides: Partial<CollectionItemWithCard> = {}): CollectionItemWi
     isGraded: false,
     gradingCompany: null,
     grade: null,
-    estimatedValueOverride: null,
+    estimatedValueOverride: 350,
     estimatedValueOverrideAt: null,
     estimatedValueOverrideNote: null,
     notes: null,
-    card: {
-      id: "c1",
-      provider: "fake",
-      externalId: "base1-4",
-      setId: "s1",
-      name: "Charizard",
-      number: "4",
-      rarity: "Rare Holo",
-      artist: null,
-      supertype: "Pokémon",
-      subtypes: [],
-      types: ["Fire"],
-      imageSmallUrl: null,
-      imageLargeUrl: null,
-      currentPrice: 350,
-      currentPriceCurrency: "EUR",
-      priceUpdatedAt: null,
-      priceSource: null,
-    },
+    photo: null,
     ...overrides,
   };
 }
 
-function renderScreen(items: CollectionItemWithCard[]) {
+function renderScreen(items: CollectionItem[]) {
   const handlers = { onRemove: vi.fn().mockResolvedValue(undefined), onOverrideValue: vi.fn().mockResolvedValue(undefined) };
   render(
     <ConfirmProvider>
@@ -97,5 +82,15 @@ describe("ColeccionScreen", () => {
     await user.click(screen.getByRole("button", { name: "OK" }));
 
     expect(handlers.onOverrideValue).toHaveBeenCalledWith("i1", 400, "Corrección manual");
+  });
+
+  it("filtra la colección por nombre con el buscador propio", async () => {
+    const user = userEvent.setup();
+    renderScreen([item({ id: "i1", name: "Charizard" }), item({ id: "i2", name: "Pikachu", estimatedValueOverride: 5 })]);
+
+    await user.type(screen.getByPlaceholderText("Buscar en tu colección…"), "pika");
+
+    expect(screen.getByText("Pikachu")).toBeInTheDocument();
+    expect(screen.queryByText("Charizard")).not.toBeInTheDocument();
   });
 });

@@ -1,15 +1,13 @@
-import { execSync } from "node:child_process";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import { Client } from "pg";
 
-const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "catalog_sync_log", "catalog_cards", "catalog_sets"];
+const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items"];
 
-/**
- * Prepara la base de datos de test antes de la suite E2E: migra, la deja vacía, y
- * siembra el catálogo con el proveedor fake (determinista, sin red, incluye
- * "Charizard") — el mismo mecanismo que usaría `npm run sync:catalog` en producción,
- * solo que contra un fixture fijo en vez de la API real.
- */
+/** Prepara la base de datos de test antes de la suite E2E: migra y la deja vacía
+ * (salvo "plan_settings", singleton sembrado por la propia migración). Sin catálogo
+ * externo que sincronizar: el reconocimiento de fotos usa el proveedor fake en E2E
+ * (forzado en playwright.config.ts con OLLAMA_BASE_URL vacío), determinista sin red. */
 export default async function globalSetup() {
   const testUrl = process.env.TEST_DATABASE_URL;
   if (!testUrl) {
@@ -27,10 +25,4 @@ export default async function globalSetup() {
   await client.connect();
   await client.query(`truncate table ${TABLES.join(", ")} restart identity cascade`);
   await client.end();
-
-  execSync("npm run sync:catalog", {
-    cwd: backendDir,
-    stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: testUrl, CATALOG_PROVIDER: "fake" },
-  });
 }

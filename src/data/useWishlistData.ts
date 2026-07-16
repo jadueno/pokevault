@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import type { MoveToCollectionDetails, NewWishlistItem, WishlistItemWithCard } from "../domain/types";
-import {
-  createWishlistItem,
-  listWishlistItems,
-  moveWishlistItemToCollection,
-  removeWishlistItem,
-  updateWishlistItem,
-} from "./api";
+import type { MoveToCollectionDetails, NewWishlistItem, WishlistItem } from "../domain/types";
+import { moveWishlistItemToCollection, wishlistItemClient } from "./api";
 
 export function useWishlistData() {
-  const [items, setItems] = useState<WishlistItemWithCard[]>([]);
+  const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +11,7 @@ export function useWishlistData() {
     setLoading(true);
     setError(null);
     try {
-      setItems(await listWishlistItems<WishlistItemWithCard[]>());
+      setItems(await wishlistItemClient.list());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error cargando la wishlist");
     } finally {
@@ -35,15 +29,15 @@ export function useWishlistData() {
     error,
     reload,
     addItem: async (entity: NewWishlistItem) => {
-      await createWishlistItem(entity);
+      await wishlistItemClient.create(entity);
       await reload();
     },
     updateItem: async (id: string, entity: NewWishlistItem) => {
-      await updateWishlistItem(id, entity);
+      await wishlistItemClient.update(id, entity);
       await reload();
     },
     removeItem: async (id: string) => {
-      await removeWishlistItem(id);
+      await wishlistItemClient.remove(id);
       await reload();
     },
     /** Registra la compra en la colección y quita el elemento de la wishlist —

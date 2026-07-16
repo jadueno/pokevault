@@ -1,6 +1,6 @@
 # PokéVault
 
-Gestor personal de colecciones de cartas Pokémon TCG: cartas sueltas, producto sellado, wishlist con objetivo de compra mensual, y valor total estimado de todo lo que tienes.
+Gestor personal de colecciones de cartas Pokémon TCG: haces una foto a lo que compras (carta o caja), se identifica con IA local, y queda registrado con precio de compra, valor estimado y plan de compra mensual.
 
 Es una herramienta de uso personal (como sus hermanos [rumbo](../rumbo), [nous](../nous) y [faro](../faro)) construida con calidad de producto real: base de datos real, arquitectura hexagonal, tests de verdad. Multi-usuario real (login, colecciones compartidas) queda para más adelante — ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -26,14 +26,15 @@ cd ..
 npm install
 ```
 
-`npm run migrate:up` deja el esquema listo, pero **la tabla de cartas está vacía hasta que sincronices el catálogo**:
+### Reconocimiento de fotos (opcional, recomendado)
+
+Sin nada configurado, "Añadir" sigue funcionando pero siempre hay que rellenar los datos a mano. Con [Ollama](https://ollama.com) instalado y corriendo (el mismo que usa `nous`):
 
 ```bash
-cd backend
-npm run sync:catalog
+ollama pull minicpm-v
 ```
 
-Tarda varios minutos la primera vez (recorre todos los sets y cartas de [pokemontcg.io](https://pokemontcg.io)). Sin `POKEMON_TCG_API_KEY` en `backend/.env` sigue funcionando, solo con menos margen de peticiones por minuto — consigue una gratis en [dev.pokemontcg.io](https://dev.pokemontcg.io) si vas a repetir la sincronización a menudo.
+Y descomenta `OLLAMA_BASE_URL=http://localhost:11434` en `backend/.env`. `minicpm-v` es, de los modelos de visión habituales en Ollama, de los que mejor lee texto pequeño (nombre, número, rareza) para su tamaño — alternativas: `llava`, `llama3.2-vision` (`OLLAMA_VISION_MODEL` en `backend/.env`).
 
 ## Arrancar en el día a día
 
@@ -50,8 +51,6 @@ npm run dev
 
 O directamente `../start-project.sh pokevault` desde `~/AI/proyectos`, que levanta los tres servicios de una vez.
 
-Conviene volver a correr `npm run sync:catalog` de vez en cuando (semanal, por ejemplo) para refrescar precios y nuevos sets — no hay job automático todavía, es manual a propósito hasta que se use lo suficiente para justificar programarlo.
-
 ## Tests
 
 ```bash
@@ -65,24 +64,24 @@ npm test
 npm run test:e2e
 ```
 
-## Qué hace la Fase 1 (la que ya está construida)
+## Qué hace la app
 
-- **Buscar**: busca en el catálogo sincronizado por nombre, filtra por expansión, y desde el detalle de una carta la añades a tu colección (idioma, estado de conservación, cantidad, precio de compra, si es graduada) o a tu wishlist.
-- **Mi colección**: todos tus ejemplares, con su valor de mercado actual (o una corrección manual tuya, si prefieres tu propia estimación) y la diferencia frente a lo que pagaste.
-- **Producto sellado**: sobres, cajas, ETBs — registro de compra con ubicación física, sin depender de un precio de mercado automático (no existe para sellado) porque se estima a mano.
-- **Plan**: tu checklist de compra mes a mes (comprar / abrir / guardar sellado), con presupuesto mensual y notas generales del año. El "hecho" de cada ítem es una casilla de seguimiento independiente — no registra nada en tu colección ni cuenta en el valor total.
-- **Wishlist**: prioridad, precio máximo, y un **mes objetivo de compra** ("en agosto esto, en septiembre esto otro") — agrupa la propia wishlist por mes, sin necesitar una pantalla aparte. "Ya la tengo" mueve el deseo a tu colección registrando la compra real.
-- **Resumen**: valor total (cartas + sellado), lo invertido, ganancia o pérdida estimada — y un aviso aparte para lo que no tiene valor de mercado conocido todavía (nunca se cuenta como 0€ en silencio).
+- **Añadir**: haz una foto a una carta o a una caja. Un modelo de visión local (Ollama) sugiere nombre, expansión, número y rareza — siempre revisas y editas antes de guardar, nunca se da de alta nada automáticamente. Eliges el destino: tu colección, la wishlist, o producto sellado.
+- **Mi colección**: todos tus ejemplares, con tu propia estimación de valor (sin catálogo externo, no hay precio de mercado automático) y la diferencia frente a lo que pagaste. Buscador propio sobre lo que ya tienes.
+- **Producto sellado**: sobres, cajas, ETBs — registro de compra con ubicación física y valor estimado a mano.
+- **Plan**: tu checklist de compra mes a mes (comprar / abrir / guardar sellado), con presupuesto mensual, páginas de compra habituales y notas generales del año. El "hecho" de cada ítem es una casilla de seguimiento independiente — no registra nada en tu colección ni cuenta en el valor total.
+- **Wishlist**: deseos puntuales de algo que no tienes todavía, con prioridad, precio máximo y un **mes objetivo de compra** — agrupa la propia wishlist por mes, sin necesitar una pantalla aparte. "Ya la tengo" mueve el deseo a tu colección registrando la compra real.
+- **Resumen**: valor total (cartas + sellado), lo invertido, ganancia o pérdida estimada — y un aviso aparte para lo que no tiene valor estimado todavía (nunca se cuenta como 0€ en silencio).
 
 ## Estructura
 
 - `src/` — frontend (React + Vite + Tailwind).
-- `backend/src/domain|application|infrastructure/` — hexagonal: dominio puro, casos de uso, adaptadores (Postgres, catálogo).
-- `backend/src/infrastructure/catalog/` — `pokemonTcgApiProvider.ts` (real) + `fakeCatalogProvider.ts` (tests/E2E) + `syncCatalog.ts` (script que puebla la caché local).
-- `e2e/` — Playwright, contra el catálogo fake sembrado en `global-setup.ts`.
+- `backend/src/domain|application|infrastructure/` — hexagonal: dominio puro, casos de uso, adaptadores (Postgres, visión).
+- `backend/src/infrastructure/vision/` — `ollamaVisionProvider.ts` (real, Ollama local) + `fakeVisionProvider.ts` (tests/E2E).
+- `e2e/` — Playwright, contra el proveedor de visión fake (determinista, forzado en `playwright.config.ts`).
 
-Más detalle de las decisiones técnicas (por qué se cachea el catálogo, por qué no hay auth todavía, el riesgo del proveedor de datos) en [ARCHITECTURE.md](ARCHITECTURE.md).
+Más detalle de las decisiones técnicas (por qué no hay catálogo externo, cómo funciona el reconocimiento por foto, por qué no hay auth todavía) en [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Privacidad
 
-Herramienta de uso personal: no hay despliegue público. Los datos viven en tu propia base de datos local (Docker), igual que rumbo/nous/faro.
+Herramienta de uso personal: no hay despliegue público. Los datos viven en tu propia base de datos local (Docker), igual que rumbo/nous/faro. Las fotos se procesan con un modelo de IA local (Ollama, en tu propia máquina) — nunca se suben a un servicio de terceros.

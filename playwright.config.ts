@@ -22,7 +22,10 @@ export default defineConfig({
       cwd: "backend",
       port: BACKEND_PORT,
       reuseExistingServer: !process.env.CI,
-      env: { PORT: String(BACKEND_PORT), DATABASE_URL: process.env.TEST_DATABASE_URL ?? "" },
+      // OLLAMA_BASE_URL vacío fuerza el proveedor de visión fake (determinista, sin
+      // red), aunque el .env local del desarrollador tenga Ollama configurado —
+      // mismo criterio que "nous" para que el E2E no dependa de qué haya corriendo.
+      env: { PORT: String(BACKEND_PORT), DATABASE_URL: process.env.TEST_DATABASE_URL ?? "", OLLAMA_BASE_URL: "" },
     },
     {
       command: `npx vite --port ${FRONTEND_PORT}`,

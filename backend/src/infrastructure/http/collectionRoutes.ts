@@ -7,8 +7,6 @@ export function registerCollectionRoutes(
   app: FastifyInstance,
   useCases: ReturnType<typeof createCollectionItemUseCases>,
 ): void {
-  // GET /collection-items lista con la carta de catálogo ya unida (list() hace el join),
-  // así que no se registra vía registerCrudRoutes para ese verbo — el resto sí encaja.
   app.get("/collection-items", async () => useCases.list());
 
   app.post("/collection-items", async (request, reply) => {

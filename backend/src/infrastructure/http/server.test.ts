@@ -2,32 +2,15 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPool, resetDatabase } from "../../test/testPool.js";
+import { createFakeVisionProvider } from "../vision/fakeVisionProvider.js";
 import { buildServer } from "./server.js";
 
 let pool: Pool;
 let app: FastifyInstance;
 
-/** Inserta un set + una carta directamente por SQL: el servidor nunca llama al
- * CatalogProvider (solo lo hace syncCatalog.ts), así que los tests HTTP necesitan su
- * propia fixture de catálogo ya en la BD, igual que haría la sincronización real. */
-async function insertFixtureCard(overrides: { name?: string; currentPrice?: number | null } = {}) {
-  const { rows: setRows } = await pool.query(
-    `insert into catalog_sets (provider, external_id, name) values ('fake', 'base1', 'Base') returning id`,
-  );
-  const setId = setRows[0].id;
-  const { rows: cardRows } = await pool.query(
-    `insert into catalog_cards (provider, external_id, set_id, name, number, rarity, supertype, current_price,
-       current_price_currency, price_updated_at, price_source)
-     values ('fake', 'base1-4', $1, $2, '4', 'Rare Holo', 'Pokémon', $3, 'EUR', now(), 'fake')
-     returning id, name`,
-    [setId, overrides.name ?? "Charizard", overrides.currentPrice ?? 120],
-  );
-  return { setId, cardId: cardRows[0].id as string, cardName: cardRows[0].name as string };
-}
-
 beforeAll(async () => {
   pool = createTestPool();
-  app = await buildServer(pool, { logger: false });
+  app = await buildServer(pool, createFakeVisionProvider(), { logger: false });
 });
 
 afterEach(async () => {
@@ -47,31 +30,13 @@ describe("GET /health", () => {
   });
 });
 
-describe("/catalog", () => {
-  it("lista sets y busca cartas por nombre", async () => {
-    await insertFixtureCard();
-
-    const sets = await app.inject({ method: "GET", url: "/catalog/sets" });
-    expect(sets.statusCode).toBe(200);
-    expect(sets.json()).toHaveLength(1);
-
-    const search = await app.inject({ method: "GET", url: "/catalog/cards?q=charizard" });
-    expect(search.statusCode).toBe(200);
-    expect(search.json()).toHaveLength(1);
-    expect(search.json()[0].name).toBe("Charizard");
-  });
-
-  it("GET /catalog/cards/:id responde 404 si no existe", async () => {
-    const res = await app.inject({ method: "GET", url: "/catalog/cards/00000000-0000-0000-0000-000000000000" });
-    expect(res.statusCode).toBe(404);
-  });
-});
-
 describe("/collection-items", () => {
-  it("crea, lista (con carta unida), actualiza y borra un ejemplar", async () => {
-    const { cardId } = await insertFixtureCard();
-    const payload = {
-      catalogCardId: cardId,
+  function payload(overrides: Record<string, unknown> = {}) {
+    return {
+      name: "Charizard",
+      setName: "Base",
+      number: "4",
+      rarity: "Rare Holo",
       language: "es",
       condition: "near_mint",
       quantity: 1,
@@ -87,24 +52,28 @@ describe("/collection-items", () => {
       estimatedValueOverrideAt: null,
       estimatedValueOverrideNote: null,
       notes: null,
+      photo: null,
+      ...overrides,
     };
+  }
 
-    const create = await app.inject({ method: "POST", url: "/collection-items", payload });
+  it("crea, lista, actualiza y borra un ejemplar", async () => {
+    const create = await app.inject({ method: "POST", url: "/collection-items", payload: payload() });
     expect(create.statusCode).toBe(201);
     const item = create.json();
     // Regresión: purchase_date se guardaba como "date" de Postgres, y al leerlo de
     // vuelta con `new Date(...).toISOString()` se desplazaba un día según la zona
     // horaria del proceso (España, UTC+1/+2) — "2026-07-01" volvía como "2026-06-30".
     expect(item.purchaseDate).toBe("2026-07-01");
+    expect(item.name).toBe("Charizard");
 
     const list = await app.inject({ method: "GET", url: "/collection-items" });
     expect(list.json()).toHaveLength(1);
-    expect(list.json()[0].card.name).toBe("Charizard");
 
     const update = await app.inject({
       method: "PUT",
       url: `/collection-items/${item.id}`,
-      payload: { ...payload, quantity: 2 },
+      payload: payload({ quantity: 2 }),
     });
     expect(update.statusCode).toBe(200);
     expect(update.json().quantity).toBe(2);
@@ -115,55 +84,20 @@ describe("/collection-items", () => {
   });
 
   it("responde 400 con un idioma no reconocido", async () => {
-    const { cardId } = await insertFixtureCard();
-    const res = await app.inject({
-      method: "POST",
-      url: "/collection-items",
-      payload: {
-        catalogCardId: cardId,
-        language: "klingon",
-        condition: "near_mint",
-        quantity: 1,
-        acquisitionType: "purchased_single",
-        sealedPurchaseId: null,
-        purchasePrice: null,
-        purchaseCurrency: "EUR",
-        purchaseDate: null,
-        isGraded: false,
-        gradingCompany: null,
-        grade: null,
-        estimatedValueOverride: null,
-        estimatedValueOverrideAt: null,
-        estimatedValueOverrideNote: null,
-        notes: null,
-      },
-    });
+    const res = await app.inject({ method: "POST", url: "/collection-items", payload: payload({ language: "klingon" }) });
     expect(res.statusCode).toBe(400);
   });
 
-  it("GET /collection-items/summary suma valor estimado × cantidad", async () => {
-    const { cardId } = await insertFixtureCard({ currentPrice: 100 });
-    await app.inject({
+  it("GET /collection-items/summary suma valor estimado × cantidad, usando la corrección manual", async () => {
+    const create = await app.inject({
       method: "POST",
       url: "/collection-items",
-      payload: {
-        catalogCardId: cardId,
-        language: "es",
-        condition: "near_mint",
-        quantity: 3,
-        acquisitionType: "purchased_single",
-        sealedPurchaseId: null,
-        purchasePrice: 90,
-        purchaseCurrency: "EUR",
-        purchaseDate: "2026-07-01",
-        isGraded: false,
-        gradingCompany: null,
-        grade: null,
-        estimatedValueOverride: null,
-        estimatedValueOverrideAt: null,
-        estimatedValueOverrideNote: null,
-        notes: null,
-      },
+      payload: payload({ quantity: 3, purchasePrice: 90 }),
+    });
+    await app.inject({
+      method: "PUT",
+      url: `/collection-items/${create.json().id}/estimated-value`,
+      payload: { value: 100, note: "Estimado a mano" },
     });
     const summary = await app.inject({ method: "GET", url: "/collection-items/summary" });
     expect(summary.json().totalValue).toBe(300);
@@ -171,29 +105,7 @@ describe("/collection-items", () => {
   });
 
   it("PUT /collection-items/:id/estimated-value marca la corrección manual", async () => {
-    const { cardId } = await insertFixtureCard();
-    const create = await app.inject({
-      method: "POST",
-      url: "/collection-items",
-      payload: {
-        catalogCardId: cardId,
-        language: "es",
-        condition: "near_mint",
-        quantity: 1,
-        acquisitionType: "purchased_single",
-        sealedPurchaseId: null,
-        purchasePrice: 25,
-        purchaseCurrency: "EUR",
-        purchaseDate: "2026-07-01",
-        isGraded: false,
-        gradingCompany: null,
-        grade: null,
-        estimatedValueOverride: null,
-        estimatedValueOverrideAt: null,
-        estimatedValueOverrideNote: null,
-        notes: null,
-      },
-    });
+    const create = await app.inject({ method: "POST", url: "/collection-items", payload: payload() });
     const res = await app.inject({
       method: "PUT",
       url: `/collection-items/${create.json().id}/estimated-value`,
@@ -206,11 +118,10 @@ describe("/collection-items", () => {
 
 describe("/wishlist-items", () => {
   it("crea, lista y mueve un deseo a la colección", async () => {
-    const { cardId } = await insertFixtureCard();
     const create = await app.inject({
       method: "POST",
       url: "/wishlist-items",
-      payload: { catalogCardId: cardId, priority: "high", maxPrice: 150, targetMonth: "2026-08", notes: null },
+      payload: { name: "Charizard", setName: "Base", priority: "high", maxPrice: 150, targetMonth: "2026-08", notes: null, photo: null },
     });
     expect(create.statusCode).toBe(201);
 
@@ -228,16 +139,16 @@ describe("/wishlist-items", () => {
       },
     });
     expect(move.statusCode).toBe(201);
+    expect(move.json().name).toBe("Charizard");
     expect((await app.inject({ method: "GET", url: "/wishlist-items" })).json()).toEqual([]);
     expect((await app.inject({ method: "GET", url: "/collection-items" })).json()).toHaveLength(1);
   });
 
   it("responde 400 con un mes objetivo mal formado", async () => {
-    const { cardId } = await insertFixtureCard();
     const res = await app.inject({
       method: "POST",
       url: "/wishlist-items",
-      payload: { catalogCardId: cardId, priority: "medium", maxPrice: null, targetMonth: "agosto", notes: null },
+      payload: { name: "Charizard", setName: null, priority: "medium", maxPrice: null, targetMonth: "agosto", notes: null, photo: null },
     });
     expect(res.statusCode).toBe(400);
   });
@@ -247,7 +158,6 @@ describe("/sealed-purchases", () => {
   it("crea, lista, actualiza y borra una compra de sellado", async () => {
     const payload = {
       productName: "Sobre Evoluciones Prismáticas",
-      catalogSetId: null,
       productType: "booster_pack",
       quantity: 3,
       purchasePrice: 5.5,
@@ -258,6 +168,7 @@ describe("/sealed-purchases", () => {
       estimatedValueOverrideNote: null,
       location: "Cajón del salón",
       notes: null,
+      photo: null,
     };
     const create = await app.inject({ method: "POST", url: "/sealed-purchases", payload });
     expect(create.statusCode).toBe(201);
@@ -346,9 +257,30 @@ describe("/plan-settings", () => {
   });
 });
 
+describe("/card-recognition", () => {
+  it("devuelve los datos reconocidos por el proveedor de visión (fake en tests)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/card-recognition",
+      payload: { imageDataUrl: "data:image/jpeg;base64,AAAA" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ name: "Charizard", setName: "Base", number: "4/102", rarity: "Rare Holo", confidence: "high" });
+  });
+
+  it("responde 400 si la foto no es una data URL de imagen", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/card-recognition",
+      payload: { imageDataUrl: "https://ejemplo.com/foto.jpg" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
   it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
-    const authedApp = await buildServer(pool, { logger: false, apiToken: "demo-token" });
+    const authedApp = await buildServer(pool, createFakeVisionProvider(), { logger: false, apiToken: "demo-token" });
 
     const withoutToken = await authedApp.inject({ method: "GET", url: "/collection-items" });
     expect(withoutToken.statusCode).toBe(401);

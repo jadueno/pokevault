@@ -14,15 +14,18 @@ const PRODUCT_TYPES: { value: SealedProductType; label: string }[] = [
 ];
 
 export function SealedPurchaseForm({
+  initialName,
+  photo,
   onSubmit,
   onCancel,
 }: {
+  initialName?: string;
+  photo?: string | null;
   onSubmit: (entity: NewSealedPurchase) => Promise<void>;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<NewSealedPurchase>({
-    productName: "",
-    catalogSetId: null,
+    productName: initialName ?? "",
     productType: "booster_pack",
     quantity: 1,
     purchasePrice: null,
@@ -33,6 +36,7 @@ export function SealedPurchaseForm({
     estimatedValueOverrideNote: null,
     location: null,
     notes: null,
+    photo: photo ?? null,
   });
   const [saving, setSaving] = useState(false);
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CollectionItemWithCard } from "../../domain/types";
+import type { CollectionItem } from "../../domain/types";
 import { formatMoney } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -36,19 +36,17 @@ function ItemCard({
   onRemove,
   onOverrideValue,
 }: {
-  item: CollectionItemWithCard;
+  item: CollectionItem;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
 }) {
   const confirm = useConfirm();
   const [editingValue, setEditingValue] = useState(false);
-  const [valueInput, setValueInput] = useState(String(item.estimatedValueOverride ?? item.card.currentPrice ?? ""));
+  const [valueInput, setValueInput] = useState(String(item.estimatedValueOverride ?? ""));
   const [busy, setBusy] = useState(false);
 
-  const estimatedValue = item.estimatedValueOverride ?? item.card.currentPrice;
-
   async function handleRemove() {
-    if (await confirm(`¿Eliminar este ejemplar de "${item.card.name}"? Esta acción no se puede deshacer.`)) {
+    if (await confirm(`¿Eliminar este ejemplar de "${item.name}"? Esta acción no se puede deshacer.`)) {
       await onRemove(item.id);
     }
   }
@@ -68,11 +66,10 @@ function ItemCard({
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        {item.card.imageSmallUrl && (
-          <img src={item.card.imageSmallUrl} alt={item.card.name} loading="lazy" className="w-16 shrink-0 rounded-lg" />
-        )}
+        {item.photo && <img src={item.photo} alt={item.name} loading="lazy" className="w-16 shrink-0 rounded-lg object-cover" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-[var(--text-primary)]">{item.card.name}</p>
+          <p className="truncate font-semibold text-[var(--text-primary)]">{item.name}</p>
+          {item.setName && <p className="truncate text-xs text-[var(--text-muted)]">{item.setName}</p>}
           <p className="text-xs text-[var(--text-muted)]">
             {LANGUAGE_LABELS[item.language]} · {CONDITION_LABELS[item.condition]} · x{item.quantity}
             {item.isGraded && ` · ${item.gradingCompany} ${item.grade}`}
@@ -104,13 +101,8 @@ function ItemCard({
             </Button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditingValue(true)}
-            className="font-semibold text-[var(--beacon)] hover:underline"
-          >
-            {estimatedValue !== null ? formatMoney(estimatedValue, item.card.currentPriceCurrency ?? "EUR") : "Sin valor conocido"}
-            {item.estimatedValueOverride !== null && <span className="ml-1 text-xs text-[var(--text-muted)]">(manual)</span>}
+          <button type="button" onClick={() => setEditingValue(true)} className="font-semibold text-[var(--beacon)] hover:underline">
+            {item.estimatedValueOverride !== null ? formatMoney(item.estimatedValueOverride) : "Sin valor conocido"}
           </button>
         )}
       </div>
@@ -119,7 +111,7 @@ function ItemCard({
         <button
           type="button"
           onClick={handleRemove}
-          aria-label={`Eliminar ejemplar de ${item.card.name}`}
+          aria-label={`Eliminar ejemplar de ${item.name}`}
           className="rounded-lg px-2 py-1 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--gridline)] hover:text-[var(--status-critical)]"
         >
           Eliminar
@@ -134,10 +126,15 @@ export function ColeccionScreen({
   onRemove,
   onOverrideValue,
 }: {
-  items: CollectionItemWithCard[];
+  items: CollectionItem[];
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
 }) {
+  const [query, setQuery] = useState("");
+  const filtered = query.trim()
+    ? items.filter((i) => `${i.name} ${i.setName ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()))
+    : items;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="py-4 sm:py-6">
@@ -148,15 +145,26 @@ export function ColeccionScreen({
         </p>
       </div>
 
+      {items.length > 0 && (
+        <input
+          className={`${inputClass} max-w-sm`}
+          placeholder="Buscar en tu colección…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      )}
+
       {items.length === 0 ? (
         <Card>
-          <p className="text-sm text-[var(--text-muted)]">
-            Todavía no has añadido ninguna carta. Ve a "Buscar" para empezar.
-          </p>
+          <p className="text-sm text-[var(--text-muted)]">Todavía no has añadido ninguna carta. Ve a "Añadir" para empezar.</p>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <p className="text-sm text-[var(--text-muted)]">Sin resultados para esa búsqueda.</p>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
+          {filtered.map((item) => (
             <ItemCard key={item.id} item={item} onRemove={onRemove} onOverrideValue={onOverrideValue} />
           ))}
         </div>

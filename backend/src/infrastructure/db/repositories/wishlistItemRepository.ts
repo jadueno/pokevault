@@ -4,23 +4,27 @@ import type { WishlistItemRepository } from "../../../domain/ports.js";
 
 interface WishlistItemRow {
   id: string;
-  catalog_card_id: string;
+  name: string;
+  set_name: string | null;
   priority: WishlistPriority;
   max_price: string | null;
   target_month: string | null;
   notes: string | null;
+  photo: string | null;
 }
 
-const COLUMNS = "id, catalog_card_id, priority, max_price, target_month, notes";
+const COLUMNS = "id, name, set_name, priority, max_price, target_month, notes, photo";
 
 function toWishlistItem(row: WishlistItemRow): WishlistItem {
   return {
     id: row.id,
-    catalogCardId: row.catalog_card_id,
+    name: row.name,
+    setName: row.set_name,
     priority: row.priority,
     maxPrice: row.max_price !== null ? Number(row.max_price) : null,
     targetMonth: row.target_month,
     notes: row.notes,
+    photo: row.photo,
   };
 }
 
@@ -35,10 +39,10 @@ export function createWishlistItemRepository(pool: Pool): WishlistItemRepository
 
     async create(entity: NewWishlistItem) {
       const { rows } = await pool.query<WishlistItemRow>(
-        `insert into wishlist_items (catalog_card_id, priority, max_price, target_month, notes)
-         values ($1, $2, $3, $4, $5)
+        `insert into wishlist_items (name, set_name, priority, max_price, target_month, notes, photo)
+         values ($1, $2, $3, $4, $5, $6, $7)
          returning ${COLUMNS}`,
-        [entity.catalogCardId, entity.priority, entity.maxPrice, entity.targetMonth, entity.notes],
+        [entity.name, entity.setName, entity.priority, entity.maxPrice, entity.targetMonth, entity.notes, entity.photo],
       );
       return toWishlistItem(rows[0]);
     },
@@ -46,10 +50,11 @@ export function createWishlistItemRepository(pool: Pool): WishlistItemRepository
     async update(id: string, entity: NewWishlistItem) {
       const { rows } = await pool.query<WishlistItemRow>(
         `update wishlist_items
-         set catalog_card_id = $1, priority = $2, max_price = $3, target_month = $4, notes = $5, updated_at = now()
-         where id = $6
+         set name = $1, set_name = $2, priority = $3, max_price = $4, target_month = $5, notes = $6, photo = $7,
+             updated_at = now()
+         where id = $8
          returning ${COLUMNS}`,
-        [entity.catalogCardId, entity.priority, entity.maxPrice, entity.targetMonth, entity.notes, id],
+        [entity.name, entity.setName, entity.priority, entity.maxPrice, entity.targetMonth, entity.notes, entity.photo, id],
       );
       return rows[0] ? toWishlistItem(rows[0]) : null;
     },

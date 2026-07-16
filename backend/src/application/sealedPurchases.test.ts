@@ -7,7 +7,6 @@ import { createSealedPurchaseUseCases } from "./sealedPurchases.js";
 function validPurchase(overrides: Partial<NewSealedPurchase> = {}): NewSealedPurchase {
   return {
     productName: "Sobre Evoluciones Prismáticas",
-    catalogSetId: null,
     productType: "booster_pack",
     quantity: 1,
     purchasePrice: 5.5,
@@ -18,6 +17,7 @@ function validPurchase(overrides: Partial<NewSealedPurchase> = {}): NewSealedPur
     estimatedValueOverrideNote: null,
     location: "Cajón del salón",
     notes: null,
+    photo: null,
     ...overrides,
   };
 }

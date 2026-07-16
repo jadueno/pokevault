@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { useCatalogData } from "./data/useCatalogData";
 import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
 import { usePlanData } from "./data/usePlanData";
-import { BuscarScreen } from "./features/buscar/BuscarScreen";
+import { AnadirScreen } from "./features/anadir/AnadirScreen";
 import { ColeccionScreen } from "./features/coleccion/ColeccionScreen";
 import { SelladoScreen } from "./features/sellado/SelladoScreen";
 import { WishlistScreen } from "./features/wishlist/WishlistScreen";
@@ -12,12 +11,12 @@ import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { PlanScreen } from "./features/plan/PlanScreen";
 import { LoadingState } from "./components/LoadingState";
 
-type Section = "dashboard" | "plan" | "buscar" | "coleccion" | "wishlist" | "sellado";
+type Section = "dashboard" | "plan" | "anadir" | "coleccion" | "wishlist" | "sellado";
 
 const sections: { id: Section; label: string }[] = [
   { id: "dashboard", label: "Resumen" },
   { id: "plan", label: "Plan" },
-  { id: "buscar", label: "Buscar" },
+  { id: "anadir", label: "Añadir" },
   { id: "coleccion", label: "Mi colección" },
   { id: "wishlist", label: "Wishlist" },
   { id: "sellado", label: "Sellado" },
@@ -25,7 +24,6 @@ const sections: { id: Section; label: string }[] = [
 
 export default function App() {
   const [section, setSection] = useState<Section>("dashboard");
-  const catalog = useCatalogData();
   const collection = useCollectionData();
   const wishlist = useWishlistData();
   const sealed = useSealedData();
@@ -94,11 +92,11 @@ export default function App() {
                   onUpdateSettings={plan.updateSettings}
                 />
               )}
-              {section === "buscar" && (
-                <BuscarScreen
-                  catalog={catalog}
+              {section === "anadir" && (
+                <AnadirScreen
                   onAddToCollection={collection.addItem}
                   onAddToWishlist={wishlist.addItem}
+                  onAddToSealed={sealed.addItem}
                 />
               )}
               {section === "coleccion" && (

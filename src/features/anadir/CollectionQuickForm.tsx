@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AcquisitionType, CardCondition, CardLanguage, NewCollectionItem } from "../../domain/types";
+import type { AcquisitionType, CardCondition, CardLanguage, NewCollectionItem, RecognizedCardData } from "../../domain/types";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 
@@ -35,17 +35,22 @@ const ACQUISITION_TYPES: { value: AcquisitionType; label: string }[] = [
   { value: "gift", label: "Regalo" },
 ];
 
-export function AddToCollectionForm({
-  catalogCardId,
+export function CollectionQuickForm({
+  recognized,
+  photo,
   onSubmit,
   onCancel,
 }: {
-  catalogCardId: string;
+  recognized: RecognizedCardData | null;
+  photo: string | null;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<NewCollectionItem>({
-    catalogCardId,
+    name: recognized?.name ?? "",
+    setName: recognized?.setName ?? null,
+    number: recognized?.number ?? null,
+    rarity: recognized?.rarity ?? null,
     language: "es",
     condition: "near_mint",
     quantity: 1,
@@ -61,6 +66,7 @@ export function AddToCollectionForm({
     estimatedValueOverrideAt: null,
     estimatedValueOverrideNote: null,
     notes: null,
+    photo,
   });
   const [saving, setSaving] = useState(false);
 
@@ -79,12 +85,41 @@ export function AddToCollectionForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Idioma">
-          <select
+        <Field label="Nombre">
+          <input
             className={inputClass}
-            value={form.language}
-            onChange={(e) => setForm({ ...form, language: e.target.value as CardLanguage })}
-          >
+            placeholder="Charizard"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Expansión">
+          <input
+            className={inputClass}
+            placeholder="Base Set"
+            value={form.setName ?? ""}
+            onChange={(e) => setForm({ ...form, setName: e.target.value || null })}
+          />
+        </Field>
+        <Field label="Número">
+          <input
+            className={inputClass}
+            placeholder="4/102"
+            value={form.number ?? ""}
+            onChange={(e) => setForm({ ...form, number: e.target.value || null })}
+          />
+        </Field>
+        <Field label="Rareza">
+          <input
+            className={inputClass}
+            placeholder="Rare Holo"
+            value={form.rarity ?? ""}
+            onChange={(e) => setForm({ ...form, rarity: e.target.value || null })}
+          />
+        </Field>
+        <Field label="Idioma">
+          <select className={inputClass} value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value as CardLanguage })}>
             {LANGUAGES.map((l) => (
               <option key={l.value} value={l.value}>
                 {l.label}
@@ -93,11 +128,7 @@ export function AddToCollectionForm({
           </select>
         </Field>
         <Field label="Estado">
-          <select
-            className={inputClass}
-            value={form.condition}
-            onChange={(e) => setForm({ ...form, condition: e.target.value as CardCondition })}
-          >
+          <select className={inputClass} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value as CardCondition })}>
             {CONDITIONS.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
@@ -192,12 +223,7 @@ export function AddToCollectionForm({
       )}
 
       <Field label="Notas">
-        <textarea
-          rows={2}
-          className={inputClass}
-          value={form.notes ?? ""}
-          onChange={(e) => setForm({ ...form, notes: e.target.value || null })}
-        />
+        <textarea rows={2} className={inputClass} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value || null })} />
       </Field>
 
       <div className="flex justify-end gap-2 pt-2">

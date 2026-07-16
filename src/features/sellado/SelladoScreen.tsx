@@ -50,12 +50,15 @@ function SealedItemCard({
 
   return (
     <Card className="flex flex-col gap-3">
-      <div>
-        <p className="font-semibold text-[var(--text-primary)]">{item.productName}</p>
-        <p className="text-xs text-[var(--text-muted)]">
-          {PRODUCT_TYPE_LABELS[item.productType]} · x{item.quantity}
-          {item.location && ` · ${item.location}`}
-        </p>
+      <div className="flex items-start gap-3">
+        {item.photo && <img src={item.photo} alt={item.productName} loading="lazy" className="w-16 shrink-0 rounded-lg object-cover" />}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-[var(--text-primary)]">{item.productName}</p>
+          <p className="text-xs text-[var(--text-muted)]">
+            {PRODUCT_TYPE_LABELS[item.productType]} · x{item.quantity}
+            {item.location && ` · ${item.location}`}
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center justify-between text-sm">
@@ -118,6 +121,8 @@ export function SelladoScreen({
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [query, setQuery] = useState("");
+  const filtered = query.trim() ? items.filter((i) => i.productName.toLowerCase().includes(query.trim().toLowerCase())) : items;
 
   return (
     <div className="flex flex-col gap-6">
@@ -135,6 +140,15 @@ export function SelladoScreen({
         </Button>
       </div>
 
+      {items.length > 0 && (
+        <input
+          className={`${inputClass} max-w-sm`}
+          placeholder="Buscar en tu producto sellado…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      )}
+
       {showForm && (
         <SealedPurchaseForm
           onSubmit={async (entity) => {
@@ -149,9 +163,13 @@ export function SelladoScreen({
         <Card>
           <p className="text-sm text-[var(--text-muted)]">Todavía no has registrado ningún producto sellado.</p>
         </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <p className="text-sm text-[var(--text-muted)]">Sin resultados para esa búsqueda.</p>
+        </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
+          {filtered.map((item) => (
             <SealedItemCard key={item.id} item={item} onRemove={onRemove} onOverrideValue={onOverrideValue} />
           ))}
         </div>

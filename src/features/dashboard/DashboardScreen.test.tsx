@@ -13,7 +13,6 @@ describe("DashboardScreen", () => {
       {
         id: "s1",
         productName: "Sobre",
-        catalogSetId: null,
         productType: "booster_pack",
         quantity: 1,
         purchasePrice: 5,
@@ -24,6 +23,7 @@ describe("DashboardScreen", () => {
         estimatedValueOverrideNote: null,
         location: null,
         notes: null,
+        photo: null,
       },
     ];
     render(<DashboardScreen summary={summary()} sealedItems={sealed} />);

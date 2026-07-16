@@ -2,45 +2,24 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
-import type { WishlistItemWithCard } from "../../domain/types";
+import type { WishlistItem } from "../../domain/types";
 import { WishlistScreen } from "./WishlistScreen";
 
-function card(name = "Charizard") {
-  return {
-    id: `c-${name}`,
-    provider: "fake",
-    externalId: "x",
-    setId: "s1",
-    name,
-    number: "4",
-    rarity: "Rare Holo",
-    artist: null,
-    supertype: "Pokémon",
-    subtypes: [],
-    types: ["Fire"],
-    imageSmallUrl: null,
-    imageLargeUrl: null,
-    currentPrice: 120,
-    currentPriceCurrency: "EUR",
-    priceUpdatedAt: null,
-    priceSource: null,
-  };
-}
-
-function wishlistItem(overrides: Partial<WishlistItemWithCard> = {}): WishlistItemWithCard {
+function wishlistItem(overrides: Partial<WishlistItem> = {}): WishlistItem {
   return {
     id: "w1",
-    catalogCardId: "c1",
+    name: "Charizard",
+    setName: "Base",
     priority: "medium",
     maxPrice: null,
     targetMonth: null,
     notes: null,
-    card: card(),
+    photo: null,
     ...overrides,
   };
 }
 
-function renderScreen(items: WishlistItemWithCard[]) {
+function renderScreen(items: WishlistItem[]) {
   const handlers = {
     onUpdate: vi.fn().mockResolvedValue(undefined),
     onRemove: vi.fn().mockResolvedValue(undefined),
@@ -62,8 +41,8 @@ describe("WishlistScreen", () => {
 
   it("agrupa los elementos por mes objetivo", () => {
     renderScreen([
-      wishlistItem({ id: "w1", targetMonth: "2026-08", card: card("Charizard") }),
-      wishlistItem({ id: "w2", targetMonth: null, card: card("Pikachu") }),
+      wishlistItem({ id: "w1", targetMonth: "2026-08", name: "Charizard" }),
+      wishlistItem({ id: "w2", targetMonth: null, name: "Pikachu" }),
     ]);
     expect(screen.getByText("Agosto de 2026")).toBeInTheDocument();
     expect(screen.getByText("Sin mes objetivo")).toBeInTheDocument();

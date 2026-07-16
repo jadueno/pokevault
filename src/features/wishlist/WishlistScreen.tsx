@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { MoveToCollectionDetails, NewWishlistItem, WishlistItemWithCard, WishlistPriority } from "../../domain/types";
-import { formatMoney, groupWishlistByMonth, monthLabel } from "../../domain/calculations";
+import type { MoveToCollectionDetails, NewWishlistItem, WishlistItem, WishlistPriority } from "../../domain/types";
+import { groupWishlistByMonth, monthLabel } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
@@ -15,7 +15,7 @@ function WishlistItemCard({
   onRemove,
   onMoveToCollection,
 }: {
-  item: WishlistItemWithCard;
+  item: WishlistItem;
   onUpdate: (id: string, entity: NewWishlistItem) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onMoveToCollection: (id: string, details: MoveToCollectionDetails) => Promise<void>;
@@ -23,13 +23,13 @@ function WishlistItemCard({
   const confirm = useConfirm();
   const [showMoveForm, setShowMoveForm] = useState(false);
 
-  function stripCard(item: WishlistItemWithCard): NewWishlistItem {
-    const { id: _id, card: _card, ...rest } = item;
+  function strip(item: WishlistItem): NewWishlistItem {
+    const { id: _id, ...rest } = item;
     return rest;
   }
 
   async function handleRemove() {
-    if (await confirm(`¿Quitar "${item.card.name}" de la wishlist?`)) {
+    if (await confirm(`¿Quitar "${item.name}" de la wishlist?`)) {
       await onRemove(item.id);
     }
   }
@@ -37,14 +37,10 @@ function WishlistItemCard({
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        {item.card.imageSmallUrl && (
-          <img src={item.card.imageSmallUrl} alt={item.card.name} loading="lazy" className="w-16 shrink-0 rounded-lg" />
-        )}
+        {item.photo && <img src={item.photo} alt={item.name} loading="lazy" className="w-16 shrink-0 rounded-lg object-cover" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-[var(--text-primary)]">{item.card.name}</p>
-          <p className="text-xs text-[var(--text-muted)]">
-            {formatMoney(item.card.currentPrice, item.card.currentPriceCurrency ?? "EUR")}
-          </p>
+          <p className="truncate font-semibold text-[var(--text-primary)]">{item.name}</p>
+          {item.setName && <p className="truncate text-xs text-[var(--text-muted)]">{item.setName}</p>}
         </div>
       </div>
 
@@ -52,7 +48,7 @@ function WishlistItemCard({
         <select
           className={`${inputClass} w-auto text-xs`}
           value={item.priority}
-          onChange={(e) => onUpdate(item.id, { ...stripCard(item), priority: e.target.value as WishlistPriority })}
+          onChange={(e) => onUpdate(item.id, { ...strip(item), priority: e.target.value as WishlistPriority })}
         >
           {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -67,13 +63,13 @@ function WishlistItemCard({
           placeholder="Precio máx."
           className={`${inputClass} w-28 text-xs`}
           value={item.maxPrice ?? ""}
-          onChange={(e) => onUpdate(item.id, { ...stripCard(item), maxPrice: e.target.value ? Number(e.target.value) : null })}
+          onChange={(e) => onUpdate(item.id, { ...strip(item), maxPrice: e.target.value ? Number(e.target.value) : null })}
         />
         <input
           type="month"
           className={`${inputClass} w-auto text-xs`}
           value={item.targetMonth ?? ""}
-          onChange={(e) => onUpdate(item.id, { ...stripCard(item), targetMonth: e.target.value || null })}
+          onChange={(e) => onUpdate(item.id, { ...strip(item), targetMonth: e.target.value || null })}
         />
       </div>
 
@@ -84,7 +80,7 @@ function WishlistItemCard({
         <button
           type="button"
           onClick={handleRemove}
-          aria-label={`Quitar ${item.card.name} de la wishlist`}
+          aria-label={`Quitar ${item.name} de la wishlist`}
           className="ml-auto rounded-lg px-2 py-1 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--gridline)] hover:text-[var(--status-critical)]"
         >
           Quitar
@@ -93,7 +89,7 @@ function WishlistItemCard({
 
       {showMoveForm && (
         <MoveToCollectionForm
-          cardName={item.card.name}
+          cardName={item.name}
           onSubmit={async (details) => {
             await onMoveToCollection(item.id, details);
             setShowMoveForm(false);
@@ -111,7 +107,7 @@ export function WishlistScreen({
   onRemove,
   onMoveToCollection,
 }: {
-  items: WishlistItemWithCard[];
+  items: WishlistItem[];
   onUpdate: (id: string, entity: NewWishlistItem) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onMoveToCollection: (id: string, details: MoveToCollectionDetails) => Promise<void>;
@@ -123,14 +119,14 @@ export function WishlistScreen({
       <div className="py-4 sm:py-6">
         <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Wishlist</h1>
         <p className="text-base font-normal text-[var(--text-secondary)]">
-          Organizada por mes objetivo de compra. Añade cartas desde "Buscar".
+          Organizada por mes objetivo de compra. Añade deseos puntuales desde "Añadir".
         </p>
       </div>
 
       {items.length === 0 ? (
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
-            Todavía no hay nada en tu wishlist. Ve a "Buscar" y añade lo que quieras conseguir.
+            Todavía no hay nada en tu wishlist. Ve a "Añadir" y añade lo que quieras conseguir.
           </p>
         </Card>
       ) : (

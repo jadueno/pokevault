@@ -1,6 +1,5 @@
-import { resolveItemEstimatedValue } from "../domain/ports.js";
-import type { CatalogRepository, CollectionItemRepository } from "../domain/ports.js";
-import type { CollectionItemWithCard, CollectionSummary, NewCollectionItem } from "../domain/types.js";
+import type { CollectionItemRepository } from "../domain/ports.js";
+import type { CollectionSummary, NewCollectionItem } from "../domain/types.js";
 import { assertNonEmpty, ValidationError } from "./errors.js";
 
 const LANGUAGES = ["en", "es", "fr", "de", "it", "pt", "ja", "ko", "zh-cn", "zh-tw", "id", "th"];
@@ -8,7 +7,7 @@ const CONDITIONS = ["mint", "near_mint", "excellent", "good", "light_played", "p
 const ACQUISITION_TYPES = ["purchased_single", "pulled_from_pack", "trade", "gift"];
 
 function validate(entity: NewCollectionItem): void {
-  assertNonEmpty(entity.catalogCardId, "La carta");
+  assertNonEmpty(entity.name, "El nombre");
   if (!LANGUAGES.includes(entity.language)) {
     throw new ValidationError(`El idioma debe ser uno de: ${LANGUAGES.join(", ")}`);
   }
@@ -29,22 +28,9 @@ function validate(entity: NewCollectionItem): void {
   }
 }
 
-export function createCollectionItemUseCases(repo: CollectionItemRepository, catalogRepo: CatalogRepository) {
-  async function withCards(
-    items: Awaited<ReturnType<CollectionItemRepository["list"]>>,
-  ): Promise<CollectionItemWithCard[]> {
-    if (items.length === 0) return [];
-    const cards = await catalogRepo.getCardsByIds([...new Set(items.map((i) => i.catalogCardId))]);
-    const cardById = new Map(cards.map((c) => [c.id, c]));
-    return items.map((item) => {
-      const card = cardById.get(item.catalogCardId);
-      if (!card) throw new Error(`Carta de catálogo no encontrada para el ejemplar ${item.id}`);
-      return { ...item, card };
-    });
-  }
-
+export function createCollectionItemUseCases(repo: CollectionItemRepository) {
   return {
-    list: async (): Promise<CollectionItemWithCard[]> => withCards(await repo.list()),
+    list: () => repo.list(),
 
     create: (entity: NewCollectionItem) => {
       validate(entity);
@@ -58,8 +44,8 @@ export function createCollectionItemUseCases(repo: CollectionItemRepository, cat
 
     remove: (id: string) => repo.remove(id),
 
-    /** Corrección manual del valor estimado — queda identificada como tal (fecha + nota),
-     * nunca se confunde con el precio que da el catálogo. */
+    /** Corrección manual del valor estimado — queda identificada como tal (fecha + nota).
+     * Sin catálogo externo, es la única fuente de valor: nunca se inventa un precio. */
     overrideEstimatedValue: async (id: string, value: number, note: string | null) => {
       const items = await repo.list();
       const existing = items.find((i) => i.id === id);
@@ -75,22 +61,14 @@ export function createCollectionItemUseCases(repo: CollectionItemRepository, cat
 
     summary: async (): Promise<CollectionSummary> => {
       const items = await repo.list();
-      if (items.length === 0) {
-        return { totalItems: 0, totalQuantity: 0, totalValue: 0, itemsWithoutValue: 0, totalInvested: 0 };
-      }
-      const cards = await catalogRepo.getCardsByIds([...new Set(items.map((i) => i.catalogCardId))]);
-      const cardById = new Map(cards.map((c) => [c.id, c]));
-
       let totalQuantity = 0;
       let totalValue = 0;
       let itemsWithoutValue = 0;
       let totalInvested = 0;
       for (const item of items) {
         totalQuantity += item.quantity;
-        const card = cardById.get(item.catalogCardId);
-        const value = card ? resolveItemEstimatedValue(item, card) : null;
-        if (value === null) itemsWithoutValue++;
-        else totalValue += value * item.quantity;
+        if (item.estimatedValueOverride === null) itemsWithoutValue++;
+        else totalValue += item.estimatedValueOverride * item.quantity;
         if (item.purchasePrice !== null) totalInvested += item.purchasePrice * item.quantity;
       }
       return { totalItems: items.length, totalQuantity, totalValue, itemsWithoutValue, totalInvested };

@@ -1,12 +1,12 @@
-import type { CatalogRepository, CollectionItemRepository, WishlistItemRepository } from "../domain/ports.js";
-import type { CardCondition, CardLanguage, NewCollectionItem, NewWishlistItem, WishlistItemWithCard } from "../domain/types.js";
+import type { CollectionItemRepository, WishlistItemRepository } from "../domain/ports.js";
+import type { CardCondition, CardLanguage, NewCollectionItem, NewWishlistItem } from "../domain/types.js";
 import { assertNonEmpty, ValidationError } from "./errors.js";
 
 const PRIORITIES = ["low", "medium", "high"];
 const TARGET_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function validate(entity: NewWishlistItem): void {
-  assertNonEmpty(entity.catalogCardId, "La carta");
+  assertNonEmpty(entity.name, "El nombre");
   if (!PRIORITIES.includes(entity.priority)) {
     throw new ValidationError(`La prioridad debe ser una de: ${PRIORITIES.join(", ")}`);
   }
@@ -25,26 +25,9 @@ export interface MoveToCollectionDetails {
   notes: string | null;
 }
 
-export function createWishlistItemUseCases(
-  repo: WishlistItemRepository,
-  catalogRepo: CatalogRepository,
-  collectionRepo: CollectionItemRepository,
-) {
-  async function withCards(
-    items: Awaited<ReturnType<WishlistItemRepository["list"]>>,
-  ): Promise<WishlistItemWithCard[]> {
-    if (items.length === 0) return [];
-    const cards = await catalogRepo.getCardsByIds([...new Set(items.map((i) => i.catalogCardId))]);
-    const cardById = new Map(cards.map((c) => [c.id, c]));
-    return items.map((item) => {
-      const card = cardById.get(item.catalogCardId);
-      if (!card) throw new Error(`Carta de catálogo no encontrada para el deseo ${item.id}`);
-      return { ...item, card };
-    });
-  }
-
+export function createWishlistItemUseCases(repo: WishlistItemRepository, collectionRepo: CollectionItemRepository) {
   return {
-    list: async (): Promise<WishlistItemWithCard[]> => withCards(await repo.list()),
+    list: () => repo.list(),
 
     create: (entity: NewWishlistItem) => {
       validate(entity);
@@ -66,7 +49,10 @@ export function createWishlistItemUseCases(
       if (!wishlistItem) throw new ValidationError("No existe ese elemento de la wishlist");
 
       const newItem: NewCollectionItem = {
-        catalogCardId: wishlistItem.catalogCardId,
+        name: wishlistItem.name,
+        setName: wishlistItem.setName,
+        number: null,
+        rarity: null,
         language: details.language,
         condition: details.condition,
         quantity: details.quantity,
@@ -82,6 +68,7 @@ export function createWishlistItemUseCases(
         estimatedValueOverrideAt: null,
         estimatedValueOverrideNote: null,
         notes: details.notes,
+        photo: wishlistItem.photo,
       };
       const created = await collectionRepo.create(newItem);
       await repo.remove(id);

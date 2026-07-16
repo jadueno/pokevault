@@ -9,7 +9,6 @@ function purchase(overrides: Partial<SealedPurchase> = {}): SealedPurchase {
   return {
     id: "s1",
     productName: "Sobre Evoluciones Prismáticas",
-    catalogSetId: null,
     productType: "booster_pack",
     quantity: 1,
     purchasePrice: 5.5,
@@ -20,6 +19,7 @@ function purchase(overrides: Partial<SealedPurchase> = {}): SealedPurchase {
     estimatedValueOverrideNote: null,
     location: "Cajón",
     notes: null,
+    photo: null,
     ...overrides,
   };
 }
