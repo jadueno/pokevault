@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { focusRing } from "./Field";
+import { useScrollLock } from "./useScrollLock";
 
 const SIZE_CLASSES = { md: "max-w-2xl", lg: "max-w-6xl" };
 
@@ -20,6 +21,8 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  useScrollLock();
+
   return (
     <div
       role="dialog"

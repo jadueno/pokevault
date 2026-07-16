@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useScrollLock } from "./useScrollLock";
 
 /** Visor de foto a pantalla completa: clic para alternar entre ajustada y tamaño
  * natural (con scroll para moverse), más el zoom nativo del navegador (pellizcar en
@@ -6,6 +7,8 @@ import { useEffect, useState } from "react";
  * bloquearlo (sin `touch-action: none` ni tocar el viewport). */
 export function PhotoLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
   const [zoomed, setZoomed] = useState(false);
+
+  useScrollLock();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
