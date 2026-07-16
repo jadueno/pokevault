@@ -1,0 +1,422 @@
+import "dotenv/config";
+import { pool } from "./pool.js";
+import { createCollectionItemRepository } from "./repositories/collectionItemRepository.js";
+import { createSealedPurchaseRepository } from "./repositories/sealedPurchaseRepository.js";
+import { createWishlistItemRepository } from "./repositories/wishlistItemRepository.js";
+import { DEMO_PHOTOS } from "./demoPhotos.js";
+import type { NewCollectionItem, NewSealedPurchase, NewWishlistItem } from "../../domain/types.js";
+
+/**
+ * Rellena la app con datos ficticios repartidos en varios meses, para ver cómo queda
+ * todo (colección, sellado, wishlist, resumen) sin tener que darlos de alta a mano uno
+ * a uno. Cada fila lleva el tag DEMO_TAG al principio de "notes" para poder borrarlas
+ * selectivamente (`--clear`) sin arriesgarse a tocar datos reales que el usuario haya
+ * añadido después — nunca un TRUNCATE a ciegas de estas tablas.
+ *
+ * Uso: npm run seed:demo        (borra el demo anterior si lo hay, y siembra de nuevo)
+ *      npm run seed:demo:clear  (solo borra, no vuelve a sembrar)
+ */
+const DEMO_TAG = "[DEMO]";
+
+function demoNote(note?: string): string {
+  return note ? `${DEMO_TAG} ${note}` : DEMO_TAG;
+}
+
+const COLLECTION_ITEMS: NewCollectionItem[] = [
+  {
+    name: "Charizard",
+    setName: "Base",
+    number: "4/102",
+    rarity: "Rare Holo",
+    language: "es",
+    condition: "near_mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 320,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-02-14",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 410,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Vista en Cardmarket a ese precio"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Charizard,
+  },
+  {
+    name: "Pikachu",
+    setName: "Jungla",
+    number: "60/64",
+    rarity: "Common",
+    language: "es",
+    condition: "light_played",
+    quantity: 2,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 12,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-03-02",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 15,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Pikachu,
+  },
+  {
+    name: "Mewtwo",
+    setName: "Base",
+    number: "10/102",
+    rarity: "Rare Holo",
+    language: "en",
+    condition: "mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 180,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-03-20",
+    isGraded: true,
+    gradingCompany: "PSA",
+    grade: 9,
+    estimatedValueOverride: 250,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Precio de mercado para PSA 9"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Mewtwo,
+  },
+  {
+    name: "Gengar",
+    setName: "Fossil",
+    number: "5/62",
+    rarity: "Rare Holo",
+    language: "es",
+    condition: "excellent",
+    quantity: 1,
+    acquisitionType: "pulled_from_pack",
+    sealedPurchaseId: null,
+    purchasePrice: null,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-04-05",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    notes: demoNote("Salió de un sobre, sin valor estimado todavía"),
+    photo: DEMO_PHOTOS.Gengar,
+  },
+  {
+    name: "Eevee",
+    setName: "Jungla",
+    number: "51/64",
+    rarity: "Common",
+    language: "es",
+    condition: "near_mint",
+    quantity: 3,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 8,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-04-18",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    notes: demoNote("Sin valor estimado todavía"),
+    photo: DEMO_PHOTOS.Eevee,
+  },
+  {
+    name: "Blastoise",
+    setName: "Base",
+    number: "2/102",
+    rarity: "Rare Holo",
+    language: "es",
+    condition: "good",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 150,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-05-10",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 190,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Blastoise,
+  },
+  {
+    name: "Umbreon",
+    setName: "Neo Discovery",
+    number: "13/75",
+    rarity: "Rare Holo",
+    language: "ja",
+    condition: "near_mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 90,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-05-25",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 140,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Umbreon,
+  },
+  {
+    name: "Lugia",
+    setName: "Neo Genesis",
+    number: "9/111",
+    rarity: "Rare Holo",
+    language: "en",
+    condition: "near_mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 220,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-06-08",
+    isGraded: true,
+    gradingCompany: "CGC",
+    grade: 8.5,
+    estimatedValueOverride: 260,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Precio de mercado para CGC 8.5"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Lugia,
+  },
+  {
+    name: "Rayquaza-EX",
+    setName: "Roaring Skies",
+    number: "60/108",
+    rarity: "Rare Holo EX",
+    language: "en",
+    condition: "mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 35,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-06-22",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 42,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Rayquaza,
+  },
+  {
+    name: "Sylveon",
+    setName: "Cosmic Eclipse",
+    number: "155/236",
+    rarity: "Rare",
+    language: "es",
+    condition: "near_mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 22,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-07-05",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 28,
+    estimatedValueOverrideAt: "2026-07-10T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Sylveon,
+  },
+  {
+    name: "Mew",
+    setName: "Celebraciones",
+    number: "11/25",
+    rarity: "Rare Holo",
+    language: "es",
+    condition: "near_mint",
+    quantity: 1,
+    acquisitionType: "purchased_single",
+    sealedPurchaseId: null,
+    purchasePrice: 45,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-07-14",
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: 55,
+    estimatedValueOverrideAt: "2026-07-14T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.Mew,
+  },
+];
+
+const SEALED_PURCHASES: NewSealedPurchase[] = [
+  {
+    productName: "ETB Escarlata y Púrpura",
+    productType: "elite_trainer_box",
+    quantity: 1,
+    purchasePrice: 45,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-02-20",
+    estimatedValueOverride: 48,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    location: "Estantería del salón",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.SealedETBEscarlataYPurpura,
+  },
+  {
+    productName: "Booster Box Obsidian Flames",
+    productType: "booster_box",
+    quantity: 1,
+    purchasePrice: 140,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-03-15",
+    estimatedValueOverride: 160,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    location: "Armario",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.SealedBoosterBoxObsidianFlames,
+  },
+  {
+    productName: "Booster Bundle 151",
+    productType: "bundle",
+    quantity: 1,
+    purchasePrice: 35,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-04-28",
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    location: "Cajón del escritorio",
+    notes: demoNote("Sin valor estimado todavía"),
+    photo: DEMO_PHOTOS.SealedBoosterBundle151,
+  },
+  {
+    productName: "ETB Paldean Fates",
+    productType: "elite_trainer_box",
+    quantity: 2,
+    purchasePrice: 90,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-05-30",
+    estimatedValueOverride: 105,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    location: "Estantería del salón",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.SealedETBPaldeanFates,
+  },
+  {
+    productName: "Booster Box Prismatic Evolutions",
+    productType: "booster_box",
+    quantity: 1,
+    purchasePrice: 165,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-06-25",
+    estimatedValueOverride: 210,
+    estimatedValueOverrideAt: "2026-07-01T10:00:00.000Z",
+    estimatedValueOverrideNote: demoNote("Estimado a mano"),
+    location: "Armario",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.SealedBoosterBoxPrismaticEvolutions,
+  },
+];
+
+const WISHLIST_ITEMS: NewWishlistItem[] = [
+  {
+    name: "Mega Dragonite ex (Special Illustration Rare)",
+    setName: "Ascended Heroes",
+    priority: "high",
+    maxPrice: 60,
+    targetMonth: "2026-08",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.WishlistDragonite,
+  },
+  {
+    name: "Latias ex (Special Illustration Rare)",
+    setName: "Surging Sparks",
+    priority: "medium",
+    maxPrice: 50,
+    targetMonth: "2026-08",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.WishlistLatias,
+  },
+  {
+    name: "Charizard ex Special Illustration Rare",
+    setName: "Obsidian Flames",
+    priority: "high",
+    maxPrice: 300,
+    targetMonth: "2026-09",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.WishlistCharizardExSIR,
+  },
+  {
+    name: "Umbreon VMAX Alt Art (\"Moonbreon\")",
+    setName: "Evolving Skies",
+    priority: "low",
+    maxPrice: 400,
+    targetMonth: null,
+    notes: demoNote("Deseo a largo plazo, sin prisa"),
+    photo: DEMO_PHOTOS.WishlistMoonbreon,
+  },
+  {
+    name: "Booster Box Destined Rivals",
+    setName: "Destined Rivals",
+    priority: "medium",
+    maxPrice: 130,
+    targetMonth: "2026-10",
+    notes: demoNote(),
+    photo: DEMO_PHOTOS.WishlistDestinedRivals,
+  },
+];
+
+async function clearDemoData(): Promise<void> {
+  const tables = ["collection_items", "wishlist_items", "sealed_purchases"];
+  for (const table of tables) {
+    const { rowCount } = await pool.query(`delete from ${table} where notes like $1`, [`${DEMO_TAG}%`]);
+    console.log(`${table}: ${rowCount ?? 0} fila(s) de demo eliminadas`);
+  }
+}
+
+async function seedDemoData(): Promise<void> {
+  await clearDemoData(); // evita duplicar si se ejecuta varias veces seguidas
+
+  const collectionRepo = createCollectionItemRepository(pool);
+  const sealedRepo = createSealedPurchaseRepository(pool);
+  const wishlistRepo = createWishlistItemRepository(pool);
+
+  for (const item of COLLECTION_ITEMS) await collectionRepo.create(item);
+  for (const item of SEALED_PURCHASES) await sealedRepo.create(item);
+  for (const item of WISHLIST_ITEMS) await wishlistRepo.create(item);
+
+  console.log(
+    `Sembrados: ${COLLECTION_ITEMS.length} ejemplares, ${SEALED_PURCHASES.length} compras de sellado, ${WISHLIST_ITEMS.length} deseos en wishlist.`,
+  );
+}
+
+const shouldClear = process.argv.includes("--clear");
+
+(shouldClear ? clearDemoData() : seedDemoData())
+  .then(() => pool.end())
+  .catch((error) => {
+    console.error(error);
+    return pool.end().finally(() => process.exit(1));
+  });

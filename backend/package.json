@@ -13,7 +13,9 @@
     "migrate:down": "node-pg-migrate down --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:migrate": "node-pg-migrate up --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts -d TEST_DATABASE_URL"
+    "test:migrate": "node-pg-migrate up --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts -d TEST_DATABASE_URL",
+    "seed:demo": "tsx src/infrastructure/db/seedDemoData.ts",
+    "seed:demo:clear": "tsx src/infrastructure/db/seedDemoData.ts --clear"
   },
   "keywords": [],
   "author": "",

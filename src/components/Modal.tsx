@@ -1,16 +1,22 @@
 import type { ReactNode } from "react";
 import { focusRing } from "./Field";
 
+const SIZE_CLASSES = { md: "max-w-2xl", lg: "max-w-6xl" };
+
 /** Cascarón de modal compartido: overlay, tarjeta centrada, cabecera con título/descripción
- * opcional y botón de cerrar, contenido con scroll propio. */
+ * opcional y botón de cerrar, contenido con scroll propio. `size="lg"` para contenido
+ * denso (p. ej. el Plan, con su rejilla de 3 columnas por mes) que no cabe en el ancho
+ * compacto pensado para formularios. */
 export function Modal({
   title,
   description,
+  size = "md",
   onClose,
   children,
 }: {
   title: string;
   description?: ReactNode;
+  size?: "md" | "lg";
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -23,7 +29,7 @@ export function Modal({
       style={{ overscrollBehavior: "contain" }}
       onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] shadow-float">
+      <div className={`flex max-h-[85vh] w-full ${SIZE_CLASSES[size]} flex-col rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] shadow-float`}>
         <div className="flex items-start justify-between border-b border-[var(--gridline)] p-5">
           <div>
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>

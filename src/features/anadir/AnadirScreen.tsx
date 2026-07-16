@@ -3,6 +3,8 @@ import type { NewCollectionItem, NewSealedPurchase, NewWishlistItem, RecognizedC
 import { recognizeCard } from "../../data/api";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
+import { focusRing } from "../../components/Field";
+import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { PhotoCapture } from "./PhotoCapture";
 import { CollectionQuickForm } from "./CollectionQuickForm";
 import { WishlistQuickForm } from "./WishlistQuickForm";
@@ -27,6 +29,7 @@ export function AnadirScreen({
   const [recognizeError, setRecognizeError] = useState<string | null>(null);
   const [destination, setDestination] = useState<Destination | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   function reset() {
     setPhoto(null);
@@ -76,7 +79,14 @@ export function AnadirScreen({
       {photo && (
         <Card className="flex flex-col gap-4">
           <div className="flex items-start gap-4">
-            <img src={photo} alt="Foto tomada" className="w-24 shrink-0 rounded-xl border border-[var(--border)]" />
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              aria-label="Ver foto en grande"
+              className={`shrink-0 rounded-xl ${focusRing}`}
+            >
+              <img src={photo} alt="Foto tomada" className="w-24 rounded-xl border border-[var(--border)]" />
+            </button>
             <div className="min-w-0 flex-1">
               {recognizing && <p className="text-sm text-[var(--text-secondary)]">Identificando…</p>}
               {!recognizing && recognizeError && (
@@ -121,6 +131,8 @@ export function AnadirScreen({
           )}
         </Card>
       )}
+
+      {lightboxOpen && photo && <PhotoLightbox src={photo} alt="Foto tomada" onClose={() => setLightboxOpen(false)} />}
 
       {destination === "coleccion" && (
         <Card>

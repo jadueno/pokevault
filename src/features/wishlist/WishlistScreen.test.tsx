@@ -5,6 +5,10 @@ import { ConfirmProvider } from "../../components/ConfirmProvider";
 import type { WishlistItem } from "../../domain/types";
 import { WishlistScreen } from "./WishlistScreen";
 
+vi.mock("../../data/imageCapture", () => ({
+  compressImage: vi.fn().mockResolvedValue("data:image/jpeg;base64,AAAA"),
+}));
+
 function wishlistItem(overrides: Partial<WishlistItem> = {}): WishlistItem {
   return {
     id: "w1",
@@ -21,6 +25,7 @@ function wishlistItem(overrides: Partial<WishlistItem> = {}): WishlistItem {
 
 function renderScreen(items: WishlistItem[]) {
   const handlers = {
+    onAdd: vi.fn().mockResolvedValue(undefined),
     onUpdate: vi.fn().mockResolvedValue(undefined),
     onRemove: vi.fn().mockResolvedValue(undefined),
     onMoveToCollection: vi.fn().mockResolvedValue(undefined),
@@ -68,5 +73,37 @@ describe("WishlistScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Registrar compra" }));
     expect(handlers.onMoveToCollection).toHaveBeenCalledWith("w1", expect.objectContaining({ language: "es" }));
+  });
+
+  it("filtra la wishlist por nombre con el buscador propio", async () => {
+    const user = userEvent.setup();
+    renderScreen([wishlistItem({ id: "w1", name: "Charizard" }), wishlistItem({ id: "w2", name: "Pikachu" })]);
+
+    await user.type(screen.getByPlaceholderText("Buscar en tu wishlist…"), "pika");
+
+    expect(screen.getByText("Pikachu")).toBeInTheDocument();
+    expect(screen.queryByText("Charizard")).not.toBeInTheDocument();
+  });
+
+  it("permite subir una foto a un deseo ya existente", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([wishlistItem()]);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["foto"], "carta.jpg", { type: "image/jpeg" });
+    await user.upload(input, file);
+
+    expect(handlers.onUpdate).toHaveBeenCalledWith("w1", expect.objectContaining({ photo: "data:image/jpeg;base64,AAAA" }));
+  });
+
+  it("abre el formulario de nuevo deseo y lo envía", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+
+    await user.click(screen.getByRole("button", { name: "+ Añadir deseo" }));
+    await user.type(screen.getByLabelText("Nombre"), "Mewtwo");
+    await user.click(screen.getByRole("button", { name: "Añadir a la wishlist" }));
+
+    expect(handlers.onAdd).toHaveBeenCalledWith(expect.objectContaining({ name: "Mewtwo" }));
   });
 });

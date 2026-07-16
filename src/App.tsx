@@ -5,25 +5,27 @@ import { useSealedData } from "./data/useSealedData";
 import { usePlanData } from "./data/usePlanData";
 import { AnadirScreen } from "./features/anadir/AnadirScreen";
 import { ColeccionScreen } from "./features/coleccion/ColeccionScreen";
-import { SelladoScreen } from "./features/sellado/SelladoScreen";
 import { WishlistScreen } from "./features/wishlist/WishlistScreen";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { PlanScreen } from "./features/plan/PlanScreen";
 import { LoadingState } from "./components/LoadingState";
+import { Modal } from "./components/Modal";
 
-type Section = "dashboard" | "plan" | "anadir" | "coleccion" | "wishlist" | "sellado";
+type Section = "dashboard" | "anadir" | "coleccion" | "wishlist";
 
+// "anadir" no aparece aquí a propósito: se accede desde el botón flotante del Resumen,
+// no ocupa un hueco fijo en el menú. "Plan" tampoco: se abre como modal desde el Resumen.
+// "Sellado" ya no es una sección aparte: se fusionó dentro de "Mi colección" (para el
+// usuario, la colección es todo, tanto cartas como cajas).
 const sections: { id: Section; label: string }[] = [
   { id: "dashboard", label: "Resumen" },
-  { id: "plan", label: "Plan" },
-  { id: "anadir", label: "Añadir" },
   { id: "coleccion", label: "Mi colección" },
   { id: "wishlist", label: "Wishlist" },
-  { id: "sellado", label: "Sellado" },
 ];
 
 export default function App() {
   const [section, setSection] = useState<Section>("dashboard");
+  const [showPlan, setShowPlan] = useState(false);
   const collection = useCollectionData();
   const wishlist = useWishlistData();
   const sealed = useSealedData();
@@ -80,17 +82,22 @@ export default function App() {
           {loading && !error && <LoadingState />}
           {!loading && (
             <>
-              {section === "dashboard" && <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />}
-              {section === "plan" && (
-                <PlanScreen
-                  items={plan.items}
-                  settings={plan.settings}
-                  onAdd={plan.addItem}
-                  onUpdate={plan.updateItem}
-                  onRemove={plan.removeItem}
-                  onToggleDone={plan.toggleDone}
-                  onUpdateSettings={plan.updateSettings}
-                />
+              {section === "dashboard" && (
+                <>
+                  <DashboardScreen
+                    summary={collection.summary}
+                    sealedItems={sealed.items}
+                    onOpenPlan={() => setShowPlan(true)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSection("anadir")}
+                    aria-label="Añadir carta o caja"
+                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full bg-[var(--beacon)] text-2xl text-[var(--on-beacon)] shadow-float transition-transform hover:brightness-110 active:scale-95 sm:right-8 sm:bottom-8"
+                  >
+                    +
+                  </button>
+                </>
               )}
               {section === "anadir" && (
                 <AnadirScreen
@@ -100,25 +107,27 @@ export default function App() {
                 />
               )}
               {section === "coleccion" && (
-                <ColeccionScreen items={collection.items} onRemove={collection.removeItem} onOverrideValue={collection.overrideValue} />
+                <ColeccionScreen
+                  items={collection.items}
+                  onRemove={collection.removeItem}
+                  onOverrideValue={collection.overrideValue}
+                  sealedItems={sealed.items}
+                  onAddSealed={sealed.addItem}
+                  onUpdateSealed={sealed.updateItem}
+                  onRemoveSealed={sealed.removeItem}
+                  onOverrideSealedValue={sealed.overrideValue}
+                />
               )}
               {section === "wishlist" && (
                 <WishlistScreen
                   items={wishlist.items}
+                  onAdd={wishlist.addItem}
                   onUpdate={wishlist.updateItem}
                   onRemove={wishlist.removeItem}
                   onMoveToCollection={async (id, details) => {
                     await wishlist.moveToCollection(id, details);
                     await collection.reload();
                   }}
-                />
-              )}
-              {section === "sellado" && (
-                <SelladoScreen
-                  items={sealed.items}
-                  onAdd={sealed.addItem}
-                  onRemove={sealed.removeItem}
-                  onOverrideValue={sealed.overrideValue}
                 />
               )}
             </>
@@ -146,6 +155,25 @@ export default function App() {
           ))}
         </div>
       </nav>
+
+      {showPlan && (
+        <Modal
+          title="Plan"
+          description="Tu objetivo de compra mes a mes."
+          size="lg"
+          onClose={() => setShowPlan(false)}
+        >
+          <PlanScreen
+            items={plan.items}
+            settings={plan.settings}
+            onAdd={plan.addItem}
+            onUpdate={plan.updateItem}
+            onRemove={plan.removeItem}
+            onToggleDone={plan.toggleDone}
+            onUpdateSettings={plan.updateSettings}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

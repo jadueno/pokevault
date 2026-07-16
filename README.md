@@ -64,6 +64,18 @@ npm test
 npm run test:e2e
 ```
 
+## Datos de demostración
+
+Para ver cómo queda la app con contenido (sin darlo de alta a mano uno a uno), contra tu base de datos de desarrollo:
+
+```bash
+cd backend
+npm run seed:demo        # limpia el demo anterior si lo hay, y siembra de nuevo
+npm run seed:demo:clear  # solo lo quita
+```
+
+Rellena colección, producto sellado y wishlist con datos ficticios repartidos en varios meses. Cada fila queda marcada con `[DEMO]` al principio de sus notas, así que `seed:demo:clear` solo borra esas filas — nunca toca datos reales que hayas añadido tú. No afecta al Plan (ese ya tiene tu plan real sembrado por migración).
+
 ## Qué hace la app
 
 - **Añadir**: haz una foto a una carta o a una caja. Un modelo de visión local (Ollama) sugiere nombre, expansión, número y rareza — siempre revisas y editas antes de guardar, nunca se da de alta nada automáticamente. Eliges el destino: tu colección, la wishlist, o producto sellado.

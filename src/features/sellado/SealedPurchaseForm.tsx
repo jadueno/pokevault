@@ -3,6 +3,7 @@ import type { NewSealedPurchase, SealedProductType } from "../../domain/types";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 import { Modal } from "../../components/Modal";
+import { PhotoField } from "../../components/PhotoField";
 
 const PRODUCT_TYPES: { value: SealedProductType; label: string }[] = [
   { value: "booster_pack", label: "Sobre" },
@@ -53,6 +54,7 @@ export function SealedPurchaseForm({
   return (
     <Modal title="Nueva compra de producto sellado" onClose={onCancel}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <PhotoField photo={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
         <Field label="Nombre del producto">
           <input
             className={inputClass}

@@ -2,8 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
-import type { CollectionItem } from "../../domain/types";
+import type { CollectionItem, SealedPurchase } from "../../domain/types";
 import { ColeccionScreen } from "./ColeccionScreen";
+
+vi.mock("../../data/imageCapture", () => ({
+  compressImage: vi.fn().mockResolvedValue("data:image/jpeg;base64,AAAA"),
+}));
 
 function item(overrides: Partial<CollectionItem> = {}): CollectionItem {
   return {
@@ -32,20 +36,46 @@ function item(overrides: Partial<CollectionItem> = {}): CollectionItem {
   };
 }
 
-function renderScreen(items: CollectionItem[]) {
-  const handlers = { onRemove: vi.fn().mockResolvedValue(undefined), onOverrideValue: vi.fn().mockResolvedValue(undefined) };
+function sealedItem(overrides: Partial<SealedPurchase> = {}): SealedPurchase {
+  return {
+    id: "s1",
+    productName: "Sobre Evoluciones Prismáticas",
+    productType: "booster_pack",
+    quantity: 1,
+    purchasePrice: 5.5,
+    purchaseCurrency: "EUR",
+    purchaseDate: "2026-07-01",
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    location: "Cajón",
+    notes: null,
+    photo: null,
+    ...overrides,
+  };
+}
+
+function renderScreen(items: CollectionItem[], sealedItems: SealedPurchase[] = []) {
+  const handlers = {
+    onRemove: vi.fn().mockResolvedValue(undefined),
+    onOverrideValue: vi.fn().mockResolvedValue(undefined),
+    onAddSealed: vi.fn().mockResolvedValue(undefined),
+    onUpdateSealed: vi.fn().mockResolvedValue(undefined),
+    onRemoveSealed: vi.fn().mockResolvedValue(undefined),
+    onOverrideSealedValue: vi.fn().mockResolvedValue(undefined),
+  };
   render(
     <ConfirmProvider>
-      <ColeccionScreen items={items} {...handlers} />
+      <ColeccionScreen items={items} sealedItems={sealedItems} {...handlers} />
     </ConfirmProvider>,
   );
   return handlers;
 }
 
 describe("ColeccionScreen", () => {
-  it("sin ejemplares, muestra el aviso de colección vacía", () => {
-    renderScreen([]);
-    expect(screen.getByText(/Todavía no has añadido ninguna carta/)).toBeInTheDocument();
+  it("sin nada, muestra el aviso de colección vacía", () => {
+    renderScreen([], []);
+    expect(screen.getByText(/Todavía no has añadido nada a tu colección/)).toBeInTheDocument();
   });
 
   it("lista los ejemplares con precio de compra y valor estimado", () => {
@@ -84,13 +114,70 @@ describe("ColeccionScreen", () => {
     expect(handlers.onOverrideValue).toHaveBeenCalledWith("i1", 400, "Corrección manual");
   });
 
-  it("filtra la colección por nombre con el buscador propio", async () => {
+  it("clic en la foto la abre en grande", async () => {
     const user = userEvent.setup();
-    renderScreen([item({ id: "i1", name: "Charizard" }), item({ id: "i2", name: "Pikachu", estimatedValueOverride: 5 })]);
+    renderScreen([item({ photo: "data:image/jpeg;base64,AAAA" })]);
 
-    await user.type(screen.getByPlaceholderText("Buscar en tu colección…"), "pika");
+    await user.click(screen.getByRole("button", { name: "Ver foto de Charizard en grande" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("lista también el producto sellado, junto a las cartas", () => {
+    renderScreen([item()], [sealedItem()]);
+    expect(screen.getByText("Charizard")).toBeInTheDocument();
+    expect(screen.getByText("Sobre Evoluciones Prismáticas")).toBeInTheDocument();
+    expect(screen.getByText("Cartas")).toBeInTheDocument();
+    expect(screen.getByText("Producto sellado")).toBeInTheDocument();
+  });
+
+  it("el buscador filtra a la vez cartas y producto sellado", async () => {
+    const user = userEvent.setup();
+    renderScreen(
+      [item({ id: "i1", name: "Charizard" }), item({ id: "i2", name: "Pikachu", estimatedValueOverride: 5 })],
+      [sealedItem({ id: "s1", productName: "ETB Paldean Fates" })],
+    );
+
+    await user.type(screen.getByPlaceholderText("Buscar en toda tu colección…"), "pika");
 
     expect(screen.getByText("Pikachu")).toBeInTheDocument();
     expect(screen.queryByText("Charizard")).not.toBeInTheDocument();
+    expect(screen.queryByText("ETB Paldean Fates")).not.toBeInTheDocument();
+  });
+
+  it("abre el formulario de nueva compra sellada y lo envía", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+
+    await user.click(screen.getByRole("button", { name: "+ Añadir compra sellada" }));
+    await user.type(screen.getByLabelText("Nombre del producto"), "Caja Escarlata y Púrpura");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(handlers.onAddSealed).toHaveBeenCalledWith(expect.objectContaining({ productName: "Caja Escarlata y Púrpura" }));
+  });
+
+  it("permite estimar el valor de una compra sellada cuando todavía no se conoce", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([], [sealedItem()]);
+
+    await user.click(screen.getByRole("button", { name: "Sin estimar" }));
+    const input = screen.getByRole("spinbutton");
+    await user.type(input, "8");
+    await user.click(screen.getByRole("button", { name: "OK" }));
+
+    expect(handlers.onOverrideSealedValue).toHaveBeenCalledWith("s1", 8, "Estimado a mano");
+  });
+
+  it("permite subir una foto a una compra sellada ya existente", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([], [sealedItem()]);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["foto"], "caja.jpg", { type: "image/jpeg" });
+    await user.upload(input, file);
+
+    expect(handlers.onUpdateSealed).toHaveBeenCalledWith("s1", expect.objectContaining({ photo: "data:image/jpeg;base64,AAAA" }));
   });
 });

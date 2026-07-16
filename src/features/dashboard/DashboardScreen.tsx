@@ -17,9 +17,11 @@ function sealedValue(items: SealedPurchase[]): { value: number; invested: number
 export function DashboardScreen({
   summary,
   sealedItems,
+  onOpenPlan,
 }: {
   summary: CollectionSummary | null;
   sealedItems: SealedPurchase[];
+  onOpenPlan: () => void;
 }) {
   const sealed = sealedValue(sealedItems);
   const totalValue = (summary?.totalValue ?? 0) + sealed.value;
@@ -56,7 +58,7 @@ export function DashboardScreen({
         </Card>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <h2 className="text-sm font-semibold text-[var(--text-muted)]">Cartas en la colección</h2>
           <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text-primary)]">
@@ -69,6 +71,16 @@ export function DashboardScreen({
             {sealedItems.length} <span className="text-sm font-normal text-[var(--text-muted)]">compras</span>
           </p>
         </Card>
+        <button
+          type="button"
+          onClick={onOpenPlan}
+          className="min-w-0 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] p-5 text-left shadow-card transition-shadow duration-200 hover:shadow-card-hover sm:p-6"
+        >
+          <h2 className="text-sm font-semibold text-[var(--text-muted)]">Plan de compra</h2>
+          <p className="mt-2 flex items-center gap-1.5 text-2xl font-bold text-[var(--beacon)]">
+            Ver plan <span aria-hidden="true">→</span>
+          </p>
+        </button>
       </div>
 
       {itemsWithoutValue > 0 && (

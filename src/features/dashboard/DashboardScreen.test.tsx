@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import type { CollectionSummary, SealedPurchase } from "../../domain/types";
 import { DashboardScreen } from "./DashboardScreen";
 
@@ -26,7 +27,7 @@ describe("DashboardScreen", () => {
         photo: null,
       },
     ];
-    render(<DashboardScreen summary={summary()} sealedItems={sealed} />);
+    render(<DashboardScreen summary={summary()} sealedItems={sealed} onOpenPlan={vi.fn()} />);
 
     // Intl.NumberFormat usa un espacio de no separación antes de "€" — \s lo cubre.
     expect(screen.getByText(/358,00\s€/)).toBeInTheDocument(); // 350 + 8
@@ -34,18 +35,29 @@ describe("DashboardScreen", () => {
   });
 
   it("muestra la ganancia en verde y con signo cuando es positiva", () => {
-    render(<DashboardScreen summary={summary({ totalValue: 350, totalInvested: 300 })} sealedItems={[]} />);
+    render(<DashboardScreen summary={summary({ totalValue: 350, totalInvested: 300 })} sealedItems={[]} onOpenPlan={vi.fn()} />);
     const gainCard = screen.getByText("Ganancia / pérdida estimada").closest("div");
     expect(gainCard?.textContent).toMatch(/\+50,00\s€/);
   });
 
   it("avisa (sin sumarlos como 0) de los ejemplares sin valor conocido", () => {
-    const { container } = render(<DashboardScreen summary={summary({ itemsWithoutValue: 2 })} sealedItems={[]} />);
+    const { container } = render(
+      <DashboardScreen summary={summary({ itemsWithoutValue: 2 })} sealedItems={[]} onOpenPlan={vi.fn()} />,
+    );
     expect(container.textContent).toContain("2 ejemplares sin valor de mercado conocido");
   });
 
   it("no muestra el aviso si todos los ejemplares tienen valor conocido", () => {
-    render(<DashboardScreen summary={summary({ itemsWithoutValue: 0 })} sealedItems={[]} />);
+    render(<DashboardScreen summary={summary({ itemsWithoutValue: 0 })} sealedItems={[]} onOpenPlan={vi.fn()} />);
     expect(screen.queryByText(/sin valor de mercado conocido/)).not.toBeInTheDocument();
+  });
+
+  it("la tarjeta 'Ver plan' llama a onOpenPlan al pulsarla", async () => {
+    const user = userEvent.setup();
+    const onOpenPlan = vi.fn();
+    render(<DashboardScreen summary={summary()} sealedItems={[]} onOpenPlan={onOpenPlan} />);
+
+    await user.click(screen.getByRole("button", { name: /Ver plan/ }));
+    expect(onOpenPlan).toHaveBeenCalled();
   });
 });

@@ -1,11 +1,11 @@
 /**
  * Redimensiona y comprime una foto antes de enviarla: una foto de móvil sin tratar
- * puede pesar varios MB, lo que hace lenta la subida y el reconocimiento por IA sin
- * mejorar la precisión (el modelo de visión no necesita más resolución que esta para
- * leer el texto de una carta). Vía canvas, sin librerías — mismo criterio del proyecto
- * de no añadir una dependencia para una operación puntual.
+ * puede pesar varios MB, lo que hace lenta la subida sin aportar nada. 1600px/calidad
+ * 0.9 deja margen de sobra para el reconocimiento por IA (que no necesita tanto) y para
+ * poder hacer zoom en el visor sin que se vea pixelada. Vía canvas, sin librerías —
+ * mismo criterio del proyecto de no añadir una dependencia para una operación puntual.
  */
-export function compressImage(file: File, maxDimension = 1024, quality = 0.82): Promise<string> {
+export function compressImage(file: File, maxDimension = 1600, quality = 0.9): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("No se ha podido leer la foto"));

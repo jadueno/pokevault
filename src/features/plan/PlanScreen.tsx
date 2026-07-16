@@ -231,15 +231,12 @@ export function PlanScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 py-4 sm:py-6">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Plan</h1>
-          <p className="text-base font-normal text-[var(--text-secondary)]">
-            Tu objetivo de compra mes a mes. "Hecho" es solo una casilla de seguimiento: no registra la compra en tu
-            colección ni cuenta en el valor total — para eso, usa "Ya la tengo" desde Buscar o Wishlist.
-          </p>
-        </div>
-        <Button variant="tint" onClick={() => setShowSettings(true)}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-[var(--text-secondary)]">
+          "Hecho" es solo una casilla de seguimiento: no registra la compra en tu colección ni cuenta en el valor
+          total — para eso, usa "Ya la tengo" desde Añadir o Wishlist.
+        </p>
+        <Button variant="tint" onClick={() => setShowSettings(true)} className="shrink-0">
           Ajustes del plan
         </Button>
       </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { NewWishlistItem, RecognizedCardData, WishlistPriority } from "../../domain/types";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
+import { PhotoField } from "../../components/PhotoField";
 
 const PRIORITIES: { value: WishlistPriority; label: string }[] = [
   { value: "low", label: "Baja" },
@@ -43,6 +44,7 @@ export function WishlistQuickForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <PhotoField photo={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nombre">
           <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
