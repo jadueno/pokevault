@@ -29,10 +29,15 @@ export function Modal({
       style={{ overscrollBehavior: "contain" }}
       onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
-      <div className={`flex max-h-[85vh] w-full ${SIZE_CLASSES[size]} flex-col rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] shadow-float`}>
+      <div className={`flex max-h-[85vh] w-full ${SIZE_CLASSES[size]} flex-col overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] shadow-float`}>
+        <div
+          aria-hidden="true"
+          className="h-1.5 shrink-0"
+          style={{ background: "var(--hero-gradient)" }}
+        />
         <div className="flex items-start justify-between border-b border-[var(--gridline)] p-5">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--text-primary)]">{title}</h2>
             {description && <p className="text-xs text-[var(--text-muted)]">{description}</p>}
           </div>
           <button

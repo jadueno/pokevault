@@ -41,10 +41,16 @@ export default function App() {
         className="hidden shrink-0 flex-col gap-1 border-r border-[var(--border)] bg-[var(--surface-1)] p-4 sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-56"
       >
         <div className="mb-4 flex items-center gap-2.5 px-2">
-          <span className="text-xl" aria-hidden="true">
+          <span
+            aria-hidden="true"
+            className="flex size-8 items-center justify-center rounded-full text-base"
+            style={{ background: "var(--hero-gradient)" }}
+          >
             🎴
           </span>
-          <p className="text-sm leading-tight font-bold text-[var(--text-primary)]">PokéVault</p>
+          <p className="font-[family-name:var(--font-display)] text-base leading-tight font-bold text-[var(--text-primary)]">
+            PokéVault
+          </p>
         </div>
         {sections.map((s) => (
           <button
@@ -52,9 +58,9 @@ export default function App() {
             type="button"
             onClick={() => setSection(s.id)}
             aria-current={section === s.id ? "page" : undefined}
-            className={`flex items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-sm font-semibold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
+            className={`flex items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-sm font-bold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
               section === s.id
-                ? "bg-[var(--ink)] text-[var(--on-ink)]"
+                ? "bg-[var(--beacon)] text-[var(--on-beacon)] shadow-card"
                 : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
             }`}
           >
@@ -93,7 +99,8 @@ export default function App() {
                     type="button"
                     onClick={() => setSection("anadir")}
                     aria-label="Añadir carta o caja"
-                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full bg-[var(--beacon)] text-2xl text-[var(--on-beacon)] shadow-float transition-transform hover:brightness-110 active:scale-95 sm:right-8 sm:bottom-8"
+                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
+                    style={{ background: "var(--hero-gradient)" }}
                   >
                     +
                   </button>
@@ -146,8 +153,8 @@ export default function App() {
               type="button"
               onClick={() => setSection(s.id)}
               aria-current={section === s.id ? "page" : undefined}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-full px-0.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
-                section === s.id ? "bg-[var(--ink)] text-[var(--on-ink)]" : "text-[var(--text-muted)]"
+              className={`flex flex-1 flex-col items-center gap-0.5 rounded-full px-0.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
+                section === s.id ? "bg-[var(--beacon)] text-[var(--on-beacon)]" : "text-[var(--text-muted)]"
               }`}
             >
               {s.label}

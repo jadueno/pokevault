@@ -98,7 +98,7 @@ describe("PlanScreen", () => {
 
   it("sin ítems, muestra el aviso correspondiente", () => {
     renderScreen([]);
-    expect(screen.getByText("Todavía no hay ítems en el plan.")).toBeInTheDocument();
+    expect(screen.getByText(/Todavía no hay ítems en el plan\./)).toBeInTheDocument();
   });
 
   it("abre los ajustes del plan y los guarda", async () => {

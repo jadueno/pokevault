@@ -31,7 +31,7 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const sizeClass = size === "sm" ? "px-3.5 py-1.5 text-sm" : "px-4 py-2.5 text-sm";
-  const base = `inline-flex items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`;
+  const base = `inline-flex items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`;
 
   if (variant === "ghost") {
     return (

@@ -1,6 +1,7 @@
 import type { CollectionSummary, SealedPurchase } from "../../domain/types";
 import { formatMoney } from "../../domain/calculations";
 import { Card } from "../../components/Card";
+import { ScreenHeader } from "../../components/ScreenHeader";
 
 function sealedValue(items: SealedPurchase[]): { value: number; invested: number; withoutValue: number } {
   let value = 0;
@@ -31,25 +32,26 @@ export function DashboardScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="py-4 sm:py-6">
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Resumen</h1>
-        <p className="text-base font-normal text-[var(--text-secondary)]">El valor de toda tu colección, de un vistazo.</p>
-      </div>
+      <ScreenHeader title="Resumen" subtitle="El valor de toda tu colección, de un vistazo." />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)]">Valor total estimado</h2>
-          <p className="mt-2 text-4xl font-extrabold tabular-nums text-[var(--text-primary)]">{formatMoney(totalValue)}</p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">Cartas + producto sellado, con precio de mercado o tu corrección manual.</p>
+        <Card variant="gradient" className="sm:col-span-1">
+          <h2 className="text-sm font-semibold text-white/70">Valor total estimado</h2>
+          <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums text-[var(--on-hero)]">
+            {formatMoney(totalValue)}
+          </p>
+          <p className="mt-1 text-xs text-white/60">Cartas + producto sellado, con precio de mercado o tu corrección manual.</p>
         </Card>
         <Card>
           <h2 className="text-sm font-semibold text-[var(--text-muted)]">Invertido</h2>
-          <p className="mt-2 text-4xl font-extrabold tabular-nums text-[var(--text-primary)]">{formatMoney(totalInvested)}</p>
+          <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums text-[var(--text-primary)]">
+            {formatMoney(totalInvested)}
+          </p>
         </Card>
         <Card>
           <h2 className="text-sm font-semibold text-[var(--text-muted)]">Ganancia / pérdida estimada</h2>
           <p
-            className="mt-2 text-4xl font-extrabold tabular-nums"
+            className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums"
             style={{ color: gainLoss >= 0 ? "var(--status-good)" : "var(--status-critical)" }}
           >
             {gainLoss >= 0 ? "+" : ""}
@@ -74,11 +76,11 @@ export function DashboardScreen({
         <button
           type="button"
           onClick={onOpenPlan}
-          className="min-w-0 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] p-5 text-left shadow-card transition-shadow duration-200 hover:shadow-card-hover sm:p-6"
+          className="group min-w-0 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] p-5 text-left shadow-card transition-shadow duration-200 hover:shadow-card-hover sm:p-6"
         >
           <h2 className="text-sm font-semibold text-[var(--text-muted)]">Plan de compra</h2>
           <p className="mt-2 flex items-center gap-1.5 text-2xl font-bold text-[var(--beacon)]">
-            Ver plan <span aria-hidden="true">→</span>
+            Ver plan <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
           </p>
         </button>
       </div>

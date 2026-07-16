@@ -42,14 +42,14 @@ export function PhotoField({
             type="button"
             onClick={() => setLightboxOpen(true)}
             aria-label="Ver foto en grande"
-            className={`shrink-0 rounded-lg ${focusRing}`}
+            className={`shrink-0 rounded-xl ${focusRing}`}
           >
-            <img src={photo} alt="" className="size-16 rounded-lg border border-[var(--border)] object-cover" />
+            <img src={photo} alt="" className="size-20 rounded-xl border border-[var(--border)] object-cover" />
           </button>
         ) : (
           <div
             aria-hidden="true"
-            className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-xl text-[var(--text-muted)]"
+            className="flex size-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-2xl text-[var(--text-muted)]"
           >
             📷
           </div>

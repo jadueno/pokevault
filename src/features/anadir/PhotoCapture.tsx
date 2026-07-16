@@ -33,11 +33,12 @@ export function PhotoCapture({ onCapture }: { onCapture: (dataUrl: string) => vo
         onClick={() => inputRef.current?.click()}
         disabled={processing}
         aria-label="Hacer foto a una carta o caja"
-        className="flex size-24 items-center justify-center rounded-full bg-[var(--beacon)] text-4xl text-[var(--on-beacon)] shadow-float transition-transform active:scale-95 disabled:opacity-60"
+        className="flex size-24 items-center justify-center rounded-full text-4xl text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 disabled:opacity-60"
+        style={{ background: "var(--hero-gradient)" }}
       >
         📷
       </button>
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm font-semibold text-[var(--text-secondary)]">
         {processing ? "Procesando foto…" : "Haz una foto a la carta o a la caja"}
       </p>
       {error && (

@@ -50,8 +50,15 @@ function ShoppingLinksCard({
       {settings.shoppingLinks.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {settings.shoppingLinks.map((link, i) => (
-            <li key={i} className="flex items-center gap-1.5 rounded-full border border-[var(--border)] py-1 pr-1.5 pl-3 text-sm">
-              <a href={link.url} target="_blank" rel="noreferrer" className="font-medium text-[var(--beacon)] hover:underline">
+            <li
+              key={i}
+              className="flex items-center gap-1.5 rounded-full border py-1 pr-1.5 pl-3 text-sm"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--amber) 14%, var(--surface-1))",
+                borderColor: "color-mix(in srgb, var(--amber) 30%, transparent)",
+              }}
+            >
+              <a href={link.url} target="_blank" rel="noreferrer" className="font-bold text-[var(--amber)] hover:underline">
                 {link.label}
               </a>
               <button
@@ -132,7 +139,7 @@ function PlanItemRow({
         checked={item.done}
         onChange={() => onToggleDone(item.id)}
         aria-label={`Marcar "${item.description}" como hecho`}
-        className="mt-1 size-4 shrink-0 accent-[var(--beacon)]"
+        className="mt-1 size-4 shrink-0 accent-[var(--status-good)]"
       />
       {editing ? (
         <input
@@ -247,7 +254,9 @@ export function PlanScreen({
         <Card className="flex flex-wrap items-center gap-x-8 gap-y-2">
           <div>
             <p className="text-xs text-[var(--text-muted)]">Presupuesto mensual</p>
-            <p className="text-lg font-bold text-[var(--beacon)]">{formatMoney(settings.monthlyBudget)}</p>
+            <p className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--amber)]">
+              {formatMoney(settings.monthlyBudget)}
+            </p>
           </div>
           {settings.yearRules && (
             <div className="min-w-0 flex-1 basis-64">
@@ -277,12 +286,12 @@ export function PlanScreen({
 
       {groups.length === 0 ? (
         <Card>
-          <p className="text-sm text-[var(--text-muted)]">Todavía no hay ítems en el plan.</p>
+          <p className="text-sm text-[var(--text-muted)]">🗓️ Todavía no hay ítems en el plan.</p>
         </Card>
       ) : (
         groups.map((group) => (
           <div key={group.month} className="flex flex-col gap-3">
-            <h2 className="text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">
+            <h2 className="font-[family-name:var(--font-display)] text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">
               {monthLabel(group.month)}
             </h2>
             <div className="grid gap-4 sm:grid-cols-3">

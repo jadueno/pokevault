@@ -1,12 +1,14 @@
 import { useState } from "react";
-import type { CollectionItem, NewSealedPurchase, SealedPurchase } from "../../domain/types";
+import type { CardCondition, CollectionItem, NewSealedPurchase, SealedPurchase } from "../../domain/types";
 import { formatMoney } from "../../domain/calculations";
+import { Badge, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
 import { inputClass, focusRing } from "../../components/Field";
 import { PhotoField } from "../../components/PhotoField";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
+import { ScreenHeader } from "../../components/ScreenHeader";
 import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
 
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -32,6 +34,19 @@ const CONDITION_LABELS: Record<string, string> = {
   light_played: "Light Played",
   played: "Played",
   poor: "Poor",
+};
+
+// De mejor a peor estado, un degradado semántico de verde a rojo — mismo lenguaje que ya
+// usaban los tokens --status-* de la app (prioridad, ganancia/pérdida), aplicado ahora
+// también a la condición física de la carta.
+const CONDITION_TONES: Record<CardCondition, BadgeTone> = {
+  mint: "good",
+  near_mint: "good",
+  excellent: "amber",
+  good: "amber",
+  light_played: "warning",
+  played: "critical",
+  poor: "critical",
 };
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -77,25 +92,38 @@ function ItemCard({
   }
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card variant="gradient" className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        {item.photo && (
+        {item.photo ? (
           <button
             type="button"
             onClick={() => setLightboxOpen(true)}
             aria-label={`Ver foto de ${item.name} en grande`}
-            className={`shrink-0 rounded-lg ${focusRing}`}
+            className={`shrink-0 rounded-xl ${focusRing}`}
           >
-            <img src={item.photo} alt={item.name} loading="lazy" className="w-16 rounded-lg object-cover" />
+            <img src={item.photo} alt={item.name} loading="lazy" className="w-20 rounded-xl object-cover shadow-card" />
           </button>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex w-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--border)] py-6 text-2xl text-[var(--text-muted)]"
+          >
+            🎴
+          </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-[var(--text-primary)]">{item.name}</p>
+          <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">{item.name}</p>
           {item.setName && <p className="truncate text-xs text-[var(--text-muted)]">{item.setName}</p>}
-          <p className="text-xs text-[var(--text-muted)]">
-            {LANGUAGE_LABELS[item.language]} · {CONDITION_LABELS[item.condition]} · x{item.quantity}
-            {item.isGraded && ` · ${item.gradingCompany} ${item.grade}`}
-          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <Badge tone="info">{LANGUAGE_LABELS[item.language]}</Badge>
+            <Badge tone={CONDITION_TONES[item.condition]}>{CONDITION_LABELS[item.condition]}</Badge>
+            <span className="text-xs font-semibold text-[var(--text-muted)]">x{item.quantity}</span>
+            {item.isGraded && (
+              <Badge tone="beacon">
+                {item.gradingCompany} {item.grade}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -123,7 +151,7 @@ function ItemCard({
             </Button>
           </div>
         ) : (
-          <button type="button" onClick={() => setEditingValue(true)} className="font-semibold text-[var(--beacon)] hover:underline">
+          <button type="button" onClick={() => setEditingValue(true)} className="font-semibold text-[var(--amber)] hover:underline">
             {item.estimatedValueOverride !== null ? formatMoney(item.estimatedValueOverride) : "Sin valor conocido"}
           </button>
         )}
@@ -187,15 +215,16 @@ function SealedItemCard({
   }
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card variant="gradient" className="flex flex-col gap-3">
       <PhotoField label="Foto" photo={item.photo} onChange={handlePhotoChange} />
 
       <div>
-        <p className="truncate font-semibold text-[var(--text-primary)]">{item.productName}</p>
-        <p className="text-xs text-[var(--text-muted)]">
-          {PRODUCT_TYPE_LABELS[item.productType]} · x{item.quantity}
-          {item.location && ` · ${item.location}`}
-        </p>
+        <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">{item.productName}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <Badge tone="amber">{PRODUCT_TYPE_LABELS[item.productType]}</Badge>
+          <span className="text-xs font-semibold text-[var(--text-muted)]">x{item.quantity}</span>
+          {item.location && <span className="text-xs text-[var(--text-muted)]">· {item.location}</span>}
+        </div>
       </div>
 
       <div className="flex items-center justify-between text-sm">
@@ -225,7 +254,7 @@ function SealedItemCard({
           <button
             type="button"
             onClick={() => setEditingValue(true)}
-            className="font-semibold text-[var(--gold)] hover:underline"
+            className="font-semibold text-[var(--amber)] hover:underline"
           >
             {item.estimatedValueOverride !== null ? formatMoney(item.estimatedValueOverride) : "Sin estimar"}
           </button>
@@ -277,13 +306,15 @@ export function ColeccionScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="py-4 sm:py-6">
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Mi colección</h1>
-        <p className="text-base font-normal text-[var(--text-secondary)]">
-          <strong className="font-bold text-[var(--text-primary)]">{items.length}</strong> carta{items.length === 1 ? "" : "s"} y{" "}
-          <strong className="font-bold text-[var(--text-primary)]">{sealedItems.length}</strong> de producto sellado.
-        </p>
-      </div>
+      <ScreenHeader
+        title="Mi colección"
+        subtitle={
+          <>
+            <strong className="font-bold text-[var(--on-hero)]">{items.length}</strong> carta{items.length === 1 ? "" : "s"} y{" "}
+            <strong className="font-bold text-[var(--on-hero)]">{sealedItems.length}</strong> de producto sellado.
+          </>
+        }
+      />
 
       {!isEmpty && (
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -299,9 +330,9 @@ export function ColeccionScreen({
                 type="button"
                 onClick={() => setTab(t.id)}
                 aria-current={tab === t.id ? "page" : undefined}
-                className={`rounded-full px-4 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors ${focusRing} ${
+                className={`rounded-full px-4 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${focusRing} ${
                   tab === t.id
-                    ? "bg-[var(--ink)] text-[var(--on-ink)]"
+                    ? "bg-[var(--beacon)] text-[var(--on-beacon)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
                 }`}
               >
@@ -310,7 +341,7 @@ export function ColeccionScreen({
             ))}
           </div>
           {tab === "sellado" && (
-            <Button tone="ink" onClick={() => setShowSealedForm(true)}>
+            <Button tone="beacon" onClick={() => setShowSealedForm(true)}>
               + Añadir compra sellada
             </Button>
           )}
@@ -318,12 +349,17 @@ export function ColeccionScreen({
       )}
 
       {!isEmpty && (
-        <input
-          className={`${inputClass} max-w-sm`}
-          placeholder="Buscar en toda tu colección…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="relative max-w-sm">
+          <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-muted)]">
+            🔍
+          </span>
+          <input
+            className={`${inputClass} rounded-full py-2.5 pl-9`}
+            placeholder="Buscar en toda tu colección…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       )}
 
       {showSealedForm && (
@@ -338,7 +374,9 @@ export function ColeccionScreen({
 
       {isEmpty ? (
         <Card>
-          <p className="text-sm text-[var(--text-muted)]">Todavía no has añadido nada a tu colección. Ve a "Añadir" para empezar.</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            🎴 Todavía no has añadido nada a tu colección. Ve a "Añadir" para empezar.
+          </p>
         </Card>
       ) : tab === "cartas" ? (
         filteredItems.length === 0 ? (

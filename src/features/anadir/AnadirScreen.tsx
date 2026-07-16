@@ -1,10 +1,12 @@
 import { useState } from "react";
 import type { NewCollectionItem, NewSealedPurchase, NewWishlistItem, RecognizedCardData } from "../../domain/types";
 import { recognizeCard } from "../../data/api";
+import { Badge, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { focusRing } from "../../components/Field";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
+import { ScreenHeader } from "../../components/ScreenHeader";
 import { PhotoCapture } from "./PhotoCapture";
 import { CollectionQuickForm } from "./CollectionQuickForm";
 import { WishlistQuickForm } from "./WishlistQuickForm";
@@ -13,6 +15,7 @@ import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
 type Destination = "coleccion" | "wishlist" | "sellado";
 
 const CONFIDENCE_LABELS: Record<string, string> = { high: "Alta", medium: "Media", low: "Baja" };
+const CONFIDENCE_TONES: Record<string, BadgeTone> = { high: "good", medium: "amber", low: "critical" };
 
 export function AnadirScreen({
   onAddToCollection,
@@ -61,14 +64,14 @@ export function AnadirScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="py-4 sm:py-6">
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Añadir</h1>
-        <p className="text-base font-normal text-[var(--text-secondary)]">
-          Haz una foto a lo que has comprado. Se identifica automáticamente y revisas los datos antes de guardar.
-        </p>
-      </div>
+      <ScreenHeader
+        title="Añadir"
+        subtitle="Haz una foto a lo que has comprado. Se identifica automáticamente y revisas los datos antes de guardar."
+      />
 
-      {savedMessage && <p className="text-sm text-[var(--status-good)]">{savedMessage}</p>}
+      {savedMessage && (
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-[var(--status-good)]">✓ {savedMessage}</p>
+      )}
 
       {!photo && (
         <Card>
@@ -77,7 +80,7 @@ export function AnadirScreen({
       )}
 
       {photo && (
-        <Card className="flex flex-col gap-4">
+        <Card variant="gradient" className="flex flex-col gap-4">
           <div className="flex items-start gap-4">
             <button
               type="button"
@@ -85,7 +88,7 @@ export function AnadirScreen({
               aria-label="Ver foto en grande"
               className={`shrink-0 rounded-xl ${focusRing}`}
             >
-              <img src={photo} alt="Foto tomada" className="w-24 rounded-xl border border-[var(--border)]" />
+              <img src={photo} alt="Foto tomada" className="w-24 rounded-xl border border-[var(--border)] shadow-card" />
             </button>
             <div className="min-w-0 flex-1">
               {recognizing && <p className="text-sm text-[var(--text-secondary)]">Identificando…</p>}
@@ -98,12 +101,18 @@ export function AnadirScreen({
                 <div className="text-sm text-[var(--text-secondary)]">
                   {recognized.name ? (
                     <>
-                      <p className="font-semibold text-[var(--text-primary)]">{recognized.name}</p>
+                      <p className="font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">{recognized.name}</p>
                       {recognized.setName && <p>{recognized.setName}</p>}
                       {(recognized.number || recognized.rarity) && (
                         <p>{[recognized.number, recognized.rarity].filter(Boolean).join(" · ")}</p>
                       )}
-                      {recognized.confidence && <p className="text-xs text-[var(--text-muted)]">Confianza: {CONFIDENCE_LABELS[recognized.confidence]}</p>}
+                      {recognized.confidence && (
+                        <div className="mt-1.5">
+                          <Badge tone={CONFIDENCE_TONES[recognized.confidence]}>
+                            Confianza {CONFIDENCE_LABELS[recognized.confidence]}
+                          </Badge>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <p>No se ha podido identificar nada en la foto. Rellena los datos a mano.</p>

@@ -2,6 +2,11 @@
 
 @theme {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  /* Fuente de "titulares": muy redondeada y bold, inspirada en la referencia visual
+     (estilo Pokédex). Se usa solo para títulos de pantalla, nombres de carta/producto y
+     cifras protagonistas — el resto del texto (formularios, datos densos) sigue en Inter,
+     que es más legible a tamaños pequeños y en tablas de números. */
+  --font-display: "Baloo 2", "Inter", system-ui, sans-serif;
 }
 
 :root {
@@ -29,6 +34,14 @@
   --on-ink: var(--page);
   --accent-beacon-blob: color-mix(in srgb, var(--beacon) 12%, transparent);
   --accent-amber-blob: color-mix(in srgb, var(--amber) 8%, transparent);
+
+  /* Rediseño "Pokédex viva": degradados vivos para la cabecera hero de cada pantalla y
+     para las tarjetas "protagonistas" (carta/producto/deseo) — la energía visual de la
+     referencia, con rojo Poké Ball + dorado como colores propios en vez del verde
+     original, para no perder la identidad de marca ya construida. */
+  --hero-gradient: radial-gradient(120% 180% at 15% -20%, color-mix(in srgb, var(--amber) 55%, var(--beacon)) 0%, var(--beacon) 32%, #4a0812 72%, #1a0508 100%);
+  --card-gradient: linear-gradient(165deg, color-mix(in srgb, var(--beacon) 16%, var(--surface-2)) 0%, var(--surface-1) 45%, var(--page) 145%);
+  --on-hero: #ffffff;
 
   /* Estados (condición de carta, prioridad de wishlist, etc.) */
   --status-good: #34b57a;
@@ -97,6 +110,14 @@ body {
   box-shadow:
     0 2px 8px rgba(var(--shadow-tint), 0.08),
     0 12px 28px -10px rgba(var(--shadow-tint), 0.2);
+}
+
+/* Resplandor de marca al pasar el ratón sobre una tarjeta "protagonista" (variant="gradient"
+   de Card) — el equivalente sutil al brillo de las tarjetas de la referencia. */
+@utility shadow-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--beacon) 25%, transparent),
+    0 18px 36px -18px color-mix(in srgb, var(--beacon) 65%, transparent);
 }
 
 @keyframes shimmer {

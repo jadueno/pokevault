@@ -1,16 +1,23 @@
 import { useState } from "react";
 import type { MoveToCollectionDetails, NewWishlistItem, WishlistItem, WishlistPriority } from "../../domain/types";
 import { groupWishlistByMonth, monthLabel } from "../../domain/calculations";
+import { badgeToneColors, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
-import { inputClass } from "../../components/Field";
+import { focusRing, inputClass } from "../../components/Field";
 import { Modal } from "../../components/Modal";
 import { PhotoField } from "../../components/PhotoField";
+import { ScreenHeader } from "../../components/ScreenHeader";
 import { MoveToCollectionForm } from "./MoveToCollectionForm";
 import { WishlistQuickForm } from "../anadir/WishlistQuickForm";
 
 const PRIORITY_LABELS: Record<WishlistPriority, string> = { low: "Baja", medium: "Media", high: "Alta" };
+
+// Prioridad como insignia de color, del mismo modo que la condición de una carta —
+// baja = neutra, media = ámbar (atención), alta = roja (urgente, coincide con el rojo
+// de marca reservado para acciones/urgencia).
+const PRIORITY_TONES: Record<WishlistPriority, BadgeTone> = { low: "neutral", medium: "amber", high: "critical" };
 
 function WishlistItemCard({
   item,
@@ -47,8 +54,10 @@ function WishlistItemCard({
     onUpdate(item.id, { ...strip(item), maxPrice: value });
   }
 
+  const priorityColors = badgeToneColors[PRIORITY_TONES[item.priority]];
+
   return (
-    <Card className="flex flex-col gap-3">
+    <Card variant="gradient" className="flex flex-col gap-3">
       <PhotoField
         label="Foto"
         photo={item.photo}
@@ -56,13 +65,18 @@ function WishlistItemCard({
       />
 
       <div>
-        <p className="truncate font-semibold text-[var(--text-primary)]">{item.name}</p>
+        <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">{item.name}</p>
         {item.setName && <p className="truncate text-xs text-[var(--text-muted)]">{item.setName}</p>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* select "disfrazado" de insignia de color: sigue siendo editable (accesible por
+            teclado, con las opciones nativas del navegador) pero se ve como el resto de
+            metadatos de color sólido de la app. */}
         <select
-          className={`${inputClass} w-auto text-xs`}
+          aria-label="Prioridad"
+          className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase ${focusRing}`}
+          style={{ backgroundColor: priorityColors.bg, color: priorityColors.fg }}
           value={item.priority}
           onChange={(e) => onUpdate(item.id, { ...strip(item), priority: e.target.value as WishlistPriority })}
         >
@@ -141,23 +155,30 @@ export function WishlistScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 py-4 sm:py-6">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Wishlist</h1>
-          <p className="text-base font-normal text-[var(--text-secondary)]">Organizada por mes objetivo de compra.</p>
-        </div>
-        <Button tone="ink" onClick={() => setShowForm(true)}>
-          + Añadir deseo
-        </Button>
-      </div>
+      <ScreenHeader
+        title="Wishlist"
+        subtitle="Organizada por mes objetivo de compra."
+        action={
+          // tone="ink" en vez de "beacon": sobre el degradado rojo/dorado del hero, un
+          // botón rojo se camuflaría — el pill claro (ink = casi blanco) destaca mejor.
+          <Button tone="ink" onClick={() => setShowForm(true)}>
+            + Añadir deseo
+          </Button>
+        }
+      />
 
       {items.length > 0 && (
-        <input
-          className={`${inputClass} max-w-sm`}
-          placeholder="Buscar en tu wishlist…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="relative max-w-sm">
+          <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-muted)]">
+            🔍
+          </span>
+          <input
+            className={`${inputClass} rounded-full py-2.5 pl-9`}
+            placeholder="Buscar en tu wishlist…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       )}
 
       {showForm && (
@@ -176,7 +197,7 @@ export function WishlistScreen({
 
       {items.length === 0 ? (
         <Card>
-          <p className="text-sm text-[var(--text-muted)]">Todavía no hay nada en tu wishlist.</p>
+          <p className="text-sm text-[var(--text-muted)]">✨ Todavía no hay nada en tu wishlist.</p>
         </Card>
       ) : filtered.length === 0 ? (
         <Card>
@@ -185,7 +206,7 @@ export function WishlistScreen({
       ) : (
         groups.map((group) => (
           <div key={group.month ?? "sin-mes"} className="flex flex-col gap-3">
-            <h2 className="text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">
+            <h2 className="font-[family-name:var(--font-display)] text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">
               {monthLabel(group.month)}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
