@@ -125,15 +125,20 @@ describe("ColeccionScreen", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("lista también el producto sellado, junto a las cartas", () => {
+  it("cartas y sellado están en pestañas separadas, con el recuento en cada una", async () => {
+    const user = userEvent.setup();
     renderScreen([item()], [sealedItem()]);
+
+    expect(screen.getByRole("button", { name: "Cartas (1)" })).toBeInTheDocument();
     expect(screen.getByText("Charizard")).toBeInTheDocument();
+    expect(screen.queryByText("Sobre Evoluciones Prismáticas")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sellado (1)" }));
     expect(screen.getByText("Sobre Evoluciones Prismáticas")).toBeInTheDocument();
-    expect(screen.getByText("Cartas")).toBeInTheDocument();
-    expect(screen.getByText("Producto sellado")).toBeInTheDocument();
+    expect(screen.queryByText("Charizard")).not.toBeInTheDocument();
   });
 
-  it("el buscador filtra a la vez cartas y producto sellado", async () => {
+  it("el buscador filtra la pestaña activa", async () => {
     const user = userEvent.setup();
     renderScreen(
       [item({ id: "i1", name: "Charizard" }), item({ id: "i2", name: "Pikachu", estimatedValueOverride: 5 })],
@@ -144,13 +149,17 @@ describe("ColeccionScreen", () => {
 
     expect(screen.getByText("Pikachu")).toBeInTheDocument();
     expect(screen.queryByText("Charizard")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sellado (1)" }));
     expect(screen.queryByText("ETB Paldean Fates")).not.toBeInTheDocument();
+    expect(screen.getByText(/Sin resultados/)).toBeInTheDocument();
   });
 
   it("abre el formulario de nueva compra sellada y lo envía", async () => {
     const user = userEvent.setup();
-    const handlers = renderScreen([]);
+    const handlers = renderScreen([item()], []);
 
+    await user.click(screen.getByRole("button", { name: "Sellado (0)" }));
     await user.click(screen.getByRole("button", { name: "+ Añadir compra sellada" }));
     await user.type(screen.getByLabelText("Nombre del producto"), "Caja Escarlata y Púrpura");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
@@ -160,8 +169,9 @@ describe("ColeccionScreen", () => {
 
   it("permite estimar el valor de una compra sellada cuando todavía no se conoce", async () => {
     const user = userEvent.setup();
-    const handlers = renderScreen([], [sealedItem()]);
+    const handlers = renderScreen([item()], [sealedItem()]);
 
+    await user.click(screen.getByRole("button", { name: "Sellado (1)" }));
     await user.click(screen.getByRole("button", { name: "Sin estimar" }));
     const input = screen.getByRole("spinbutton");
     await user.type(input, "8");
@@ -172,8 +182,9 @@ describe("ColeccionScreen", () => {
 
   it("permite subir una foto a una compra sellada ya existente", async () => {
     const user = userEvent.setup();
-    const handlers = renderScreen([], [sealedItem()]);
+    const handlers = renderScreen([item()], [sealedItem()]);
 
+    await user.click(screen.getByRole("button", { name: "Sellado (1)" }));
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["foto"], "caja.jpg", { type: "image/jpeg" });
     await user.upload(input, file);

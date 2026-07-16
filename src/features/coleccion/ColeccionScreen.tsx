@@ -267,28 +267,55 @@ export function ColeccionScreen({
 }) {
   const [query, setQuery] = useState("");
   const [showSealedForm, setShowSealedForm] = useState(false);
+  const [tab, setTab] = useState<"cartas" | "sellado">("cartas");
 
   const q = query.trim().toLowerCase();
   const filteredItems = q ? items.filter((i) => `${i.name} ${i.setName ?? ""}`.toLowerCase().includes(q)) : items;
   const filteredSealed = q ? sealedItems.filter((i) => i.productName.toLowerCase().includes(q)) : sealedItems;
 
   const isEmpty = items.length === 0 && sealedItems.length === 0;
-  const noResults = !isEmpty && filteredItems.length === 0 && filteredSealed.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 py-4 sm:py-6">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Mi colección</h1>
-          <p className="text-base font-normal text-[var(--text-secondary)]">
-            <strong className="font-bold text-[var(--text-primary)]">{items.length}</strong> carta{items.length === 1 ? "" : "s"} y{" "}
-            <strong className="font-bold text-[var(--text-primary)]">{sealedItems.length}</strong> de producto sellado.
-          </p>
-        </div>
-        <Button tone="ink" onClick={() => setShowSealedForm(true)}>
-          + Añadir compra sellada
-        </Button>
+      <div className="py-4 sm:py-6">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">Mi colección</h1>
+        <p className="text-base font-normal text-[var(--text-secondary)]">
+          <strong className="font-bold text-[var(--text-primary)]">{items.length}</strong> carta{items.length === 1 ? "" : "s"} y{" "}
+          <strong className="font-bold text-[var(--text-primary)]">{sealedItems.length}</strong> de producto sellado.
+        </p>
       </div>
+
+      {!isEmpty && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex w-fit gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
+            {(
+              [
+                { id: "cartas", label: `Cartas (${items.length})` },
+                { id: "sellado", label: `Sellado (${sealedItems.length})` },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                aria-current={tab === t.id ? "page" : undefined}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors ${focusRing} ${
+                  tab === t.id
+                    ? "bg-[var(--ink)] text-[var(--on-ink)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tab === "sellado" && (
+            <Button tone="ink" onClick={() => setShowSealedForm(true)}>
+              + Añadir compra sellada
+            </Button>
+          )}
+        </div>
+      )}
 
       {!isEmpty && (
         <input
@@ -313,40 +340,38 @@ export function ColeccionScreen({
         <Card>
           <p className="text-sm text-[var(--text-muted)]">Todavía no has añadido nada a tu colección. Ve a "Añadir" para empezar.</p>
         </Card>
-      ) : noResults ? (
+      ) : tab === "cartas" ? (
+        filteredItems.length === 0 ? (
+          <Card>
+            <p className="text-sm text-[var(--text-muted)]">
+              {items.length === 0 ? "Todavía no tienes cartas registradas." : "Sin resultados para esa búsqueda."}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredItems.map((item) => (
+              <ItemCard key={item.id} item={item} onRemove={onRemove} onOverrideValue={onOverrideValue} />
+            ))}
+          </div>
+        )
+      ) : filteredSealed.length === 0 ? (
         <Card>
-          <p className="text-sm text-[var(--text-muted)]">Sin resultados para esa búsqueda.</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            {sealedItems.length === 0 ? "Todavía no has registrado ningún producto sellado." : "Sin resultados para esa búsqueda."}
+          </p>
         </Card>
       ) : (
-        <>
-          {filteredItems.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h2 className="text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">Cartas</h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredItems.map((item) => (
-                  <ItemCard key={item.id} item={item} onRemove={onRemove} onOverrideValue={onOverrideValue} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {filteredSealed.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h2 className="text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">Producto sellado</h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredSealed.map((item) => (
-                  <SealedItemCard
-                    key={item.id}
-                    item={item}
-                    onUpdate={onUpdateSealed}
-                    onRemove={onRemoveSealed}
-                    onOverrideValue={onOverrideSealedValue}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredSealed.map((item) => (
+            <SealedItemCard
+              key={item.id}
+              item={item}
+              onUpdate={onUpdateSealed}
+              onRemove={onRemoveSealed}
+              onOverrideValue={onOverrideSealedValue}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
