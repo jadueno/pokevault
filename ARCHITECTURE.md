@@ -20,12 +20,22 @@ Frontend (React + TS)  ──HTTP/JSON──▶  Backend (Fastify + TS)  ──S
 | Capa | Elección | Motivo |
 |---|---|---|
 | Frontend | React 19 + TypeScript + Vite | Mismo criterio que rumbo/nous/faro: rápido de iterar, tipado de extremo a extremo |
-| Estilos | Tailwind v4 + variables CSS | Paleta propia ("vitrina de coleccionista": casi negro + rojo Poké Ball + dorado), distinta del resto del portfolio |
+| Estilos | Tailwind v4 + variables CSS | Paleta propia ("vitrina de coleccionista": casi negro + rojo Poké Ball + dorado), distinta del resto del portfolio. Rediseño "energía de Pokédex" (banners `ScreenHeader` con degradado de marca, tarjetas `Card variant="gradient"`, insignias `Badge`, tipografía de titulares Baloo 2) sobre esa misma paleta — ver más abajo |
 | Backend | Node + TypeScript + Fastify | Overhead mínimo, mismo patrón que los tres hermanos |
 | Base de datos | PostgreSQL en Docker (local) | Herramienta personal, sin despliegue público |
 | Migraciones | `node-pg-migrate` | Versionadas en TypeScript |
 | Sin ORM | Repositorio con `pg` + SQL explícito | Volumen pequeño, un solo usuario; un ORM no aporta nada aquí |
 | Reconocimiento de fotos | Ollama local (`minicpm-v` por defecto) | Gratis, privado (la foto nunca sale de tu máquina), mismo Ollama que ya usa `nous` |
+
+## Rediseño visual: energía de Pokédex, identidad propia
+
+A partir de una captura de referencia (una web de Pokédex: banner con degradado vivo, tarjetas con fondo degradado, insignias de color sólido, tipografía muy bold y redondeada), se trasladó esa energía visual a las pantallas ya existentes — **sin** reconstruir el listado de tipo catálogo que mostraba esa referencia, que es justo la funcionalidad que se eliminó deliberadamente (ver más abajo). El usuario confirmó explícitamente que quería solo el estilo, no la pantalla.
+
+- **Paleta**: se mantiene "casi negro + rojo Poké Ball + dorado" (la identidad ya construida) en vez de adoptar el verde de la referencia, que solo aparecía porque el Pokémon protagonista de esa captura era de tipo planta.
+- **`ScreenHeader`**: banner "hero" con degradado de marca (`--hero-gradient`), en Resumen/Colección/Wishlist/Añadir.
+- **`Card variant="gradient"`**: tarjetas "protagonista" (carta, producto sellado, deseo, valor total) con fondo degradado oscuro y brillo de marca al pasar el ratón (`shadow-glow`); las tarjetas de utilidad (formularios, estados vacíos) se quedan planas para no competir en jerarquía visual.
+- **`Badge`**: insignias de color sólido para metadatos cortos (idioma, estado de conservación, tipo de producto, prioridad de wishlist, confianza del reconocimiento por IA).
+- **Tipografía**: Baloo 2 (`--font-display`) para títulos de pantalla, nombres de carta/producto y cifras protagonistas; Inter se mantiene para formularios y datos densos, donde es más legible.
 
 ## Arquitectura hexagonal (backend)
 
