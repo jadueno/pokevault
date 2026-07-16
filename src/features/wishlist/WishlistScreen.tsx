@@ -155,17 +155,17 @@ export function WishlistScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeader
-        title="Wishlist"
-        subtitle="Organizada por mes objetivo de compra."
-        action={
-          // tone="ink" en vez de "beacon": sobre el degradado rojo/dorado del hero, un
-          // botón rojo se camuflaría — el pill claro (ink = casi blanco) destaca mejor.
-          <Button tone="ink" onClick={() => setShowForm(true)}>
-            + Añadir deseo
-          </Button>
-        }
-      />
+      <ScreenHeader title="Wishlist" subtitle="Organizada por mes objetivo de compra." />
+
+      <button
+        type="button"
+        onClick={() => setShowForm(true)}
+        aria-label="Añadir deseo a la wishlist"
+        className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
+        style={{ background: "var(--hero-gradient)" }}
+      >
+        +
+      </button>
 
       {items.length > 0 && (
         <div className="relative max-w-sm">

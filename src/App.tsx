@@ -13,8 +13,9 @@ import { Modal } from "./components/Modal";
 
 type Section = "dashboard" | "anadir" | "coleccion" | "wishlist";
 
-// "anadir" no aparece aquí a propósito: se accede desde el botón flotante del Resumen,
-// no ocupa un hueco fijo en el menú. "Plan" tampoco: se abre como modal desde el Resumen.
+// "anadir" no aparece aquí a propósito: se accede desde el botón flotante de Mi
+// colección, no ocupa un hueco fijo en el menú. "Plan" tampoco: se abre como modal
+// desde el botón flotante del Resumen.
 // "Sellado" ya no es una sección aparte: se fusionó dentro de "Mi colección" (para el
 // usuario, la colección es todo, tanto cartas como cajas).
 const sections: { id: Section; label: string }[] = [
@@ -90,19 +91,15 @@ export default function App() {
             <>
               {section === "dashboard" && (
                 <>
-                  <DashboardScreen
-                    summary={collection.summary}
-                    sealedItems={sealed.items}
-                    onOpenPlan={() => setShowPlan(true)}
-                  />
+                  <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />
                   <button
                     type="button"
-                    onClick={() => setSection("anadir")}
-                    aria-label="Añadir carta o caja"
-                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
+                    onClick={() => setShowPlan(true)}
+                    aria-label="Ver plan de compra mensual"
+                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
                     style={{ background: "var(--hero-gradient)" }}
                   >
-                    +
+                    📋
                   </button>
                 </>
               )}
@@ -114,16 +111,27 @@ export default function App() {
                 />
               )}
               {section === "coleccion" && (
-                <ColeccionScreen
-                  items={collection.items}
-                  onRemove={collection.removeItem}
-                  onOverrideValue={collection.overrideValue}
-                  sealedItems={sealed.items}
-                  onAddSealed={sealed.addItem}
-                  onUpdateSealed={sealed.updateItem}
-                  onRemoveSealed={sealed.removeItem}
-                  onOverrideSealedValue={sealed.overrideValue}
-                />
+                <>
+                  <ColeccionScreen
+                    items={collection.items}
+                    onRemove={collection.removeItem}
+                    onOverrideValue={collection.overrideValue}
+                    sealedItems={sealed.items}
+                    onAddSealed={sealed.addItem}
+                    onUpdateSealed={sealed.updateItem}
+                    onRemoveSealed={sealed.removeItem}
+                    onOverrideSealedValue={sealed.overrideValue}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSection("anadir")}
+                    aria-label="Añadir carta o caja"
+                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
+                    style={{ background: "var(--hero-gradient)" }}
+                  >
+                    +
+                  </button>
+                </>
               )}
               {section === "wishlist" && (
                 <WishlistScreen

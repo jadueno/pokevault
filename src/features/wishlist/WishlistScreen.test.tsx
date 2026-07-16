@@ -100,7 +100,7 @@ describe("WishlistScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([]);
 
-    await user.click(screen.getByRole("button", { name: "+ Añadir deseo" }));
+    await user.click(screen.getByRole("button", { name: "Añadir deseo a la wishlist" }));
     await user.type(screen.getByLabelText("Nombre"), "Mewtwo");
     await user.click(screen.getByRole("button", { name: "Añadir a la wishlist" }));
 
