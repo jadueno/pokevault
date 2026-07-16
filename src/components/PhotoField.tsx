@@ -12,14 +12,30 @@ export function PhotoField({
   label = "Foto",
   photo,
   onChange,
+  size = "md",
+  glow,
 }: {
   label?: string;
   photo: string | null;
   onChange: (dataUrl: string | null) => void;
+  /** "md" (por defecto): miniatura compacta, para formularios y listados densos
+   * (producto sellado). "lg": foto protagonista — pensada para donde la imagen es lo
+   * primero que se debe mirar (wishlist), con más tamaño y hueco para el `glow`. */
+  size?: "md" | "lg";
+  /** Color CSS (p. ej. el `bg` de un tono de Badge) para un resplandor alrededor de la
+   * miniatura — usado en wishlist para que la prioridad se note también en la foto, no
+   * solo en la insignia. */
+  glow?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const thumbSize = size === "lg" ? "size-28 sm:size-32" : "size-20";
+  const glowStyle = glow
+    ? {
+        boxShadow: `0 0 0 3px color-mix(in srgb, ${glow} 50%, transparent), 0 10px 24px -6px color-mix(in srgb, ${glow} 55%, transparent)`,
+      }
+    : undefined;
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -44,12 +60,17 @@ export function PhotoField({
             aria-label="Ver foto en grande"
             className={`shrink-0 rounded-xl ${focusRing}`}
           >
-            <img src={photo} alt="" className="size-20 rounded-xl border border-[var(--border)] object-cover" />
+            <img
+              src={photo}
+              alt=""
+              className={`${thumbSize} rounded-xl border border-[var(--border)] object-cover transition-shadow duration-200`}
+              style={glowStyle}
+            />
           </button>
         ) : (
           <div
             aria-hidden="true"
-            className="flex size-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-2xl text-[var(--text-muted)]"
+            className={`flex ${thumbSize} shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-2xl text-[var(--text-muted)]`}
           >
             📷
           </div>

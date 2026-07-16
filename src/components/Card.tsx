@@ -16,17 +16,22 @@ export function Card({
    * hay una foto/objeto real que destacar. */
   variant?: "flat" | "gradient";
 }) {
-  const variantClass =
-    variant === "gradient"
-      ? "border-[var(--border)] shadow-card transition-all duration-200 hover:shadow-glow hover:-translate-y-0.5"
-      : "border-[var(--border)] bg-[var(--surface-1)] shadow-card transition-shadow duration-200";
+  const isGradient = variant === "gradient";
+  const variantClass = isGradient
+    ? "border-[var(--border)] shadow-card transition-all duration-200 hover:shadow-glow hover:-translate-y-0.5"
+    : // "glass" sutil: fondo translúcido + blur para que se note elevada sobre el fondo
+      // (ver .app-shell::before) en vez de una caja plana pegada a él.
+      "border-[var(--border)] shadow-surface backdrop-blur-md transition-shadow duration-200";
+  const variantStyle = isGradient
+    ? { background: "var(--card-gradient)" }
+    : { backgroundColor: "color-mix(in srgb, var(--surface-1) 92%, transparent)" };
   return (
     <div
       // min-w-0: sin esto, un hijo con contenido que no puede partirse en líneas (p. ej.
       // una URL larga con "truncate") impide que la tarjeta se encoja por debajo de ese
       // contenido, aunque sea un elemento de grid/flex — la desborda hacia los lados.
       className={`min-w-0 rounded-[1.75rem] border p-5 sm:p-6 ${variantClass} ${className}`}
-      style={variant === "gradient" ? { background: "var(--card-gradient)", ...style } : style}
+      style={{ ...variantStyle, ...style }}
     >
       {children}
     </div>

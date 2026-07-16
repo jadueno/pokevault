@@ -57,11 +57,22 @@ function WishlistItemCard({
   const priorityColors = badgeToneColors[PRIORITY_TONES[item.priority]];
 
   return (
-    <Card variant="gradient" className="flex flex-col gap-3">
+    <Card
+      variant="gradient"
+      className="flex flex-col gap-3"
+      // El tinte de la tarjeta sigue el color de prioridad (no solo la insignia): las
+      // tarjetas de prioridad alta se ven más "calientes", las de baja quedan neutras —
+      // se escanea la urgencia de un vistazo, sin leer cada insignia una a una.
+      style={{
+        background: `linear-gradient(165deg, color-mix(in srgb, ${priorityColors.bg} 28%, var(--surface-2)) 0%, var(--surface-1) 62%, var(--page) 145%)`,
+      }}
+    >
       <PhotoField
         label="Foto"
         photo={item.photo}
         onChange={(photo) => onUpdate(item.id, { ...strip(item), photo })}
+        size="lg"
+        glow={priorityColors.bg}
       />
 
       <div>
@@ -91,6 +102,7 @@ function WishlistItemCard({
           min={0}
           step="0.01"
           placeholder="Precio máx."
+          aria-label="Precio máximo"
           className={`${inputClass} w-28 text-xs`}
           value={maxPriceInput}
           onChange={(e) => setMaxPriceInput(e.target.value)}
@@ -99,6 +111,7 @@ function WishlistItemCard({
         />
         <input
           type="month"
+          aria-label="Mes objetivo"
           className={`${inputClass} w-auto text-xs`}
           value={item.targetMonth ?? ""}
           onChange={(e) => onUpdate(item.id, { ...strip(item), targetMonth: e.target.value || null })}

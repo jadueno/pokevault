@@ -32,24 +32,29 @@ export function DashboardScreen({
     <div className="flex flex-col gap-6">
       <ScreenHeader title="Resumen" subtitle="El valor de toda tu colección, de un vistazo." />
 
+      {/* Bento: "Valor total estimado" es la cifra que más importa, así que ocupa el doble
+          de ancho y de alto que el resto — el resto de tarjetas quedan deliberadamente más
+          pequeñas para no competir por la atención. */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card variant="gradient" className="sm:col-span-1">
+        <Card variant="gradient" className="flex flex-col justify-between sm:col-span-2 sm:row-span-2">
           <h2 className="text-sm font-semibold text-white/70">Valor total estimado</h2>
-          <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums text-[var(--on-hero)]">
+          <p className="mt-3 font-[family-name:var(--font-display)] text-5xl font-bold tabular-nums text-[var(--on-hero)] sm:text-6xl">
             {formatMoney(totalValue)}
           </p>
-          <p className="mt-1 text-xs text-white/60">Cartas + producto sellado, con precio de mercado o tu corrección manual.</p>
+          <p className="mt-4 max-w-sm text-xs text-white/60">
+            Cartas + producto sellado, con precio de mercado o tu corrección manual.
+          </p>
         </Card>
-        <Card>
+        <Card className="flex flex-col justify-center">
           <h2 className="text-sm font-semibold text-[var(--text-muted)]">Invertido</h2>
-          <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums text-[var(--text-primary)]">
+          <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tabular-nums text-[var(--text-primary)]">
             {formatMoney(totalInvested)}
           </p>
         </Card>
-        <Card>
+        <Card className="flex flex-col justify-center">
           <h2 className="text-sm font-semibold text-[var(--text-muted)]">Ganancia / pérdida estimada</h2>
           <p
-            className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums"
+            className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tabular-nums"
             style={{ color: gainLoss >= 0 ? "var(--status-good)" : "var(--status-critical)" }}
           >
             {gainLoss >= 0 ? "+" : ""}

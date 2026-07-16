@@ -82,6 +82,46 @@ body {
   }
 }
 
+/* Inputs nativos de fecha/mes ("Fecha de compra", "Mes objetivo"): `color-scheme: dark`
+   en <html> ya corrige la mayoría de navegadores, pero Safari en particular sigue
+   pintando el desplegable de calendario y, en algunos casos, el propio texto del campo
+   con el croma claro del sistema — rompe el tema oscuro cuidado del resto de la app.
+   Se fuerza aquí explícitamente con las pseudo-clases de WebKit, además del color-scheme
+   ya declarado, para que quede consistente sea cual sea el navegador. */
+input[type="date"],
+input[type="month"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="month"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-year-field,
+input[type="month"]::-webkit-datetime-edit-month-field,
+input[type="month"]::-webkit-datetime-edit-year-field {
+  color: var(--text-primary);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 0.4rem;
+  /* El glifo por defecto es un trazo oscuro pensado para fondos claros; se invierte y
+     se atenúa para que quede legible (gris claro) sobre el fondo oscuro del input. */
+  filter: invert(1) brightness(1) opacity(0.6);
+  transition: filter 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="month"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(1) brightness(1) opacity(0.9);
+}
+
 .app-shell {
   position: relative;
   isolation: isolate;
@@ -110,6 +150,19 @@ body {
   box-shadow:
     0 2px 8px rgba(var(--shadow-tint), 0.08),
     0 12px 28px -10px rgba(var(--shadow-tint), 0.2);
+}
+
+/* Profundidad tipo "bento/glass" para superficies de contenido (Card variant="flat"):
+   una línea de luz muy sutil en el borde superior (como si la superficie captara algo de
+   luz) más una sombra ambiental más marcada que --shadow-card, para que las tarjetas se
+   perciban elevadas sobre el fondo en vez de cajas planas pegadas a él. Se combina con un
+   fondo translúcido (ver Card.tsx) y backdrop-blur para dejar entrever los degradados de
+   marca del fondo (.app-shell::before) a través de la tarjeta. */
+@utility shadow-surface {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 1px 2px rgba(var(--shadow-tint), 0.08),
+    0 14px 28px -16px rgba(var(--shadow-tint), 0.45);
 }
 
 /* Resplandor de marca al pasar el ratón sobre una tarjeta "protagonista" (variant="gradient"

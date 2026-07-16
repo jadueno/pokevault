@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CardCondition, CollectionItem, NewSealedPurchase, SealedPurchase } from "../../domain/types";
 import { formatMoney } from "../../domain/calculations";
-import { Badge, type BadgeTone } from "../../components/Badge";
+import { Badge, badgeToneColors, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
@@ -91,8 +91,18 @@ function ItemCard({
     }
   }
 
+  const conditionColor = badgeToneColors[CONDITION_TONES[item.condition]].bg;
+
   return (
-    <Card variant="gradient" className="flex flex-col gap-3">
+    <Card
+      variant="gradient"
+      className="flex flex-col gap-3"
+      // Igual que la prioridad en wishlist: el estado de conservación tiñe toda la
+      // tarjeta (verde = mint, ámbar = medio, rojo = jugada), no solo la insignia.
+      style={{
+        background: `linear-gradient(165deg, color-mix(in srgb, ${conditionColor} 28%, var(--surface-2)) 0%, var(--surface-1) 62%, var(--page) 145%)`,
+      }}
+    >
       <div className="flex items-start gap-3">
         {item.photo ? (
           <button
@@ -330,11 +340,12 @@ export function ColeccionScreen({
                 type="button"
                 onClick={() => setTab(t.id)}
                 aria-current={tab === t.id ? "page" : undefined}
+                // Tinte en vez de rojo sólido: es un selector de vista, no una acción —
+                // el rojo saturado se reserva para el FAB y los botones de guardar/enviar.
                 className={`rounded-full px-4 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${focusRing} ${
-                  tab === t.id
-                    ? "bg-[var(--beacon)] text-[var(--on-beacon)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
+                  tab === t.id ? "text-[var(--beacon)]" : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
                 }`}
+                style={tab === t.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 16%, transparent)" } : undefined}
               >
                 {t.label}
               </button>
