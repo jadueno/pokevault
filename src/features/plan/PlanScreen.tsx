@@ -166,7 +166,22 @@ function PlanItemRow({
   }
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(item.description);
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(item.description);
+    } else {
+      // navigator.clipboard no existe fuera de un contexto seguro (https, o localhost) —
+      // p. ej. al entrar por la IP de la red local o Tailscale desde el móvil, en http://.
+      // Fallback clásico con un <textarea> oculto + execCommand, que sí funciona ahí.
+      const textarea = document.createElement("textarea");
+      textarea.value = item.description;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
