@@ -109,10 +109,17 @@ function PlanItemRow({
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(item.description);
+  const [copied, setCopied] = useState(false);
 
   function stripId(item: PlanItem): NewPlanItem {
     const { id: _id, ...rest } = item;
     return rest;
+  }
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(item.description);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   async function handleSave() {
@@ -167,6 +174,14 @@ function PlanItemRow({
           {item.description}
         </button>
       )}
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label={`Copiar "${item.description}"`}
+        className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
+      >
+        {copied ? "✓" : "📋"}
+      </button>
       <button
         type="button"
         onClick={handleRemove}

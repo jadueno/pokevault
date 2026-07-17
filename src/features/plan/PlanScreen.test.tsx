@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
 import type { PlanItem, PlanSettings } from "../../domain/types";
 import { PlanScreen } from "./PlanScreen";
@@ -44,6 +44,10 @@ function renderScreen(items: PlanItem[], settings: PlanSettings = planSettings()
 }
 
 describe("PlanScreen", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("agrupa por mes y muestra el presupuesto", () => {
     renderScreen([item()]);
     expect(screen.getByText("Agosto de 2026")).toBeInTheDocument();
@@ -94,6 +98,17 @@ describe("PlanScreen", () => {
     expect(handlers.onAdd).toHaveBeenCalledWith(
       expect.objectContaining({ month: "2026-08", category: "abrir", description: "Nuevo ítem para abrir" }),
     );
+  });
+
+  it("copia la descripción del ítem al portapapeles", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderScreen([item()]);
+
+    await user.click(screen.getByRole("button", { name: 'Copiar "1x ETB Megaevolución - Oscuridad Absoluta (ES)"' }));
+
+    expect(writeText).toHaveBeenCalledWith("1x ETB Megaevolución - Oscuridad Absoluta (ES)");
   });
 
   it("sin ítems, muestra el aviso correspondiente", () => {
