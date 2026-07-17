@@ -110,6 +110,9 @@ export type NewPlanItem = Omit<PlanItem, "id">;
 export interface ShoppingLink {
   label: string;
   url: string;
+  /** Para qué tipo de compra sirve esta página (p. ej. "cartas sueltas", "producto sellado") —
+   * texto libre, se muestra junto al enlace para no tener que recordarlo. */
+  note?: string;
 }
 
 export interface PlanSettings {

@@ -86,13 +86,32 @@ describe("PlanScreen", () => {
     );
   });
 
-  it("añadir un ítem nuevo en una categoría llama a onAdd con mes y categoría correctos", async () => {
+  it("añadir un ítem nuevo en una categoría que ya tiene ítems llama a onAdd con mes y categoría correctos", async () => {
     const user = userEvent.setup();
+    // Solo "comprar" tiene ítems: es la única categoría con la columna siempre visible
+    // (las categorías vacías del mes, "abrir" y "guardar_sellado", quedan como chips "+ …").
     const handlers = renderScreen([item()]);
 
-    const abrirInputs = screen.getAllByPlaceholderText("Añadir ítem…");
-    // comprar, abrir, guardar_sellado en ese orden dentro del mes agosto.
-    await user.type(abrirInputs[1], "Nuevo ítem para abrir");
+    const input = screen.getByPlaceholderText("Añadir ítem…");
+    await user.type(input, "Nuevo ítem para comprar");
+    await user.click(screen.getByRole("button", { name: "+ Añadir" }));
+
+    expect(handlers.onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ month: "2026-08", category: "comprar", description: "Nuevo ítem para comprar" }),
+    );
+  });
+
+  it("una categoría del mes sin ítems se muestra como chip y revela el formulario al pulsarlo", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()]); // solo "comprar" tiene ítems
+
+    // Antes de pulsar el chip no hay ningún formulario de "abrir" visible.
+    expect(screen.getAllByPlaceholderText("Añadir ítem…")).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Añadir ítem a Abrir" }));
+    const inputs = screen.getAllByPlaceholderText("Añadir ítem…");
+    expect(inputs).toHaveLength(2);
+    await user.type(inputs[1], "Nuevo ítem para abrir");
     await user.click(screen.getAllByRole("button", { name: "+ Añadir" })[1]);
 
     expect(handlers.onAdd).toHaveBeenCalledWith(
@@ -146,6 +165,30 @@ describe("PlanScreen", () => {
     renderScreen([item()], planSettings({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }] }));
     const link = screen.getByRole("link", { name: "Cardmarket" });
     expect(link).toHaveAttribute("href", "https://www.cardmarket.com");
+  });
+
+  it("muestra la nota de una página de compra si existe", () => {
+    renderScreen(
+      [item()],
+      planSettings({
+        shoppingLinks: [
+          { label: "Cardmarket", url: "https://www.cardmarket.com", note: "Cartas sueltas — mira el Trend Price." },
+        ],
+      }),
+    );
+    expect(screen.getByText("Cartas sueltas — mira el Trend Price.")).toBeInTheDocument();
+  });
+
+  it("destaca tipográficamente el precio de referencia embebido en la descripción", () => {
+    renderScreen([item({ description: "1x ETB (ref. ~59 €) — lanzamiento 16 sept." })]);
+    const priceSpan = screen.getByText("(ref. ~59 €)");
+    expect(priceSpan.className).toContain("text-[var(--amber)]");
+  });
+
+  it("muestra el gasto estimado del mes cuando hay ítems con precio de referencia", () => {
+    renderScreen([item({ description: "1x ETB (ref. ~59 €)" })]);
+    expect(screen.getByText(/Estimado/)).toBeInTheDocument();
+    expect(screen.getByText("59,00 €")).toBeInTheDocument();
   });
 
   it("quita una página de compra existente", async () => {

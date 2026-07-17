@@ -9,24 +9,22 @@ import { WishlistScreen } from "./features/wishlist/WishlistScreen";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { PlanScreen } from "./features/plan/PlanScreen";
 import { LoadingState } from "./components/LoadingState";
-import { Modal } from "./components/Modal";
 
-type Section = "dashboard" | "anadir" | "coleccion" | "wishlist";
+type Section = "dashboard" | "anadir" | "coleccion" | "wishlist" | "plan";
 
 // "anadir" no aparece aquí a propósito: se accede desde el botón flotante de Mi
-// colección, no ocupa un hueco fijo en el menú. "Plan" tampoco: se abre como modal
-// desde el botón flotante del Resumen.
+// colección, no ocupa un hueco fijo en el menú.
 // "Sellado" ya no es una sección aparte: se fusionó dentro de "Mi colección" (para el
 // usuario, la colección es todo, tanto cartas como cajas).
 const sections: { id: Section; label: string }[] = [
   { id: "dashboard", label: "Resumen" },
   { id: "coleccion", label: "Mi colección" },
   { id: "wishlist", label: "Wishlist" },
+  { id: "plan", label: "Plan" },
 ];
 
 export default function App() {
   const [section, setSection] = useState<Section>("dashboard");
-  const [showPlan, setShowPlan] = useState(false);
   const collection = useCollectionData();
   const wishlist = useWishlistData();
   const sealed = useSealedData();
@@ -91,20 +89,7 @@ export default function App() {
           {loading && !error && <LoadingState />}
           {!loading && (
             <>
-              {section === "dashboard" && (
-                <>
-                  <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />
-                  <button
-                    type="button"
-                    onClick={() => setShowPlan(true)}
-                    aria-label="Ver plan de compra mensual"
-                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
-                    style={{ background: "var(--hero-gradient)" }}
-                  >
-                    📋
-                  </button>
-                </>
-              )}
+              {section === "dashboard" && <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />}
               {section === "anadir" && (
                 <AnadirScreen
                   onAddToCollection={collection.addItem}
@@ -147,6 +132,17 @@ export default function App() {
                   }}
                 />
               )}
+              {section === "plan" && (
+                <PlanScreen
+                  items={plan.items}
+                  settings={plan.settings}
+                  onAdd={plan.addItem}
+                  onUpdate={plan.updateItem}
+                  onRemove={plan.removeItem}
+                  onToggleDone={plan.toggleDone}
+                  onUpdateSettings={plan.updateSettings}
+                />
+              )}
             </>
           )}
         </div>
@@ -173,25 +169,6 @@ export default function App() {
           ))}
         </div>
       </nav>
-
-      {showPlan && (
-        <Modal
-          title="Plan"
-          description="Tu objetivo de compra mes a mes."
-          size="lg"
-          onClose={() => setShowPlan(false)}
-        >
-          <PlanScreen
-            items={plan.items}
-            settings={plan.settings}
-            onAdd={plan.addItem}
-            onUpdate={plan.updateItem}
-            onRemove={plan.removeItem}
-            onToggleDone={plan.toggleDone}
-            onUpdateSettings={plan.updateSettings}
-          />
-        </Modal>
-      )}
     </div>
   );
 }
