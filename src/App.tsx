@@ -24,7 +24,7 @@ const sections: { id: Section; label: string }[] = [
 ];
 
 export default function App() {
-  const [section, setSection] = useState<Section>("dashboard");
+  const [section, setSection] = useState<Section>("plan");
   const collection = useCollectionData();
   const wishlist = useWishlistData();
   const sealed = useSealedData();
