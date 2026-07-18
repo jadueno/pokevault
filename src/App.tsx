@@ -17,10 +17,10 @@ type Section = "dashboard" | "anadir" | "coleccion" | "wishlist" | "plan";
 // "Sellado" ya no es una sección aparte: se fusionó dentro de "Mi colección" (para el
 // usuario, la colección es todo, tanto cartas como cajas).
 const sections: { id: Section; label: string }[] = [
-  { id: "dashboard", label: "Resumen" },
+  { id: "plan", label: "Plan" },
   { id: "coleccion", label: "Mi colección" },
   { id: "wishlist", label: "Wishlist" },
-  { id: "plan", label: "Plan" },
+  { id: "dashboard", label: "Resumen" },
 ];
 
 export default function App() {
