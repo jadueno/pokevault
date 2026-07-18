@@ -74,21 +74,18 @@ function ChecklistCardThumb({ card, owned, onZoom }: { card: SetChecklistCard; o
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={() => setFailed(true)}
-            // La tenga o no: siempre se ve la carta entera. Blanco y negro + algo más
-            // tenue para las que faltan, borde de color + un poco más grande para las
-            // que ya tienes — así se distingue de un vistazo sin tener que leer nada.
-            className={`w-full cursor-zoom-in rounded-xl border-2 shadow-card transition-all hover:scale-105 ${
-              owned
-                ? "border-[var(--status-good)]"
-                : "border-[var(--border)] opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
+            // Blanco y negro (algo más tenue) para las que faltan, a color para las que
+            // ya tienes — se distingue de un vistazo sin tener que leer nada.
+            className={`w-full cursor-zoom-in rounded-xl border border-[var(--border)] shadow-card transition-all hover:scale-105 ${
+              owned ? "" : "opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
             }`}
           />
         </button>
       ) : (
         <div
           aria-hidden="true"
-          className={`flex aspect-[5/7] w-full items-center justify-center rounded-xl border-2 text-3xl ${
-            owned ? "border-[var(--status-good)] text-[var(--text-muted)]" : "border-dashed border-[var(--border)] text-[var(--text-muted)] opacity-60"
+          className={`flex aspect-[5/7] w-full items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-3xl text-[var(--text-muted)] ${
+            owned ? "" : "opacity-60"
           }`}
         >
           🎴
@@ -97,11 +94,6 @@ function ChecklistCardThumb({ card, owned, onZoom }: { card: SetChecklistCard; o
       <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
       <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
         <span className="tabular-nums">#{card.number}</span>
-        {owned && (
-          <Badge tone="good" className="shrink-0">
-            Tuya
-          </Badge>
-        )}
         {card.rarity && (
           <Badge tone="neutral" className="shrink-0">
             {card.rarity}
@@ -118,12 +110,13 @@ function SetCardsGrid({
   checklist,
   cards,
   collectionItems,
+  onZoom,
 }: {
   checklist: SetChecklist;
   cards: SetChecklistCard[] | undefined;
   collectionItems: CollectionItem[];
+  onZoom: (card: SetChecklistCard) => void;
 }) {
-  const [zoomedCard, setZoomedCard] = useState<SetChecklistCard | null>(null);
   const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
   const ownedIds = new Set(completion?.owned.map((c) => c.id) ?? []);
 
@@ -143,17 +136,9 @@ function SetCardsGrid({
       ) : (
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
           {cards.map((card) => (
-            <ChecklistCardThumb key={card.id} card={card} owned={ownedIds.has(card.id)} onZoom={() => setZoomedCard(card)} />
+            <ChecklistCardThumb key={card.id} card={card} owned={ownedIds.has(card.id)} onZoom={() => onZoom(card)} />
           ))}
         </div>
-      )}
-
-      {zoomedCard && (
-        <PhotoLightbox
-          src={zoomedCard.imageUrlLarge ?? zoomedCard.imageUrl ?? ""}
-          alt={zoomedCard.name}
-          onClose={() => setZoomedCard(null)}
-        />
       )}
     </Card>
   );
@@ -169,6 +154,13 @@ export function SetChecklistTab({
   collectionItems: CollectionItem[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Vive aquí (no dentro de SetCardsGrid) y el <PhotoLightbox> se renderiza fuera de
+  // cualquier <Card> a propósito: `Card` (variant "flat", la que envuelve la rejilla) usa
+  // `backdrop-blur`, y un `backdrop-filter` en un ancestro crea un "containing block"
+  // nuevo para `position: fixed` — el visor a pantalla completa quedaba encerrado dentro
+  // de esa tarjeta en vez de cubrir toda la ventana. Mismo patrón que ya usan los demás
+  // visores de la app (siempre como hermano de la tarjeta, nunca dentro).
+  const [zoomedCard, setZoomedCard] = useState<SetChecklistCard | null>(null);
 
   if (checklists.length === 0) {
     return (
@@ -199,7 +191,20 @@ export function SetChecklistTab({
       </div>
 
       {expandedChecklist && (
-        <SetCardsGrid checklist={expandedChecklist} cards={cardsByChecklist[expandedChecklist.id]} collectionItems={collectionItems} />
+        <SetCardsGrid
+          checklist={expandedChecklist}
+          cards={cardsByChecklist[expandedChecklist.id]}
+          collectionItems={collectionItems}
+          onZoom={setZoomedCard}
+        />
+      )}
+
+      {zoomedCard && (
+        <PhotoLightbox
+          src={zoomedCard.imageUrlLarge ?? zoomedCard.imageUrl ?? ""}
+          alt={zoomedCard.name}
+          onClose={() => setZoomedCard(null)}
+        />
       )}
     </div>
   );

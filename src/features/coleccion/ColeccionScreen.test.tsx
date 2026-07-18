@@ -262,7 +262,7 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText("Cargando…")).toBeInTheDocument();
   });
 
-  it("en la pestaña de Sets, muestra todo el set (tuyas y las que faltan) y marca cuáles ya tienes", async () => {
+  it("en la pestaña de Sets, muestra todo el set (tuyas y las que faltan) y atenúa/pone en blanco y negro solo las que faltan", async () => {
     const user = userEvent.setup();
     const cards: SetChecklistCard[] = [
       { id: "c1", checklistId: "cl1", number: "1", name: "Tropius", rarity: "Common", imageUrl: null, imageUrlLarge: null },
@@ -279,8 +279,11 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText("Tropius")).toBeInTheDocument();
     expect(screen.getByText("Grubbin")).toBeInTheDocument();
     expect(screen.getByText("Charmander")).toBeInTheDocument();
-    // Solo Tropius (la que tienes) lleva la insignia "Tuya".
-    expect(screen.getAllByText("Tuya")).toHaveLength(1);
+
+    const tropiusPlaceholder = screen.getByText("Tropius").closest("div")?.querySelector('[aria-hidden="true"]');
+    const grubbinPlaceholder = screen.getByText("Grubbin").closest("div")?.querySelector('[aria-hidden="true"]');
+    expect(tropiusPlaceholder?.className).not.toContain("opacity-60");
+    expect(grubbinPlaceholder?.className).toContain("opacity-60");
   });
 
   it("en la pestaña de Sets, hacer clic en una carta la abre en grande (prioriza la imagen de mayor resolución)", async () => {
