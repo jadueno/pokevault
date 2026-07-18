@@ -10,17 +10,20 @@ import { registerWishlistRoutes } from "./wishlistRoutes.js";
 import { registerSealedPurchaseRoutes } from "./sealedPurchaseRoutes.js";
 import { registerPlanRoutes } from "./planRoutes.js";
 import { registerRecognitionRoutes } from "./recognitionRoutes.js";
+import { registerSetChecklistRoutes } from "./setChecklistRoutes.js";
 import { createCollectionItemRepository } from "../db/repositories/collectionItemRepository.js";
 import { createWishlistItemRepository } from "../db/repositories/wishlistItemRepository.js";
 import { createSealedPurchaseRepository } from "../db/repositories/sealedPurchaseRepository.js";
 import { createPlanItemRepository } from "../db/repositories/planItemRepository.js";
 import { createPlanSettingsRepository } from "../db/repositories/planSettingsRepository.js";
+import { createSetChecklistRepository } from "../db/repositories/setChecklistRepository.js";
 import { createCollectionItemUseCases } from "../../application/collectionItems.js";
 import { createWishlistItemUseCases } from "../../application/wishlistItems.js";
 import { createSealedPurchaseUseCases } from "../../application/sealedPurchases.js";
 import { createPlanItemUseCases } from "../../application/planItems.js";
 import { createPlanSettingsUseCases } from "../../application/planSettings.js";
 import { createCardRecognitionUseCases } from "../../application/cardRecognition.js";
+import { createSetChecklistUseCases } from "../../application/setChecklists.js";
 
 export interface BuildServerOptions {
   logger?: boolean;
@@ -52,6 +55,7 @@ export async function buildServer(pool: Pool, visionProvider: VisualMatchProvide
   const sealedPurchaseRepository = createSealedPurchaseRepository(pool);
   const planItemRepository = createPlanItemRepository(pool);
   const planSettingsRepository = createPlanSettingsRepository(pool);
+  const setChecklistRepository = createSetChecklistRepository(pool);
 
   const collectionItemUseCases = createCollectionItemUseCases(collectionItemRepository);
   const wishlistItemUseCases = createWishlistItemUseCases(wishlistItemRepository, collectionItemRepository);
@@ -59,12 +63,14 @@ export async function buildServer(pool: Pool, visionProvider: VisualMatchProvide
   const planItemUseCases = createPlanItemUseCases(planItemRepository);
   const planSettingsUseCases = createPlanSettingsUseCases(planSettingsRepository);
   const cardRecognitionUseCases = createCardRecognitionUseCases(visionProvider);
+  const setChecklistUseCases = createSetChecklistUseCases(setChecklistRepository);
 
   registerCollectionRoutes(app, collectionItemUseCases);
   registerWishlistRoutes(app, wishlistItemUseCases);
   registerSealedPurchaseRoutes(app, sealedPurchaseUseCases);
   registerPlanRoutes(app, planItemUseCases, planSettingsUseCases);
   registerRecognitionRoutes(app, cardRecognitionUseCases);
+  registerSetChecklistRoutes(app, setChecklistUseCases);
 
   return app;
 }

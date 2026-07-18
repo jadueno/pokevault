@@ -121,3 +121,26 @@ export interface PlanSettings {
   yearGoal: string | null;
   shoppingLinks: ShoppingLink[];
 }
+
+// ---- Checklist de set (referencia, no catálogo en vivo) ----
+// Se rellena con un script puntual del lado del backend, nunca con una llamada en vivo
+// desde el frontend. "¿qué me falta de este set?" se calcula aquí comparando esto con
+// la colección (freeform) por número de carta.
+
+export interface SetChecklist {
+  id: string;
+  externalSetId: string;
+  setName: string;
+  setNameEs: string | null;
+  totalCards: number;
+  syncedAt: string;
+}
+
+export interface SetChecklistCard {
+  id: string;
+  checklistId: string;
+  number: string;
+  name: string;
+  rarity: string | null;
+  imageUrl: string | null;
+}

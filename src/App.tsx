@@ -3,6 +3,7 @@ import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
 import { usePlanData } from "./data/usePlanData";
+import { useSetChecklistData } from "./data/useSetChecklistData";
 import { AnadirScreen } from "./features/anadir/AnadirScreen";
 import { ColeccionScreen } from "./features/coleccion/ColeccionScreen";
 import { WishlistScreen } from "./features/wishlist/WishlistScreen";
@@ -29,6 +30,7 @@ export default function App() {
   const wishlist = useWishlistData();
   const sealed = useSealedData();
   const plan = usePlanData();
+  const setChecklists = useSetChecklistData();
 
   const loading = collection.loading && !collection.summary;
   const error = collection.error ?? wishlist.error ?? sealed.error ?? plan.error;
@@ -110,6 +112,9 @@ export default function App() {
                     onUpdateSealed={sealed.updateItem}
                     onRemoveSealed={sealed.removeItem}
                     onOverrideSealedValue={sealed.overrideValue}
+                    checklists={setChecklists.checklists}
+                    cardsByChecklist={setChecklists.cardsByChecklist}
+                    onLoadChecklistCards={setChecklists.loadCards}
                   />
                   <button
                     type="button"

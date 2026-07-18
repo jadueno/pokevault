@@ -1,4 +1,4 @@
-import type { CollectionItem, PlanCategory, PlanItem, SealedPurchase, WishlistItem } from "./types";
+import type { CollectionItem, PlanCategory, PlanItem, SealedPurchase, SetChecklistCard, WishlistItem } from "./types";
 
 export function formatMoney(amount: number | null, currency = "EUR"): string {
   if (amount === null) return "—";
@@ -197,4 +197,50 @@ export function countLinkedCollectionItems(sealedPurchaseId: string, items: Coll
 export function costPerCard(sealedPurchase: Pick<SealedPurchase, "purchasePrice">, linkedCount: number): number | null {
   if (sealedPurchase.purchasePrice === null || linkedCount <= 0) return null;
   return sealedPurchase.purchasePrice / linkedCount;
+}
+
+function normalizeSetText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+export interface SetChecklistCompletion {
+  owned: SetChecklistCard[];
+  missing: SetChecklistCard[];
+}
+
+/** Compara el checklist de un set (sincronizado una vez desde el proveedor externo) con
+ * la colección, para saber qué cartas ya tienes y cuáles te faltan. `collection_items` es
+ * freeform (el nombre del set puede estar en cualquier idioma o forma, según lo que haya
+ * reconocido la IA o escrito el usuario a mano), así que no hay relación por id — se
+ * compara por número de carta (universal, no depende del idioma) dentro de los ejemplares
+ * cuyo `setName` se parece al nombre del set en inglés o en español (`setNameHints`);
+ * "se parece" es contención de texto en cualquiera de los dos sentidos, no coincidencia
+ * exacta, porque es un checklist de referencia, no un vínculo estructural. */
+export function computeSetChecklistCompletion(
+  checklistCards: SetChecklistCard[],
+  collectionItems: CollectionItem[],
+  setNameHints: (string | null)[],
+): SetChecklistCompletion {
+  const hints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
+  const ownedNumbers = new Set(
+    collectionItems
+      .filter((item) => {
+        if (!item.setName) return false;
+        const itemText = normalizeSetText(item.setName);
+        return hints.some((hint) => itemText.includes(hint) || hint.includes(itemText));
+      })
+      .map((item) => item.number?.split("/")[0].trim())
+      .filter((number): number is string => !!number),
+  );
+
+  const owned: SetChecklistCard[] = [];
+  const missing: SetChecklistCard[] = [];
+  for (const card of checklistCards) {
+    (ownedNumbers.has(card.number) ? owned : missing).push(card);
+  }
+  return { owned, missing };
 }

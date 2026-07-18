@@ -278,6 +278,51 @@ describe("/card-recognition", () => {
   });
 });
 
+describe("/set-checklists", () => {
+  // Solo lectura desde la API — se rellenan directamente en la base de datos, como haría
+  // `syncSetChecklist.ts` (el script puntual), nunca a través de una ruta de escritura.
+  async function seedChecklist() {
+    const {
+      rows: [checklist],
+    } = await pool.query<{ id: string }>(
+      `insert into set_checklists (external_set_id, set_name, set_name_es, total_cards)
+       values ('me5', 'Pitch Black', 'Oscuridad Absoluta', 2) returning id`,
+    );
+    await pool.query(
+      `insert into set_checklist_cards (checklist_id, number, name, rarity, image_url) values
+         ($1, '1', 'Tropius', 'Common', null),
+         ($1, '2', 'Grubbin', 'Common', null)`,
+      [checklist.id],
+    );
+    return checklist.id;
+  }
+
+  it("lista los checklists sincronizados", async () => {
+    await seedChecklist();
+    const res = await app.inject({ method: "GET", url: "/set-checklists" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([
+      expect.objectContaining({ externalSetId: "me5", setName: "Pitch Black", setNameEs: "Oscuridad Absoluta", totalCards: 2 }),
+    ]);
+  });
+
+  it("devuelve las cartas de un checklist ordenadas por número", async () => {
+    const checklistId = await seedChecklist();
+    const res = await app.inject({ method: "GET", url: `/set-checklists/${checklistId}/cards` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([
+      expect.objectContaining({ number: "1", name: "Tropius" }),
+      expect.objectContaining({ number: "2", name: "Grubbin" }),
+    ]);
+  });
+
+  it("con un checklist sin cartas, devuelve una lista vacía", async () => {
+    const res = await app.inject({ method: "GET", url: "/set-checklists/00000000-0000-0000-0000-000000000000/cards" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+});
+
 describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
   it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
     const authedApp = await buildServer(pool, createFakeVisionProvider(), { logger: false, apiToken: "demo-token" });

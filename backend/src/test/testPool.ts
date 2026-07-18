@@ -3,7 +3,9 @@ import { Pool } from "pg";
 
 // "plan_settings" no está aquí a propósito: es una tabla singleton (mismo patrón que
 // "profile" en faro), no una colección de fixtures que tenga sentido vaciar entre tests.
-const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items"];
+// "set_checklist_cards" tampoco: cae con el "cascade" al truncar "set_checklists" (FK
+// ON DELETE CASCADE), no hace falta listarla aparte.
+const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items", "set_checklists"];
 
 /**
  * Pool conectado a TEST_DATABASE_URL, nunca a la base real. Falla pronto y con un

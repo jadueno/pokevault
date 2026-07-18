@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CardCondition, CollectionItem, NewSealedPurchase, SealedPurchase } from "../../domain/types";
+import type { CardCondition, CollectionItem, NewSealedPurchase, SealedPurchase, SetChecklist, SetChecklistCard } from "../../domain/types";
 import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
 import { Badge, badgeToneColors, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
@@ -10,6 +10,7 @@ import { PhotoField } from "../../components/PhotoField";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
+import { SetChecklistTab } from "./SetChecklistTab";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   es: "ES",
@@ -332,6 +333,9 @@ export function ColeccionScreen({
   onUpdateSealed,
   onRemoveSealed,
   onOverrideSealedValue,
+  checklists,
+  cardsByChecklist,
+  onLoadChecklistCards,
 }: {
   items: CollectionItem[];
   onRemove: (id: string) => Promise<void>;
@@ -341,10 +345,13 @@ export function ColeccionScreen({
   onUpdateSealed: (id: string, entity: NewSealedPurchase) => Promise<void>;
   onRemoveSealed: (id: string) => Promise<void>;
   onOverrideSealedValue: (id: string, value: number, note: string | null) => Promise<void>;
+  checklists: SetChecklist[];
+  cardsByChecklist: Record<string, SetChecklistCard[]>;
+  onLoadChecklistCards: (checklistId: string) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [showSealedForm, setShowSealedForm] = useState(false);
-  const [tab, setTab] = useState<"cartas" | "sellado">("cartas");
+  const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("cartas");
 
   const q = query.trim().toLowerCase();
   const filteredItems = q ? items.filter((i) => `${i.name} ${i.setName ?? ""}`.toLowerCase().includes(q)) : items;
@@ -372,13 +379,14 @@ export function ColeccionScreen({
         }
       />
 
-      {!isEmpty && (
+      {(!isEmpty || checklists.length > 0) && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex w-fit gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
             {(
               [
                 { id: "cartas", label: `Cartas (${items.length})` },
                 { id: "sellado", label: `Sellado (${sealedItems.length})` },
+                { id: "sets", label: `Sets (${checklists.length})` },
               ] as const
             ).map((t) => (
               <button
@@ -405,7 +413,7 @@ export function ColeccionScreen({
         </div>
       )}
 
-      {!isEmpty && (
+      {!isEmpty && tab !== "sets" && (
         <div className="relative max-w-sm">
           <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-muted)]">
             🔍
@@ -429,7 +437,7 @@ export function ColeccionScreen({
         />
       )}
 
-      {isEmpty ? (
+      {isEmpty && checklists.length === 0 ? (
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
             🎴 Todavía no has añadido nada a tu colección. Ve a "Añadir" para empezar.
@@ -456,25 +464,34 @@ export function ColeccionScreen({
             ))}
           </div>
         )
-      ) : filteredSealed.length === 0 ? (
-        <Card>
-          <p className="text-sm text-[var(--text-muted)]">
-            {sealedItems.length === 0 ? "Todavía no has registrado ningún producto sellado." : "Sin resultados para esa búsqueda."}
-          </p>
-        </Card>
+      ) : tab === "sellado" ? (
+        filteredSealed.length === 0 ? (
+          <Card>
+            <p className="text-sm text-[var(--text-muted)]">
+              {sealedItems.length === 0 ? "Todavía no has registrado ningún producto sellado." : "Sin resultados para esa búsqueda."}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSealed.map((item) => (
+              <SealedItemCard
+                key={item.id}
+                item={item}
+                linkedCardCount={linkedCountsBySealedId.get(item.id) ?? 0}
+                onUpdate={onUpdateSealed}
+                onRemove={onRemoveSealed}
+                onOverrideValue={onOverrideSealedValue}
+              />
+            ))}
+          </div>
+        )
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredSealed.map((item) => (
-            <SealedItemCard
-              key={item.id}
-              item={item}
-              linkedCardCount={linkedCountsBySealedId.get(item.id) ?? 0}
-              onUpdate={onUpdateSealed}
-              onRemove={onRemoveSealed}
-              onOverrideValue={onOverrideSealedValue}
-            />
-          ))}
-        </div>
+        <SetChecklistTab
+          checklists={checklists}
+          cardsByChecklist={cardsByChecklist}
+          collectionItems={items}
+          onLoadCards={onLoadChecklistCards}
+        />
       )}
     </div>
   );

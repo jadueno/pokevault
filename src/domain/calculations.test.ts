@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { CollectionItem, PlanItem, SealedPurchase, WishlistItem } from "./types";
+import type { CollectionItem, PlanItem, SealedPurchase, SetChecklistCard, WishlistItem } from "./types";
 import {
+  computeSetChecklistCompletion,
   costPerCard,
   countLinkedCollectionItems,
   estimatePlanMonth,
@@ -83,6 +84,65 @@ function sealedPurchase(overrides: Partial<SealedPurchase> = {}): SealedPurchase
     ...overrides,
   };
 }
+
+function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistCard {
+  return {
+    id: "cc1",
+    checklistId: "checklist1",
+    number: "1",
+    name: "Tropius",
+    rarity: "Common",
+    imageUrl: null,
+    ...overrides,
+  };
+}
+
+describe("computeSetChecklistCompletion", () => {
+  it("separa cartas del checklist en 'owned' y 'missing' según el número dentro de la colección", () => {
+    const cards = [
+      checklistCard({ number: "1", name: "Tropius" }),
+      checklistCard({ number: "2", name: "Grubbin" }),
+      checklistCard({ number: "3", name: "Charmander" }),
+    ];
+    const items = [
+      collectionItem({ setName: "Oscuridad Absoluta", number: "1/120" }),
+      collectionItem({ setName: "Oscuridad Absoluta", number: "2/120" }),
+    ];
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"]);
+
+    expect(owned.map((c) => c.number)).toEqual(["1", "2"]);
+    expect(missing.map((c) => c.number)).toEqual(["3"]);
+  });
+
+  it("relaciona por número aunque el nombre del set esté en inglés en la colección", () => {
+    const cards = [checklistCard({ number: "1" })];
+    const items = [collectionItem({ setName: "Pitch Black", number: "1/120" })];
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"]);
+    expect(owned).toHaveLength(1);
+  });
+
+  it("ignora cartas de otro set aunque compartan número", () => {
+    const cards = [checklistCard({ number: "1" })];
+    const items = [collectionItem({ setName: "Base Set", number: "1/102" })];
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"]);
+    expect(owned).toHaveLength(0);
+    expect(missing).toHaveLength(1);
+  });
+
+  it("no distingue mayúsculas ni acentos al comparar el nombre del set", () => {
+    const cards = [checklistCard({ number: "1" })];
+    const items = [collectionItem({ setName: "OSCURIDAD ABSOLUTA", number: "1/120" })];
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    expect(owned).toHaveLength(1);
+  });
+
+  it("sin colección, todas las cartas del checklist están 'missing'", () => {
+    const cards = [checklistCard({ number: "1" }), checklistCard({ number: "2" })];
+    const { owned, missing } = computeSetChecklistCompletion(cards, [], ["Oscuridad Absoluta"]);
+    expect(owned).toHaveLength(0);
+    expect(missing).toHaveLength(2);
+  });
+});
 
 describe("countLinkedCollectionItems", () => {
   it("suma la cantidad (no el nº de filas) de las cartas vinculadas a un sobre", () => {

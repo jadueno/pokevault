@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
-import type { CollectionItem, SealedPurchase } from "../../domain/types";
+import type { CollectionItem, SealedPurchase, SetChecklist, SetChecklistCard } from "../../domain/types";
 import { ColeccionScreen } from "./ColeccionScreen";
 
 vi.mock("../../data/imageCapture", () => ({
@@ -55,7 +55,24 @@ function sealedItem(overrides: Partial<SealedPurchase> = {}): SealedPurchase {
   };
 }
 
-function renderScreen(items: CollectionItem[], sealedItems: SealedPurchase[] = []) {
+function setChecklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
+  return {
+    id: "cl1",
+    externalSetId: "me5",
+    setName: "Pitch Black",
+    setNameEs: "Oscuridad Absoluta",
+    totalCards: 3,
+    syncedAt: "2026-07-18T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function renderScreen(
+  items: CollectionItem[],
+  sealedItems: SealedPurchase[] = [],
+  checklists: SetChecklist[] = [],
+  cardsByChecklist: Record<string, SetChecklistCard[]> = {},
+) {
   const handlers = {
     onRemove: vi.fn().mockResolvedValue(undefined),
     onOverrideValue: vi.fn().mockResolvedValue(undefined),
@@ -63,10 +80,17 @@ function renderScreen(items: CollectionItem[], sealedItems: SealedPurchase[] = [
     onUpdateSealed: vi.fn().mockResolvedValue(undefined),
     onRemoveSealed: vi.fn().mockResolvedValue(undefined),
     onOverrideSealedValue: vi.fn().mockResolvedValue(undefined),
+    onLoadChecklistCards: vi.fn().mockResolvedValue(undefined),
   };
   render(
     <ConfirmProvider>
-      <ColeccionScreen items={items} sealedItems={sealedItems} {...handlers} />
+      <ColeccionScreen
+        items={items}
+        sealedItems={sealedItems}
+        checklists={checklists}
+        cardsByChecklist={cardsByChecklist}
+        {...handlers}
+      />
     </ConfirmProvider>,
   );
   return handlers;
@@ -216,5 +240,49 @@ describe("ColeccionScreen", () => {
     await user.upload(input, file);
 
     expect(handlers.onUpdateSealed).toHaveBeenCalledWith("s1", expect.objectContaining({ photo: "data:image/jpeg;base64,AAAA" }));
+  });
+
+  it("en la pestaña de Sets, sin checklists sincronizados explica cómo pedir uno", async () => {
+    const user = userEvent.setup();
+    renderScreen([item()], [], []);
+
+    await user.click(screen.getByRole("button", { name: "Sets (0)" }));
+
+    expect(screen.getByText(/Todavía no has sincronizado ningún set/)).toBeInTheDocument();
+  });
+
+  it("en la pestaña de Sets, muestra el progreso y al expandir carga y lista las cartas que faltan", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen(
+      [item({ setName: "Oscuridad Absoluta", number: "1/120" })],
+      [],
+      [setChecklist()],
+    );
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    expect(screen.getByText("Oscuridad Absoluta")).toBeInTheDocument();
+    expect(screen.getByText("— / 3")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ver qué me falta" }));
+    expect(handlers.onLoadChecklistCards).toHaveBeenCalledWith("cl1");
+  });
+
+  it("en la pestaña de Sets, cruza por número de carta y muestra solo las que faltan", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      { id: "c1", checklistId: "cl1", number: "1", name: "Tropius", rarity: "Common", imageUrl: null },
+      { id: "c2", checklistId: "cl1", number: "2", name: "Grubbin", rarity: "Common", imageUrl: null },
+      { id: "c3", checklistId: "cl1", number: "3", name: "Charmander", rarity: "Rare", imageUrl: null },
+    ];
+    const ownedItems = [item({ setName: "Oscuridad Absoluta", number: "1/120" })];
+    renderScreen(ownedItems, [], [setChecklist()], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    expect(screen.getByText("1/3 (33%)")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ver qué me falta" }));
+    expect(screen.getByText("Grubbin")).toBeInTheDocument();
+    expect(screen.getByText("Charmander")).toBeInTheDocument();
+    expect(screen.queryByText("Tropius")).not.toBeInTheDocument();
   });
 });

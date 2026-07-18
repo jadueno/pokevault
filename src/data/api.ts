@@ -9,6 +9,8 @@ import type {
   PlanSettings,
   RecognizedCardData,
   SealedPurchase,
+  SetChecklist,
+  SetChecklistCard,
   WishlistItem,
 } from "../domain/types";
 
@@ -95,4 +97,14 @@ export function getPlanSettings<T>(): Promise<T> {
 
 export function updatePlanSettings<T>(entity: PlanSettings): Promise<T> {
   return request("/plan-settings", { method: "PUT", body: JSON.stringify(entity) });
+}
+
+// ---- Checklist de set (solo lectura — se sincroniza con un script puntual, no en vivo) ----
+
+export function getSetChecklists<T = SetChecklist[]>(): Promise<T> {
+  return request("/set-checklists");
+}
+
+export function getSetChecklistCards<T = SetChecklistCard[]>(checklistId: string): Promise<T> {
+  return request(`/set-checklists/${checklistId}/cards`);
 }

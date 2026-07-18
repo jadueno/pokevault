@@ -8,6 +8,8 @@ import type {
   PlanSettings,
   RecognizedCardData,
   SealedPurchase,
+  SetChecklist,
+  SetChecklistCard,
   WishlistItem,
 } from "./types.js";
 
@@ -26,6 +28,14 @@ export type PlanItemRepository = Repository<PlanItem, NewPlanItem>;
 export interface PlanSettingsRepository {
   get(): Promise<PlanSettings>;
   update(entity: PlanSettings): Promise<PlanSettings>;
+}
+
+// ---- Checklist de set (solo lectura desde la API; la escritura la hace el script de
+// sincronización directamente contra el pool, no pasa por este puerto) ----
+
+export interface SetChecklistRepository {
+  list(): Promise<SetChecklist[]>;
+  getCards(checklistId: string): Promise<SetChecklistCard[]>;
 }
 
 // ---- Reconocimiento visual (puerto intercambiable) ----

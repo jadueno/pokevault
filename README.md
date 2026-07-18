@@ -76,10 +76,21 @@ npm run seed:demo:clear  # solo lo quita
 
 Rellena colección, producto sellado y wishlist con datos ficticios repartidos en varios meses. Cada fila queda marcada con `[DEMO]` al principio de sus notas, así que `seed:demo:clear` solo borra esas filas — nunca toca datos reales que hayas añadido tú. No afecta al Plan (ese ya tiene tu plan real sembrado por migración).
 
+## Checklist de set ("¿qué me falta?")
+
+Para ver qué cartas te faltan de un set concreto (pestaña "Sets" dentro de "Mi colección"), primero hay que traer su listado una vez desde pokemontcg.io:
+
+```bash
+cd backend
+npm run sync:set-checklist -- me5 "Oscuridad Absoluta"
+```
+
+El primer argumento es el id del set en pokemontcg.io (búscalo en `https://api.pokemontcg.io/v2/sets`), el segundo es opcional — el nombre en español, para que se relacione con cómo sueles nombrar tus cartas. No es una dependencia en vivo: es un script puntual (como `seed:demo`), se ejecuta una vez por set y queda guardado en tu base de datos. Volver a ejecutarlo con el mismo id reemplaza el checklist entero.
+
 ## Qué hace la app
 
 - **Añadir**: haz una foto a una carta o a una caja. Un modelo de visión local (Ollama) sugiere nombre, expansión, número y rareza — siempre revisas y editas antes de guardar, nunca se da de alta nada automáticamente. Eliges el destino: tu colección, la wishlist, o producto sellado.
-- **Mi colección**: todos tus ejemplares, con tu propia estimación de valor (sin catálogo externo, no hay precio de mercado automático) y la diferencia frente a lo que pagaste. Buscador propio sobre lo que ya tienes.
+- **Mi colección**: todos tus ejemplares, con tu propia estimación de valor (sin catálogo externo, no hay precio de mercado automático) y la diferencia frente a lo que pagaste. Buscador propio sobre lo que ya tienes. La pestaña "Sets" muestra, para cada set sincronizado (ver "Checklist de set" más abajo), qué porcentaje tienes y qué cartas concretas te faltan.
 - **Producto sellado**: sobres, cajas, ETBs — registro de compra con ubicación física y valor estimado a mano.
 - **Plan**: tu checklist de compra mes a mes (comprar / abrir / guardar sellado), con presupuesto mensual, páginas de compra habituales y notas generales del año. El "hecho" de cada ítem es una casilla de seguimiento independiente — no registra nada en tu colección ni cuenta en el valor total.
 - **Wishlist**: deseos puntuales de algo que no tienes todavía, con prioridad, precio máximo y un **mes objetivo de compra** — agrupa la propia wishlist por mes, sin necesitar una pantalla aparte. "Ya la tengo" mueve el deseo a tu colección registrando la compra real.
