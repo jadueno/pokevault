@@ -1,5 +1,14 @@
 import { useState } from "react";
-import type { AcquisitionType, CardCondition, CardLanguage, NewCollectionItem, RecognizedCardData } from "../../domain/types";
+import type {
+  AcquisitionType,
+  CardCondition,
+  CardLanguage,
+  CollectionItem,
+  NewCollectionItem,
+  RecognizedCardData,
+  SealedPurchase,
+} from "../../domain/types";
+import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 
@@ -38,11 +47,23 @@ const ACQUISITION_TYPES: { value: AcquisitionType; label: string }[] = [
 export function CollectionQuickForm({
   recognized,
   photo,
+  sealedItems,
+  collectionItems,
+  initialSealedPurchaseId = null,
   onSubmit,
   onCancel,
 }: {
   recognized: RecognizedCardData | null;
   photo: string | null;
+  /** Sobres/cajas de producto sellado ya registrados, para poder vincular esta carta a
+   * uno concreto y repartir su coste. */
+  sealedItems: SealedPurchase[];
+  /** El resto de la colección, para saber cuántas cartas hay ya vinculadas a cada sobre y
+   * poder previsualizar el coste por carta antes de guardar. */
+  collectionItems: CollectionItem[];
+  /** Preseleccionar un sobre (p. ej. para seguir añadiendo cartas del mismo sobre sin tener
+   * que volver a elegirlo en cada foto — ver "sticky sobre" en AnadirScreen). */
+  initialSealedPurchaseId?: string | null;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -54,8 +75,8 @@ export function CollectionQuickForm({
     language: "es",
     condition: "near_mint",
     quantity: 1,
-    acquisitionType: "purchased_single",
-    sealedPurchaseId: null,
+    acquisitionType: initialSealedPurchaseId ? "pulled_from_pack" : "purchased_single",
+    sealedPurchaseId: initialSealedPurchaseId,
     purchasePrice: null,
     purchaseCurrency: "EUR",
     purchaseDate: new Date().toISOString().slice(0, 10),
@@ -71,6 +92,11 @@ export function CollectionQuickForm({
   const [saving, setSaving] = useState(false);
 
   const cameFromPack = form.acquisitionType === "pulled_from_pack";
+  const selectedSealedPurchase = form.sealedPurchaseId ? sealedItems.find((s) => s.id === form.sealedPurchaseId) : undefined;
+  const projectedLinkedCount = selectedSealedPurchase
+    ? countLinkedCollectionItems(selectedSealedPurchase.id, collectionItems) + form.quantity
+    : 0;
+  const projectedCostPerCard = selectedSealedPurchase ? costPerCard(selectedSealedPurchase, projectedLinkedCount) : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,6 +183,7 @@ export function CollectionQuickForm({
                 // Si vino de un sobre, normalmente no hay precio individual real — no se
                 // rellena con 0 para no mentir sobre un coste que no se sabe.
                 purchasePrice: acquisitionType === "pulled_from_pack" ? null : form.purchasePrice,
+                sealedPurchaseId: acquisitionType === "pulled_from_pack" ? form.sealedPurchaseId : null,
               });
             }}
           >
@@ -167,6 +194,36 @@ export function CollectionQuickForm({
             ))}
           </select>
         </Field>
+        {cameFromPack && (
+          <>
+            {/* El texto de ayuda va fuera de <Field> a propósito: si viviera dentro del
+                mismo <label> que el <select>, se colaría en su nombre accesible (lo que
+                lee un lector de pantalla, y también lo que usan las queries de test por
+                label) — el <select> pasaría a "llamarse" "¿De qué sobre? Con esta carta
+                serían…" en vez de solo "¿De qué sobre?". */}
+            <Field label="¿De qué sobre?">
+              <select
+                className={inputClass}
+                value={form.sealedPurchaseId ?? ""}
+                onChange={(e) => setForm({ ...form, sealedPurchaseId: e.target.value || null })}
+              >
+                <option value="">Sin sobre concreto (no reparte coste)</option>
+                {sealedItems.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.productName}
+                    {s.purchaseDate ? ` — ${s.purchaseDate}` : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {projectedCostPerCard !== null && (
+              <p className="text-xs text-[var(--text-muted)] sm:col-span-2">
+                Con esta carta serían {projectedLinkedCount} de este sobre →{" "}
+                <span className="font-semibold text-[var(--amber)]">≈{formatMoney(projectedCostPerCard)}/carta</span>
+              </p>
+            )}
+          </>
+        )}
         {!cameFromPack && (
           <Field label="Precio de compra (€)">
             <input

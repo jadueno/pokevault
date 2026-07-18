@@ -92,6 +92,8 @@ export default function App() {
               {section === "dashboard" && <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />}
               {section === "anadir" && (
                 <AnadirScreen
+                  sealedItems={sealed.items}
+                  collectionItems={collection.items}
                   onAddToCollection={collection.addItem}
                   onAddToWishlist={wishlist.addItem}
                   onAddToSealed={sealed.addItem}

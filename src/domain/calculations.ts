@@ -1,4 +1,4 @@
-import type { PlanCategory, PlanItem, WishlistItem } from "./types";
+import type { CollectionItem, PlanCategory, PlanItem, SealedPurchase, WishlistItem } from "./types";
 
 export function formatMoney(amount: number | null, currency = "EUR"): string {
   if (amount === null) return "—";
@@ -179,4 +179,22 @@ export function estimatePlanMonth(group: PlanMonthGroup): PlanMonthEstimate {
     }
   }
   return { amount, pricedCount, doneCount, totalCount };
+}
+
+/** Cuántas cartas físicas de la colección están vinculadas a un sobre/caja de producto
+ * sellado concreto (suma `quantity`, no nº de filas — dos filas de x1 y una de x3 del mismo
+ * sobre son 5 cartas, no 3 filas) — para poder repartir su coste de compra entre ellas. */
+export function countLinkedCollectionItems(sealedPurchaseId: string, items: CollectionItem[]): number {
+  return items.reduce((count, item) => (item.sealedPurchaseId === sealedPurchaseId ? count + item.quantity : count), 0);
+}
+
+/** Coste estimado por carta repartiendo el precio de compra del sobre entre las cartas que
+ * se le han vinculado — `null` si el sobre no tiene precio de compra conocido o si todavía
+ * no hay ninguna carta vinculada. Se calcula siempre al vuelo a partir de los datos ya
+ * cargados (nunca se guarda en `purchasePrice` de la carta): así queda correcto aunque se
+ * añadan o quiten cartas del mismo sobre más adelante, en vez de quedarse desactualizado
+ * como pasaría si se guardase un precio por carta fijo en el momento de añadirla. */
+export function costPerCard(sealedPurchase: Pick<SealedPurchase, "purchasePrice">, linkedCount: number): number | null {
+  if (sealedPurchase.purchasePrice === null || linkedCount <= 0) return null;
+  return sealedPurchase.purchasePrice / linkedCount;
 }

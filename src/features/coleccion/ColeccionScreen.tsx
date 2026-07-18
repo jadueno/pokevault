@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CardCondition, CollectionItem, NewSealedPurchase, SealedPurchase } from "../../domain/types";
-import { formatMoney } from "../../domain/calculations";
+import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
 import { Badge, badgeToneColors, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -60,10 +60,17 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
 
 function ItemCard({
   item,
+  sealedPurchase,
+  linkedCardCount,
   onRemove,
   onOverrideValue,
 }: {
   item: CollectionItem;
+  /** El sobre/caja del que salió esta carta (`item.sealedPurchaseId`), si lo tiene y sigue
+   * existiendo — para poder calcular y mostrar el coste repartido. */
+  sealedPurchase: SealedPurchase | null;
+  /** Cuántas cartas de toda la colección están vinculadas a ese mismo sobre (incluida esta). */
+  linkedCardCount: number;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
 }) {
@@ -92,6 +99,10 @@ function ItemCard({
   }
 
   const conditionColor = badgeToneColors[CONDITION_TONES[item.condition]].bg;
+  // Coste repartido: nunca se guarda en `item.purchasePrice` (seguiría siendo "no lo sé"
+  // si vino de un sobre) — se calcula siempre al vuelo a partir del precio del sobre y
+  // cuántas cartas se le han vinculado hasta ahora, para que no se quede desactualizado.
+  const estimatedFromPack = sealedPurchase ? costPerCard(sealedPurchase, linkedCardCount) : null;
 
   return (
     <Card
@@ -140,7 +151,18 @@ function ItemCard({
       <div className="flex items-center justify-between text-sm">
         <span className="text-[var(--text-muted)]">Comprada por</span>
         <span className="font-semibold text-[var(--text-primary)]">
-          {item.purchasePrice !== null ? formatMoney(item.purchasePrice, item.purchaseCurrency) : "Sin precio (salió de un sobre)"}
+          {item.purchasePrice !== null ? (
+            formatMoney(item.purchasePrice, item.purchaseCurrency)
+          ) : estimatedFromPack !== null ? (
+            <>
+              ≈{formatMoney(estimatedFromPack)}{" "}
+              <span className="font-normal text-[var(--text-muted)]">
+                (repartido, {linkedCardCount} carta{linkedCardCount === 1 ? "" : "s"})
+              </span>
+            </>
+          ) : (
+            "Sin precio (salió de un sobre)"
+          )}
         </span>
       </div>
 
@@ -187,11 +209,14 @@ function ItemCard({
 
 function SealedItemCard({
   item,
+  linkedCardCount,
   onUpdate,
   onRemove,
   onOverrideValue,
 }: {
   item: SealedPurchase;
+  /** Cuántas cartas de la colección se han vinculado ya a este sobre concreto. */
+  linkedCardCount: number;
   onUpdate: (id: string, entity: NewSealedPurchase) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
@@ -243,6 +268,19 @@ function SealedItemCard({
           {item.purchasePrice !== null ? formatMoney(item.purchasePrice, item.purchaseCurrency) : "—"}
         </span>
       </div>
+
+      {linkedCardCount > 0 && (
+        <p className="text-xs text-[var(--text-muted)]">
+          🎴 {linkedCardCount} carta{linkedCardCount === 1 ? "" : "s"} de la colección vinculada{linkedCardCount === 1 ? "" : "s"} a
+          este sobre
+          {costPerCard(item, linkedCardCount) !== null && (
+            <>
+              {" "}
+              · <span className="font-semibold text-[var(--amber)]">≈{formatMoney(costPerCard(item, linkedCardCount))}/carta</span>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="flex items-center justify-between text-sm">
         <span className="text-[var(--text-muted)]">Valor estimado</span>
@@ -313,6 +351,14 @@ export function ColeccionScreen({
   const filteredSealed = q ? sealedItems.filter((i) => i.productName.toLowerCase().includes(q)) : sealedItems;
 
   const isEmpty = items.length === 0 && sealedItems.length === 0;
+
+  // Cuántas cartas están vinculadas a cada sobre, calculado una vez para toda la lista en
+  // vez de recorrer `items` entero por cada tarjeta — no cambia el resultado, solo evita el
+  // trabajo repetido de countLinkedCollectionItems por cada ItemCard/SealedItemCard.
+  const linkedCountsBySealedId = new Map<string, number>();
+  for (const sealed of sealedItems) {
+    linkedCountsBySealedId.set(sealed.id, countLinkedCollectionItems(sealed.id, items));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -399,7 +445,14 @@ export function ColeccionScreen({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map((item) => (
-              <ItemCard key={item.id} item={item} onRemove={onRemove} onOverrideValue={onOverrideValue} />
+              <ItemCard
+                key={item.id}
+                item={item}
+                sealedPurchase={item.sealedPurchaseId ? (sealedItems.find((s) => s.id === item.sealedPurchaseId) ?? null) : null}
+                linkedCardCount={item.sealedPurchaseId ? (linkedCountsBySealedId.get(item.sealedPurchaseId) ?? 0) : 0}
+                onRemove={onRemove}
+                onOverrideValue={onOverrideValue}
+              />
             ))}
           </div>
         )
@@ -415,6 +468,7 @@ export function ColeccionScreen({
             <SealedItemCard
               key={item.id}
               item={item}
+              linkedCardCount={linkedCountsBySealedId.get(item.id) ?? 0}
               onUpdate={onUpdateSealed}
               onRemove={onRemoveSealed}
               onOverrideValue={onOverrideSealedValue}

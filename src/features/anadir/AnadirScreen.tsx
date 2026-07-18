@@ -1,6 +1,14 @@
 import { useState } from "react";
-import type { NewCollectionItem, NewSealedPurchase, NewWishlistItem, RecognizedCardData } from "../../domain/types";
+import type {
+  CollectionItem,
+  NewCollectionItem,
+  NewSealedPurchase,
+  NewWishlistItem,
+  RecognizedCardData,
+  SealedPurchase,
+} from "../../domain/types";
 import { recognizeCard } from "../../data/api";
+import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
 import { Badge, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -18,10 +26,14 @@ const CONFIDENCE_LABELS: Record<string, string> = { high: "Alta", medium: "Media
 const CONFIDENCE_TONES: Record<string, BadgeTone> = { high: "good", medium: "amber", low: "critical" };
 
 export function AnadirScreen({
+  sealedItems,
+  collectionItems,
   onAddToCollection,
   onAddToWishlist,
   onAddToSealed,
 }: {
+  sealedItems: SealedPurchase[];
+  collectionItems: CollectionItem[];
   onAddToCollection: (entity: NewCollectionItem) => Promise<void>;
   onAddToWishlist: (entity: NewWishlistItem) => Promise<void>;
   onAddToSealed: (entity: NewSealedPurchase) => Promise<void>;
@@ -33,6 +45,10 @@ export function AnadirScreen({
   const [destination, setDestination] = useState<Destination | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Se mantiene entre altas (no lo toca `reset()`) para poder añadir varias cartas seguidas
+  // del mismo sobre sin tener que volver a elegirlo en cada foto — ver el aviso de abajo.
+  const [stickySealedPurchaseId, setStickySealedPurchaseId] = useState<string | null>(null);
+  const stickySealedPurchase = stickySealedPurchaseId ? sealedItems.find((s) => s.id === stickySealedPurchaseId) : undefined;
 
   function reset() {
     setPhoto(null);
@@ -52,6 +68,11 @@ export function AnadirScreen({
       setRecognizeError(e instanceof Error ? e.message : "No se ha podido identificar la foto");
     } finally {
       setRecognizing(false);
+      // Con un sobre "pegado" (modo añadir varias cartas seguidas), se salta directo al
+      // formulario de colección en vez de obligar a pulsar "+ A mi colección" en cada foto
+      // — solo una vez terminado el reconocimiento, para que el formulario nazca ya con los
+      // datos de la IA en vez de en blanco.
+      if (stickySealedPurchaseId) setDestination("coleccion");
     }
   }
 
@@ -72,6 +93,34 @@ export function AnadirScreen({
       {savedMessage && (
         <p className="flex items-center gap-1.5 text-sm font-semibold text-[var(--status-good)]">✓ {savedMessage}</p>
       )}
+
+      {stickySealedPurchase &&
+        (() => {
+          const linked = countLinkedCollectionItems(stickySealedPurchase.id, collectionItems);
+          const perCard = costPerCard(stickySealedPurchase, linked);
+          return (
+            <Card className="flex items-center justify-between gap-3">
+              <div className="min-w-0 text-sm">
+                <p className="text-xs text-[var(--text-muted)]">Añadiendo cartas de</p>
+                <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">
+                  {stickySealedPurchase.productName}
+                </p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  {linked} carta{linked === 1 ? "" : "s"} de este sobre
+                  {perCard !== null && (
+                    <>
+                      {" "}
+                      · <span className="font-semibold text-[var(--amber)]">≈{formatMoney(perCard)}/carta</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStickySealedPurchaseId(null)} className="shrink-0">
+                Cambiar de sobre
+              </Button>
+            </Card>
+          );
+        })()}
 
       {!photo && (
         <Card>
@@ -148,8 +197,12 @@ export function AnadirScreen({
           <CollectionQuickForm
             recognized={recognized}
             photo={photo}
+            sealedItems={sealedItems}
+            collectionItems={collectionItems}
+            initialSealedPurchaseId={stickySealedPurchaseId}
             onSubmit={async (entity) => {
               await onAddToCollection(entity);
+              setStickySealedPurchaseId(entity.sealedPurchaseId);
               await handleSaved("coleccion", entity.name);
             }}
             onCancel={() => setDestination(null)}

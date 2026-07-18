@@ -90,6 +90,32 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText(/Sin precio \(salió de un sobre\)/)).toBeInTheDocument();
   });
 
+  it("si la carta está vinculada a un sobre con precio, muestra el coste repartido en vez de 'sin precio'", () => {
+    renderScreen(
+      [
+        item({ id: "i1", name: "Eevee", purchasePrice: null, acquisitionType: "pulled_from_pack", sealedPurchaseId: "s1" }),
+        item({ id: "i2", name: "Pikachu", purchasePrice: null, acquisitionType: "pulled_from_pack", sealedPurchaseId: "s1" }),
+      ],
+      [sealedItem({ id: "s1", purchasePrice: 60 })],
+    );
+    // 60 € repartidos entre 2 cartas = 30 € cada una.
+    expect(screen.getAllByText(/≈30,00 €/)).toHaveLength(2);
+    expect(screen.getAllByText(/repartido, 2 cartas/)).toHaveLength(2);
+  });
+
+  it("en la pestaña de sellado, muestra cuántas cartas están vinculadas al sobre y el coste por carta", async () => {
+    const user = userEvent.setup();
+    renderScreen(
+      [item({ id: "i1", purchasePrice: null, acquisitionType: "pulled_from_pack", sealedPurchaseId: "s1" })],
+      [sealedItem({ id: "s1", purchasePrice: 60 })],
+    );
+
+    await user.click(screen.getByRole("button", { name: /Sellado/ }));
+
+    expect(screen.getByText(/1 carta de la colección vinculada a este sobre/)).toBeInTheDocument();
+    expect(screen.getByText(/≈60,00 €\/carta/)).toBeInTheDocument();
+  });
+
   it("pide confirmación antes de eliminar un ejemplar", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);

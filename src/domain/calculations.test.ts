@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { PlanItem, WishlistItem } from "./types";
+import type { CollectionItem, PlanItem, SealedPurchase, WishlistItem } from "./types";
 import {
+  costPerCard,
+  countLinkedCollectionItems,
   estimatePlanMonth,
   formatMoney,
   groupPlanByMonth,
@@ -35,6 +37,82 @@ function wishlistItem(overrides: Partial<WishlistItem> = {}): WishlistItem {
     ...overrides,
   };
 }
+
+function collectionItem(overrides: Partial<CollectionItem> = {}): CollectionItem {
+  return {
+    id: "c1",
+    name: "Eevee",
+    setName: "Jungla",
+    number: null,
+    rarity: null,
+    language: "es",
+    condition: "near_mint",
+    quantity: 1,
+    acquisitionType: "pulled_from_pack",
+    sealedPurchaseId: "sp1",
+    purchasePrice: null,
+    purchaseCurrency: "EUR",
+    purchaseDate: null,
+    isGraded: false,
+    gradingCompany: null,
+    grade: null,
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    notes: null,
+    photo: null,
+    ...overrides,
+  };
+}
+
+function sealedPurchase(overrides: Partial<SealedPurchase> = {}): SealedPurchase {
+  return {
+    id: "sp1",
+    productName: "ETB Oscuridad Absoluta",
+    productType: "elite_trainer_box",
+    quantity: 1,
+    purchasePrice: 60,
+    purchaseCurrency: "EUR",
+    purchaseDate: null,
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    location: null,
+    notes: null,
+    photo: null,
+    ...overrides,
+  };
+}
+
+describe("countLinkedCollectionItems", () => {
+  it("suma la cantidad (no el nº de filas) de las cartas vinculadas a un sobre", () => {
+    const items = [
+      collectionItem({ id: "c1", sealedPurchaseId: "sp1", quantity: 1 }),
+      collectionItem({ id: "c2", sealedPurchaseId: "sp1", quantity: 3 }),
+      collectionItem({ id: "c3", sealedPurchaseId: "sp2", quantity: 5 }), // otro sobre, no cuenta
+      collectionItem({ id: "c4", sealedPurchaseId: null, quantity: 2 }), // sin sobre, no cuenta
+    ];
+    expect(countLinkedCollectionItems("sp1", items)).toBe(4);
+  });
+
+  it("sin cartas vinculadas, devuelve 0", () => {
+    expect(countLinkedCollectionItems("sp1", [])).toBe(0);
+  });
+});
+
+describe("costPerCard", () => {
+  it("reparte el precio de compra del sobre entre las cartas vinculadas", () => {
+    expect(costPerCard(sealedPurchase({ purchasePrice: 60 }), 4)).toBe(15);
+  });
+
+  it("sin precio de compra del sobre, devuelve null", () => {
+    expect(costPerCard(sealedPurchase({ purchasePrice: null }), 4)).toBeNull();
+  });
+
+  it("sin cartas vinculadas todavía, devuelve null (no dividir por 0)", () => {
+    expect(costPerCard(sealedPurchase({ purchasePrice: 60 }), 0)).toBeNull();
+  });
+});
 
 describe("formatMoney", () => {
   it("formatea un importe en euros", () => {
