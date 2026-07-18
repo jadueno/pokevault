@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { CollectionItem, SetChecklist, SetChecklistCard } from "../../domain/types";
 import { computeSetChecklistCompletion } from "../../domain/calculations";
-import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { focusRing } from "../../components/Field";
@@ -92,14 +91,7 @@ function ChecklistCardThumb({ card, owned, onZoom }: { card: SetChecklistCard; o
         </div>
       )}
       <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
-      <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-        <span className="tabular-nums">#{card.number}</span>
-        {card.rarity && (
-          <Badge tone="neutral" className="shrink-0">
-            {card.rarity}
-          </Badge>
-        )}
-      </div>
+      <span className="text-xs tabular-nums text-[var(--text-muted)]">#{card.number}</span>
     </div>
   );
 }
