@@ -80,7 +80,6 @@ function renderScreen(
     onUpdateSealed: vi.fn().mockResolvedValue(undefined),
     onRemoveSealed: vi.fn().mockResolvedValue(undefined),
     onOverrideSealedValue: vi.fn().mockResolvedValue(undefined),
-    onLoadChecklistCards: vi.fn().mockResolvedValue(undefined),
   };
   render(
     <ConfirmProvider>
@@ -251,23 +250,19 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText(/Todavía no has sincronizado ningún set/)).toBeInTheDocument();
   });
 
-  it("en la pestaña de Sets, muestra el progreso y al expandir carga y lista las cartas que faltan", async () => {
+  it("en la pestaña de Sets, muestra el progreso y al expandir el set completo (o 'Cargando…' si aún no han llegado las cartas)", async () => {
     const user = userEvent.setup();
-    const handlers = renderScreen(
-      [item({ setName: "Oscuridad Absoluta", number: "1/120" })],
-      [],
-      [setChecklist()],
-    );
+    renderScreen([item({ setName: "Oscuridad Absoluta", number: "1/120" })], [], [setChecklist()]);
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
     expect(screen.getByText("Oscuridad Absoluta")).toBeInTheDocument();
     expect(screen.getByText("— / 3")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ver qué me falta" }));
-    expect(handlers.onLoadChecklistCards).toHaveBeenCalledWith("cl1");
+    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    expect(screen.getByText("Cargando…")).toBeInTheDocument();
   });
 
-  it("en la pestaña de Sets, cruza por número de carta y muestra solo las que faltan", async () => {
+  it("en la pestaña de Sets, muestra todo el set (tuyas y las que faltan) y marca cuáles ya tienes", async () => {
     const user = userEvent.setup();
     const cards: SetChecklistCard[] = [
       { id: "c1", checklistId: "cl1", number: "1", name: "Tropius", rarity: "Common", imageUrl: null, imageUrlLarge: null },
@@ -280,10 +275,12 @@ describe("ColeccionScreen", () => {
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
     expect(screen.getByText("1/3 (33%)")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ver qué me falta" }));
+    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    expect(screen.getByText("Tropius")).toBeInTheDocument();
     expect(screen.getByText("Grubbin")).toBeInTheDocument();
     expect(screen.getByText("Charmander")).toBeInTheDocument();
-    expect(screen.queryByText("Tropius")).not.toBeInTheDocument();
+    // Solo Tropius (la que tienes) lleva la insignia "Tuya".
+    expect(screen.getAllByText("Tuya")).toHaveLength(1);
   });
 
   it("en la pestaña de Sets, hacer clic en una carta la abre en grande (prioriza la imagen de mayor resolución)", async () => {
@@ -302,7 +299,7 @@ describe("ColeccionScreen", () => {
     renderScreen([], [], [setChecklist({ totalCards: 1 })], { cl1: cards });
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
-    await user.click(screen.getByRole("button", { name: "Ver qué me falta" }));
+    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
     await user.click(screen.getByRole("button", { name: "Ver Grubbin en grande" }));
 
     const zoomedImage = screen.getByRole("dialog", { name: "Grubbin" }).querySelector("img");

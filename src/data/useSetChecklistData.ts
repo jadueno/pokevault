@@ -12,7 +12,16 @@ export function useSetChecklistData() {
     setLoading(true);
     setError(null);
     try {
-      setChecklists(await getSetChecklists());
+      const lists = await getSetChecklists();
+      setChecklists(lists);
+      // Precarga las cartas de todos los checklists de golpe (no solo al abrir uno): hacen
+      // falta ya cargadas para poder buscar la imagen oficial de una carta al darla de alta
+      // (ver findChecklistCardImage), no solo al mirar la pestaña "Sets". En uso personal
+      // real hay como mucho unos pocos sets sincronizados (100-250 cartas cada uno, sin
+      // imágenes embebidas, solo URLs), así que no compensa la complejidad de cargar cada
+      // uno bajo demanda.
+      const entries = await Promise.all(lists.map(async (checklist) => [checklist.id, await getSetChecklistCards(checklist.id)] as const));
+      setCardsByChecklist(Object.fromEntries(entries));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error cargando los checklists de set");
     } finally {
@@ -24,17 +33,5 @@ export function useSetChecklistData() {
     reload();
   }, [reload]);
 
-  return {
-    checklists,
-    cardsByChecklist,
-    loading,
-    error,
-    reload,
-    // Las cartas de cada checklist se cargan solo cuando el usuario lo abre (pueden ser
-    // 100-250 por set) en vez de traerlas todas al entrar en la pantalla.
-    loadCards: async (checklistId: string) => {
-      const cards = await getSetChecklistCards(checklistId);
-      setCardsByChecklist((prev) => ({ ...prev, [checklistId]: cards }));
-    },
-  };
+  return { checklists, cardsByChecklist, loading, error, reload };
 }

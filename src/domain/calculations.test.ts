@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { CollectionItem, PlanItem, SealedPurchase, SetChecklistCard, WishlistItem } from "./types";
+import type { CollectionItem, PlanItem, SealedPurchase, SetChecklist, SetChecklistCard, WishlistItem } from "./types";
 import {
   computeSetChecklistCompletion,
   costPerCard,
   countLinkedCollectionItems,
   estimatePlanMonth,
+  findChecklistCardImage,
   formatMoney,
   groupPlanByMonth,
   groupWishlistByMonth,
@@ -142,6 +143,44 @@ describe("computeSetChecklistCompletion", () => {
     const { owned, missing } = computeSetChecklistCompletion(cards, [], ["Oscuridad Absoluta"]);
     expect(owned).toHaveLength(0);
     expect(missing).toHaveLength(2);
+  });
+});
+
+function setChecklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
+  return {
+    id: "cl1",
+    externalSetId: "me5",
+    setName: "Pitch Black",
+    setNameEs: "Oscuridad Absoluta",
+    totalCards: 2,
+    syncedAt: "2026-07-18T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("findChecklistCardImage", () => {
+  it("encuentra la carta por set (parecido) + número y devuelve su ficha", () => {
+    const card = checklistCard({ number: "48", name: "Mega Darkrai ex" });
+    const result = findChecklistCardImage("Oscuridad Absoluta", "48/120", [setChecklist()], { cl1: [card] });
+    expect(result).toEqual(card);
+  });
+
+  it("sin nombre de set o sin número, devuelve null (no hay con qué cruzar)", () => {
+    const card = checklistCard({ number: "48" });
+    expect(findChecklistCardImage(null, "48/120", [setChecklist()], { cl1: [card] })).toBeNull();
+    expect(findChecklistCardImage("Oscuridad Absoluta", null, [setChecklist()], { cl1: [card] })).toBeNull();
+  });
+
+  it("si ningún checklist sincronizado coincide con el set, devuelve null", () => {
+    const card = checklistCard({ number: "48" });
+    const result = findChecklistCardImage("Base Set", "48/102", [setChecklist()], { cl1: [card] });
+    expect(result).toBeNull();
+  });
+
+  it("si el set coincide pero no hay ninguna carta con ese número, devuelve null", () => {
+    const card = checklistCard({ number: "48" });
+    const result = findChecklistCardImage("Oscuridad Absoluta", "99/120", [setChecklist()], { cl1: [card] });
+    expect(result).toBeNull();
   });
 });
 

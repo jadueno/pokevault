@@ -1,4 +1,4 @@
-import type { CollectionItem, PlanCategory, PlanItem, SealedPurchase, SetChecklistCard, WishlistItem } from "./types";
+import type { CollectionItem, PlanCategory, PlanItem, SealedPurchase, SetChecklist, SetChecklistCard, WishlistItem } from "./types";
 
 export function formatMoney(amount: number | null, currency = "EUR"): string {
   if (amount === null) return "—";
@@ -199,12 +199,17 @@ export function costPerCard(sealedPurchase: Pick<SealedPurchase, "purchasePrice"
   return sealedPurchase.purchasePrice / linkedCount;
 }
 
-function normalizeSetText(text: string): string {
+export function normalizeSetText(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function setTextMatches(setName: string, hints: string[]): boolean {
+  const itemText = normalizeSetText(setName);
+  return hints.some((hint) => itemText.includes(hint) || hint.includes(itemText));
 }
 
 export interface SetChecklistCompletion {
@@ -228,11 +233,7 @@ export function computeSetChecklistCompletion(
   const hints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
   const ownedNumbers = new Set(
     collectionItems
-      .filter((item) => {
-        if (!item.setName) return false;
-        const itemText = normalizeSetText(item.setName);
-        return hints.some((hint) => itemText.includes(hint) || hint.includes(itemText));
-      })
+      .filter((item) => item.setName && setTextMatches(item.setName, hints))
       .map((item) => item.number?.split("/")[0].trim())
       .filter((number): number is string => !!number),
   );
@@ -243,4 +244,28 @@ export function computeSetChecklistCompletion(
     (ownedNumbers.has(card.number) ? owned : missing).push(card);
   }
   return { owned, missing };
+}
+
+/** Busca, entre los checklists ya sincronizados, la carta que coincide por nombre de
+ * expansión (parecido, no exacto — mismo criterio que `computeSetChecklistCompletion`) y
+ * número, para poder usar la imagen oficial del proveedor al dar de alta una carta en vez
+ * de guardar la foto que hizo el usuario. `null` si no hay ningún checklist sincronizado
+ * para ese set, o si el número no está relleno (no hay con qué cruzar). */
+export function findChecklistCardImage(
+  setName: string | null,
+  number: string | null,
+  checklists: SetChecklist[],
+  cardsByChecklist: Record<string, SetChecklistCard[]>,
+): SetChecklistCard | null {
+  if (!setName || !number) return null;
+  const numberPrefix = number.split("/")[0].trim();
+  if (!numberPrefix) return null;
+
+  for (const checklist of checklists) {
+    const hints = [checklist.setName, checklist.setNameEs].filter((hint): hint is string => !!hint).map(normalizeSetText);
+    if (!setTextMatches(setName, hints)) continue;
+    const match = (cardsByChecklist[checklist.id] ?? []).find((card) => card.number === numberPrefix);
+    if (match) return match;
+  }
+  return null;
 }

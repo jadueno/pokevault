@@ -96,6 +96,8 @@ export default function App() {
                 <AnadirScreen
                   sealedItems={sealed.items}
                   collectionItems={collection.items}
+                  checklists={setChecklists.checklists}
+                  cardsByChecklist={setChecklists.cardsByChecklist}
                   onAddToCollection={collection.addItem}
                   onAddToWishlist={wishlist.addItem}
                   onAddToSealed={sealed.addItem}
@@ -114,7 +116,6 @@ export default function App() {
                     onOverrideSealedValue={sealed.overrideValue}
                     checklists={setChecklists.checklists}
                     cardsByChecklist={setChecklists.cardsByChecklist}
-                    onLoadChecklistCards={setChecklists.loadCards}
                   />
                   <button
                     type="button"

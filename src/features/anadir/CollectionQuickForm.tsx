@@ -7,8 +7,10 @@ import type {
   NewCollectionItem,
   RecognizedCardData,
   SealedPurchase,
+  SetChecklist,
+  SetChecklistCard,
 } from "../../domain/types";
-import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
+import { costPerCard, countLinkedCollectionItems, findChecklistCardImage, formatMoney } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 
@@ -46,21 +48,25 @@ const ACQUISITION_TYPES: { value: AcquisitionType; label: string }[] = [
 
 export function CollectionQuickForm({
   recognized,
-  photo,
   sealedItems,
   collectionItems,
+  checklists,
+  cardsByChecklist,
   initialSealedPurchaseId = null,
   onSubmit,
   onCancel,
 }: {
   recognized: RecognizedCardData | null;
-  photo: string | null;
   /** Sobres/cajas de producto sellado ya registrados, para poder vincular esta carta a
    * uno concreto y repartir su coste. */
   sealedItems: SealedPurchase[];
   /** El resto de la colección, para saber cuántas cartas hay ya vinculadas a cada sobre y
    * poder previsualizar el coste por carta antes de guardar. */
   collectionItems: CollectionItem[];
+  /** Sets sincronizados, para poder usar la imagen oficial de la carta en vez de la foto
+   * que hizo el usuario (esa foto solo sirve para que la IA autocomplete el texto). */
+  checklists: SetChecklist[];
+  cardsByChecklist: Record<string, SetChecklistCard[]>;
   /** Preseleccionar un sobre (p. ej. para seguir añadiendo cartas del mismo sobre sin tener
    * que volver a elegirlo en cada foto — ver "sticky sobre" en AnadirScreen). */
   initialSealedPurchaseId?: string | null;
@@ -87,7 +93,10 @@ export function CollectionQuickForm({
     estimatedValueOverrideAt: null,
     estimatedValueOverrideNote: null,
     notes: null,
-    photo,
+    // La foto que hizo el usuario nunca se guarda — solo sirvió para que la IA
+    // autocompletara el texto. La foto final (si hay) se busca al enviar, entre los sets
+    // sincronizados, y es la imagen oficial del proveedor, no la instantánea del usuario.
+    photo: null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -97,12 +106,14 @@ export function CollectionQuickForm({
     ? countLinkedCollectionItems(selectedSealedPurchase.id, collectionItems) + form.quantity
     : 0;
   const projectedCostPerCard = selectedSealedPurchase ? costPerCard(selectedSealedPurchase, projectedLinkedCount) : null;
+  const matchedChecklistCard = findChecklistCardImage(form.setName, form.number, checklists, cardsByChecklist);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSubmit(form);
+      const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? null;
+      await onSubmit({ ...form, photo });
     } finally {
       setSaving(false);
     }
@@ -245,6 +256,14 @@ export function CollectionQuickForm({
           />
         </Field>
       </div>
+
+      <p className="text-xs text-[var(--text-muted)]">
+        {matchedChecklistCard ? (
+          <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}" (no la foto que has hecho).</>
+        ) : (
+          <>📷 La foto solo se ha usado para autocompletar estos datos — no hay imagen oficial disponible para este set/número todavía.</>
+        )}
+      </p>
 
       <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
         <input

@@ -15,7 +15,6 @@ function ChecklistSummaryCard({
   onToggle,
 }: {
   checklist: SetChecklist;
-  /** `undefined` mientras no se ha pedido cargar las cartas de este checklist todavía. */
   cards: SetChecklistCard[] | undefined;
   collectionItems: CollectionItem[];
   expanded: boolean;
@@ -51,15 +50,71 @@ function ChecklistSummaryCard({
       </div>
 
       <Button variant="tint" size="sm" onClick={onToggle}>
-        {expanded ? "Ocultar" : "Ver qué me falta"}
+        {expanded ? "Ocultar" : "Ver el set completo"}
       </Button>
     </Card>
   );
 }
 
-/** Cartas que faltan de un set, a ancho completo (no metido dentro de la tarjeta estrecha
- * del set — así las imágenes pueden ser grandes de verdad, no miniaturas de lista). */
-function MissingCardsGrid({
+function ChecklistCardThumb({ card, owned, onZoom }: { card: SetChecklistCard; owned: boolean; onZoom: () => void }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {card.imageUrl && !failed ? (
+        <button
+          type="button"
+          onClick={onZoom}
+          aria-label={`Ver ${card.name} en grande`}
+          className={`w-full rounded-xl ${focusRing}`}
+        >
+          <img
+            src={card.imageUrl}
+            alt={card.name}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={() => setFailed(true)}
+            // La tenga o no: siempre se ve la carta entera. Blanco y negro + algo más
+            // tenue para las que faltan, borde de color + un poco más grande para las
+            // que ya tienes — así se distingue de un vistazo sin tener que leer nada.
+            className={`w-full cursor-zoom-in rounded-xl border-2 shadow-card transition-all hover:scale-105 ${
+              owned
+                ? "border-[var(--status-good)]"
+                : "border-[var(--border)] opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
+            }`}
+          />
+        </button>
+      ) : (
+        <div
+          aria-hidden="true"
+          className={`flex aspect-[5/7] w-full items-center justify-center rounded-xl border-2 text-3xl ${
+            owned ? "border-[var(--status-good)] text-[var(--text-muted)]" : "border-dashed border-[var(--border)] text-[var(--text-muted)] opacity-60"
+          }`}
+        >
+          🎴
+        </div>
+      )}
+      <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
+      <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+        <span className="tabular-nums">#{card.number}</span>
+        {owned && (
+          <Badge tone="good" className="shrink-0">
+            Tuya
+          </Badge>
+        )}
+        {card.rarity && (
+          <Badge tone="neutral" className="shrink-0">
+            {card.rarity}
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Todo el set (tuyas y las que faltan), a ancho completo — no metido dentro de la
+ * tarjeta estrecha del set, para que las imágenes puedan ser grandes de verdad. */
+function SetCardsGrid({
   checklist,
   cards,
   collectionItems,
@@ -68,51 +123,27 @@ function MissingCardsGrid({
   cards: SetChecklistCard[] | undefined;
   collectionItems: CollectionItem[];
 }) {
-  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
   const [zoomedCard, setZoomedCard] = useState<SetChecklistCard | null>(null);
+  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
+  const ownedIds = new Set(completion?.owned.map((c) => c.id) ?? []);
 
   return (
     <Card className="flex flex-col gap-4">
       <p className="font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">
-        Te falta de {checklist.setNameEs ?? checklist.setName}
+        {checklist.setNameEs ?? checklist.setName}
+        {completion && (
+          <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">
+            {completion.owned.length}/{cards?.length ?? checklist.totalCards} tuyas
+          </span>
+        )}
       </p>
 
       {cards === undefined ? (
         <p className="text-sm text-[var(--text-muted)]">Cargando…</p>
-      ) : completion && completion.missing.length === 0 ? (
-        <p className="text-sm font-semibold text-[var(--status-good)]">✓ Set completo.</p>
       ) : (
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-          {completion?.missing.map((card) => (
-            <div key={card.id} className="flex flex-col items-center gap-1.5">
-              {card.imageUrl ? (
-                <button
-                  type="button"
-                  onClick={() => setZoomedCard(card)}
-                  aria-label={`Ver ${card.name} en grande`}
-                  className={`w-full rounded-xl ${focusRing}`}
-                >
-                  <img
-                    src={card.imageUrl}
-                    alt={card.name}
-                    loading="lazy"
-                    className="w-full cursor-zoom-in rounded-xl border border-[var(--border)] shadow-card transition-transform hover:scale-105"
-                  />
-                </button>
-              ) : (
-                <div
-                  aria-hidden="true"
-                  className="flex aspect-[5/7] w-full items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-3xl text-[var(--text-muted)]"
-                >
-                  🎴
-                </div>
-              )}
-              <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
-              <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                <span className="tabular-nums">#{card.number}</span>
-                {card.rarity && <Badge tone="neutral">{card.rarity}</Badge>}
-              </div>
-            </div>
+          {cards.map((card) => (
+            <ChecklistCardThumb key={card.id} card={card} owned={ownedIds.has(card.id)} onZoom={() => setZoomedCard(card)} />
           ))}
         </div>
       )}
@@ -132,12 +163,10 @@ export function SetChecklistTab({
   checklists,
   cardsByChecklist,
   collectionItems,
-  onLoadCards,
 }: {
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
   collectionItems: CollectionItem[];
-  onLoadCards: (checklistId: string) => Promise<void>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -152,17 +181,6 @@ export function SetChecklistTab({
     );
   }
 
-  async function handleToggle(checklist: SetChecklist) {
-    if (expandedId === checklist.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(checklist.id);
-    if (!cardsByChecklist[checklist.id]) {
-      await onLoadCards(checklist.id);
-    }
-  }
-
   const expandedChecklist = checklists.find((c) => c.id === expandedId);
 
   return (
@@ -175,17 +193,13 @@ export function SetChecklistTab({
             cards={cardsByChecklist[checklist.id]}
             collectionItems={collectionItems}
             expanded={expandedId === checklist.id}
-            onToggle={() => handleToggle(checklist)}
+            onToggle={() => setExpandedId(expandedId === checklist.id ? null : checklist.id)}
           />
         ))}
       </div>
 
       {expandedChecklist && (
-        <MissingCardsGrid
-          checklist={expandedChecklist}
-          cards={cardsByChecklist[expandedChecklist.id]}
-          collectionItems={collectionItems}
-        />
+        <SetCardsGrid checklist={expandedChecklist} cards={cardsByChecklist[expandedChecklist.id]} collectionItems={collectionItems} />
       )}
     </div>
   );

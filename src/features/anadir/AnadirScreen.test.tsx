@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
-import type { CollectionItem, SealedPurchase } from "../../domain/types";
+import type { CollectionItem, SealedPurchase, SetChecklist, SetChecklistCard } from "../../domain/types";
 import { AnadirScreen } from "./AnadirScreen";
 import * as api from "../../data/api";
 
@@ -29,7 +29,14 @@ function sealedPurchase(overrides: Partial<SealedPurchase> = {}): SealedPurchase
   };
 }
 
-function renderScreen(options: { sealedItems?: SealedPurchase[]; collectionItems?: CollectionItem[] } = {}) {
+function renderScreen(
+  options: {
+    sealedItems?: SealedPurchase[];
+    collectionItems?: CollectionItem[];
+    checklists?: SetChecklist[];
+    cardsByChecklist?: Record<string, SetChecklistCard[]>;
+  } = {},
+) {
   const handlers = {
     onAddToCollection: vi.fn().mockResolvedValue(undefined),
     onAddToWishlist: vi.fn().mockResolvedValue(undefined),
@@ -37,7 +44,13 @@ function renderScreen(options: { sealedItems?: SealedPurchase[]; collectionItems
   };
   render(
     <ConfirmProvider>
-      <AnadirScreen sealedItems={options.sealedItems ?? []} collectionItems={options.collectionItems ?? []} {...handlers} />
+      <AnadirScreen
+        sealedItems={options.sealedItems ?? []}
+        collectionItems={options.collectionItems ?? []}
+        checklists={options.checklists ?? []}
+        cardsByChecklist={options.cardsByChecklist ?? {}}
+        {...handlers}
+      />
     </ConfirmProvider>,
   );
   return handlers;
@@ -87,6 +100,63 @@ describe("AnadirScreen", () => {
 
     expect(handlers.onAddToCollection).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Charizard", setName: "Base", number: "4/102", rarity: "Rare Holo" }),
+    );
+  });
+
+  it("la foto hecha nunca se guarda: sin checklist sincronizado que encaje, se guarda sin foto", async () => {
+    vi.spyOn(api, "recognizeCard").mockResolvedValue({
+      name: "Charizard",
+      setName: "Base",
+      number: "4/102",
+      rarity: "Rare Holo",
+      confidence: "high",
+    });
+    const user = userEvent.setup();
+    const handlers = renderScreen();
+
+    await takePhoto(user);
+    await user.click(await screen.findByRole("button", { name: "+ A mi colección" }));
+    expect(screen.getByText(/La foto solo se ha usado para autocompletar estos datos/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+
+    expect(handlers.onAddToCollection).toHaveBeenCalledWith(expect.objectContaining({ photo: null }));
+  });
+
+  it("la foto hecha nunca se guarda: con un checklist sincronizado que encaja, se guarda la imagen oficial", async () => {
+    vi.spyOn(api, "recognizeCard").mockResolvedValue({
+      name: "Mega Darkrai ex",
+      setName: "Oscuridad Absoluta",
+      number: "48/120",
+      rarity: "Double Rare",
+      confidence: "high",
+    });
+    const user = userEvent.setup();
+    const checklist: SetChecklist = {
+      id: "cl1",
+      externalSetId: "me5",
+      setName: "Pitch Black",
+      setNameEs: "Oscuridad Absoluta",
+      totalCards: 120,
+      syncedAt: "2026-07-18T00:00:00.000Z",
+    };
+    const card: SetChecklistCard = {
+      id: "c48",
+      checklistId: "cl1",
+      number: "48",
+      name: "Mega Darkrai ex",
+      rarity: "Double Rare",
+      imageUrl: "https://images.scrydex.com/pokemon/me5-48/small",
+      imageUrlLarge: "https://images.scrydex.com/pokemon/me5-48/large",
+    };
+    const handlers = renderScreen({ checklists: [checklist], cardsByChecklist: { cl1: [card] } });
+
+    await takePhoto(user);
+    await user.click(await screen.findByRole("button", { name: "+ A mi colección" }));
+    expect(screen.getByText(/Se guardará la imagen oficial de "Mega Darkrai ex"/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+
+    expect(handlers.onAddToCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ photo: "https://images.scrydex.com/pokemon/me5-48/large" }),
     );
   });
 

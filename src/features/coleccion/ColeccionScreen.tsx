@@ -335,7 +335,6 @@ export function ColeccionScreen({
   onOverrideSealedValue,
   checklists,
   cardsByChecklist,
-  onLoadChecklistCards,
 }: {
   items: CollectionItem[];
   onRemove: (id: string) => Promise<void>;
@@ -347,7 +346,6 @@ export function ColeccionScreen({
   onOverrideSealedValue: (id: string, value: number, note: string | null) => Promise<void>;
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
-  onLoadChecklistCards: (checklistId: string) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [showSealedForm, setShowSealedForm] = useState(false);
@@ -486,12 +484,7 @@ export function ColeccionScreen({
           </div>
         )
       ) : (
-        <SetChecklistTab
-          checklists={checklists}
-          cardsByChecklist={cardsByChecklist}
-          collectionItems={items}
-          onLoadCards={onLoadChecklistCards}
-        />
+        <SetChecklistTab checklists={checklists} cardsByChecklist={cardsByChecklist} collectionItems={items} />
       )}
     </div>
   );

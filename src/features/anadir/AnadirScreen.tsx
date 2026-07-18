@@ -6,6 +6,8 @@ import type {
   NewWishlistItem,
   RecognizedCardData,
   SealedPurchase,
+  SetChecklist,
+  SetChecklistCard,
 } from "../../domain/types";
 import { recognizeCard } from "../../data/api";
 import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
@@ -28,12 +30,16 @@ const CONFIDENCE_TONES: Record<string, BadgeTone> = { high: "good", medium: "amb
 export function AnadirScreen({
   sealedItems,
   collectionItems,
+  checklists,
+  cardsByChecklist,
   onAddToCollection,
   onAddToWishlist,
   onAddToSealed,
 }: {
   sealedItems: SealedPurchase[];
   collectionItems: CollectionItem[];
+  checklists: SetChecklist[];
+  cardsByChecklist: Record<string, SetChecklistCard[]>;
   onAddToCollection: (entity: NewCollectionItem) => Promise<void>;
   onAddToWishlist: (entity: NewWishlistItem) => Promise<void>;
   onAddToSealed: (entity: NewSealedPurchase) => Promise<void>;
@@ -196,9 +202,10 @@ export function AnadirScreen({
         <Card>
           <CollectionQuickForm
             recognized={recognized}
-            photo={photo}
             sealedItems={sealedItems}
             collectionItems={collectionItems}
+            checklists={checklists}
+            cardsByChecklist={cardsByChecklist}
             initialSealedPurchaseId={stickySealedPurchaseId}
             onSubmit={async (entity) => {
               await onAddToCollection(entity);
