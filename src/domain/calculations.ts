@@ -110,6 +110,45 @@ export function parseReferenceAmount(description: string): number | null {
   return values.reduce((sum, n) => sum + n, 0) / values.length;
 }
 
+/** El "— buscar: "Caja 6 Sobres Oscuridad Absoluta Español"" que puede venir al final de
+ * la descripción de un ítem del plan: el nombre literal, tal cual lo usan las tiendas, para
+ * pegar directamente en un buscador — necesario porque el nombre de venta habitual en
+ * tiendas españolas no siempre coincide con cómo describimos el ítem en el plan (p. ej.
+ * "Booster Bundle" en el plan es "Caja 6 Sobres" en la tienda). Solo se marca cuando hay un
+ * término fijo y completo — si el ítem es "elige una carta de entre varias" no hay término
+ * único que buscar, y no lleva esta marca. */
+const SEARCH_TERM_REGEX = /—\s*buscar:\s*"([^"]+)"/i;
+
+export function parseSearchTerm(description: string): string | null {
+  const match = description.match(SEARCH_TERM_REGEX);
+  return match ? match[1] : null;
+}
+
+export interface DescriptionSegment {
+  text: string;
+  kind: "text" | "price" | "search";
+}
+
+const ANNOTATION_REGEX = new RegExp(`${REF_PRICE_REGEX.source}|${SEARCH_TERM_REGEX.source}`, "gi");
+
+/** Trocea la descripción de un ítem del plan en segmentos ordenados — texto libre, precio
+ * de referencia y término de búsqueda — para poder resaltar cada uno con su propio estilo
+ * en la UI sin tener que aplicar dos regex por separado y adivinar en qué orden aparecen
+ * (normalmente el precio va primero y el término de búsqueda al final, pero no es una regla
+ * fija). Concatenar `text` de todos los segmentos reconstruye exactamente `description`. */
+export function annotatePlanDescription(description: string): DescriptionSegment[] {
+  const segments: DescriptionSegment[] = [];
+  let lastIndex = 0;
+  for (const match of description.matchAll(ANNOTATION_REGEX)) {
+    if (match.index === undefined) continue;
+    if (match.index > lastIndex) segments.push({ text: description.slice(lastIndex, match.index), kind: "text" });
+    segments.push({ text: match[0], kind: match[0].startsWith("(") ? "price" : "search" });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < description.length) segments.push({ text: description.slice(lastIndex), kind: "text" });
+  return segments;
+}
+
 export interface PlanMonthEstimate {
   /** Suma de los precios de referencia reconocidos en "comprar" + "abrir" (no
    * "guardar_sellado": eso ya es tuyo, no es un gasto nuevo del mes). Aproximado. */

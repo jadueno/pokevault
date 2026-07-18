@@ -130,6 +130,21 @@ describe("PlanScreen", () => {
     expect(writeText).toHaveBeenCalledWith("1x ETB Megaevolución - Oscuridad Absoluta (ES)");
   });
 
+  it("si el ítem tiene un término de búsqueda, copia solo eso en vez de la frase completa", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderScreen([
+      item({
+        description: '1x Booster Bundle Oscuridad Absoluta (ES) (ref. ~35 €) — buscar: "Caja 6 Sobres Oscuridad Absoluta Español"',
+      }),
+    ]);
+
+    await user.click(screen.getByRole("button", { name: 'Copiar "Caja 6 Sobres Oscuridad Absoluta Español"' }));
+
+    expect(writeText).toHaveBeenCalledWith("Caja 6 Sobres Oscuridad Absoluta Español");
+  });
+
   it("sin ítems, muestra el aviso correspondiente", () => {
     renderScreen([]);
     expect(screen.getByText(/Todavía no hay ítems en el plan\./)).toBeInTheDocument();

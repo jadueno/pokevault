@@ -3,11 +3,12 @@ import type { NewPlanItem, PlanCategory, PlanItem, PlanSettings, ShoppingLink } 
 import {
   PLAN_CATEGORIES,
   PLAN_CATEGORY_LABELS,
+  annotatePlanDescription,
   estimatePlanMonth,
   formatMoney,
   groupPlanByMonth,
   monthLabel,
-  splitReferencePrice,
+  parseSearchTerm,
 } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -130,16 +131,31 @@ function ShoppingLinksCard({
   );
 }
 
-/** Descripción de un ítem con su precio de referencia embebido (si lo tiene) resaltado
- * tipográficamente en vez de mezclado en la misma frase sin jerarquía. */
+/** Descripción de un ítem con su precio de referencia y su término de búsqueda embebidos
+ * (si los tiene) resaltados tipográficamente en vez de mezclados en la misma frase sin
+ * jerarquía — cada uno con su propio estilo para distinguirlos de un vistazo. */
 function ItemDescription({ description, done }: { description: string; done: boolean }) {
-  const { before, refPrice, after } = splitReferencePrice(description);
+  const segments = annotatePlanDescription(description);
   const baseClass = done ? "text-[var(--text-muted)] line-through" : "text-[var(--text-primary)]";
   return (
     <span className={baseClass}>
-      {before}
-      {refPrice && <span className={done ? "font-bold" : "font-bold text-[var(--amber)]"}>{refPrice}</span>}
-      {after}
+      {segments.map((segment, i) => {
+        if (segment.kind === "price") {
+          return (
+            <span key={i} className={done ? "font-bold" : "font-bold text-[var(--amber)]"}>
+              {segment.text}
+            </span>
+          );
+        }
+        if (segment.kind === "search") {
+          return (
+            <span key={i} className="text-[var(--text-muted)] italic">
+              🔍 {segment.text.replace(/—\s*buscar:\s*/i, "")}
+            </span>
+          );
+        }
+        return segment.text;
+      })}
     </span>
   );
 }
@@ -159,6 +175,10 @@ function PlanItemRow({
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(item.description);
   const [copied, setCopied] = useState(false);
+  // Si el ítem tiene un término de búsqueda literal ("— buscar: "..."") se copia solo eso,
+  // listo para pegar en el buscador de la tienda — copiar la frase completa (con cantidad,
+  // precio de referencia, etc.) obligaría a limpiarla a mano antes de buscar.
+  const copyText = parseSearchTerm(item.description) ?? item.description;
 
   function stripId(item: PlanItem): NewPlanItem {
     const { id: _id, ...rest } = item;
@@ -167,13 +187,13 @@ function PlanItemRow({
 
   async function handleCopy() {
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(item.description);
+      await navigator.clipboard.writeText(copyText);
     } else {
       // navigator.clipboard no existe fuera de un contexto seguro (https, o localhost) —
       // p. ej. al entrar por la IP de la red local o Tailscale desde el móvil, en http://.
       // Fallback clásico con un <textarea> oculto + execCommand, que sí funciona ahí.
       const textarea = document.createElement("textarea");
-      textarea.value = item.description;
+      textarea.value = copyText;
       textarea.style.position = "fixed";
       textarea.style.opacity = "0";
       document.body.appendChild(textarea);
@@ -239,7 +259,7 @@ function PlanItemRow({
       <button
         type="button"
         onClick={handleCopy}
-        aria-label={`Copiar "${item.description}"`}
+        aria-label={`Copiar "${copyText}"`}
         className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
       >
         {copied ? "✓" : "📋"}

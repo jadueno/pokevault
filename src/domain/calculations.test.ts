@@ -6,6 +6,7 @@ import {
   groupPlanByMonth,
   groupWishlistByMonth,
   parseReferenceAmount,
+  parseSearchTerm,
   splitReferencePrice,
 } from "./calculations";
 
@@ -106,6 +107,18 @@ describe("parseReferenceAmount", () => {
     // Bug real: "(ref. ~45-60 €, set ya asentado desde 2024)" promediaba 45+60+2024 y
     // disparaba la estimación del mes a más de 700 €.
     expect(parseReferenceAmount("1x ETB (ref. ~45-60 €, set ya asentado desde 2024)")).toBe(52.5);
+  });
+});
+
+describe("parseSearchTerm", () => {
+  it("extrae el término de búsqueda literal entre comillas", () => {
+    expect(
+      parseSearchTerm('1x Booster Bundle Oscuridad Absoluta (ES) (ref. ~35 €) — buscar: "Caja 6 Sobres Oscuridad Absoluta Español"'),
+    ).toBe("Caja 6 Sobres Oscuridad Absoluta Español");
+  });
+
+  it("sin marca de búsqueda, devuelve null", () => {
+    expect(parseSearchTerm("2x Illustration Rare (ref. ~8-15 € cada una)")).toBeNull();
   });
 });
 
