@@ -167,5 +167,9 @@ export interface SetChecklistCard {
   number: string;
   name: string;
   rarity: string | null;
+  /** Miniatura, para la rejilla. */
   imageUrl: string | null;
+  /** Resolución mayor del mismo proveedor, para el visor a pantalla completa — sin esto,
+   * ampliar la miniatura se vería pixelado. */
+  imageUrlLarge: string | null;
 }

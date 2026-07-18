@@ -18,6 +18,7 @@ interface SetChecklistCardRow {
   name: string;
   rarity: string | null;
   image_url: string | null;
+  image_url_large: string | null;
 }
 
 function toSetChecklist(row: SetChecklistRow): SetChecklist {
@@ -39,6 +40,7 @@ function toSetChecklistCard(row: SetChecklistCardRow): SetChecklistCard {
     name: row.name,
     rarity: row.rarity,
     imageUrl: row.image_url,
+    imageUrlLarge: row.image_url_large,
   };
 }
 
@@ -54,7 +56,7 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
 
     async getCards(checklistId: string) {
       const { rows } = await pool.query<SetChecklistCardRow>(
-        `select id, checklist_id, number, name, rarity, image_url
+        `select id, checklist_id, number, name, rarity, image_url, image_url_large
          from set_checklist_cards where checklist_id = $1
          -- Los números puramente numéricos se ordenan como número (con padding para que
          -- el orden alfabético de texto no ponga "10" antes que "2"); los que llevan

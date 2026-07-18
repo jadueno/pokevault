@@ -93,6 +93,7 @@ function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistC
     name: "Tropius",
     rarity: "Common",
     imageUrl: null,
+    imageUrlLarge: null,
     ...overrides,
   };
 }

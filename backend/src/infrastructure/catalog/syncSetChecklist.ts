@@ -85,9 +85,9 @@ async function main() {
 
     for (const card of cards) {
       await client.query(
-        `insert into set_checklist_cards (checklist_id, number, name, rarity, image_url)
-         values ($1, $2, $3, $4, $5)`,
-        [checklistId, card.number, card.name, card.rarity ?? null, card.images?.small ?? null],
+        `insert into set_checklist_cards (checklist_id, number, name, rarity, image_url, image_url_large)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [checklistId, card.number, card.name, card.rarity ?? null, card.images?.small ?? null, card.images?.large ?? null],
       );
     }
 

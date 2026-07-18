@@ -4,6 +4,8 @@ import { computeSetChecklistCompletion } from "../../domain/calculations";
 import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
+import { focusRing } from "../../components/Field";
+import { PhotoLightbox } from "../../components/PhotoLightbox";
 
 function ChecklistSummaryCard({
   checklist,
@@ -67,6 +69,7 @@ function MissingCardsGrid({
   collectionItems: CollectionItem[];
 }) {
   const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
+  const [zoomedCard, setZoomedCard] = useState<SetChecklistCard | null>(null);
 
   return (
     <Card className="flex flex-col gap-4">
@@ -83,12 +86,19 @@ function MissingCardsGrid({
           {completion?.missing.map((card) => (
             <div key={card.id} className="flex flex-col items-center gap-1.5">
               {card.imageUrl ? (
-                <img
-                  src={card.imageUrl}
-                  alt={card.name}
-                  loading="lazy"
-                  className="w-full rounded-xl border border-[var(--border)] shadow-card"
-                />
+                <button
+                  type="button"
+                  onClick={() => setZoomedCard(card)}
+                  aria-label={`Ver ${card.name} en grande`}
+                  className={`w-full rounded-xl ${focusRing}`}
+                >
+                  <img
+                    src={card.imageUrl}
+                    alt={card.name}
+                    loading="lazy"
+                    className="w-full cursor-zoom-in rounded-xl border border-[var(--border)] shadow-card transition-transform hover:scale-105"
+                  />
+                </button>
               ) : (
                 <div
                   aria-hidden="true"
@@ -105,6 +115,14 @@ function MissingCardsGrid({
             </div>
           ))}
         </div>
+      )}
+
+      {zoomedCard && (
+        <PhotoLightbox
+          src={zoomedCard.imageUrlLarge ?? zoomedCard.imageUrl ?? ""}
+          alt={zoomedCard.name}
+          onClose={() => setZoomedCard(null)}
+        />
       )}
     </Card>
   );

@@ -270,9 +270,9 @@ describe("ColeccionScreen", () => {
   it("en la pestaña de Sets, cruza por número de carta y muestra solo las que faltan", async () => {
     const user = userEvent.setup();
     const cards: SetChecklistCard[] = [
-      { id: "c1", checklistId: "cl1", number: "1", name: "Tropius", rarity: "Common", imageUrl: null },
-      { id: "c2", checklistId: "cl1", number: "2", name: "Grubbin", rarity: "Common", imageUrl: null },
-      { id: "c3", checklistId: "cl1", number: "3", name: "Charmander", rarity: "Rare", imageUrl: null },
+      { id: "c1", checklistId: "cl1", number: "1", name: "Tropius", rarity: "Common", imageUrl: null, imageUrlLarge: null },
+      { id: "c2", checklistId: "cl1", number: "2", name: "Grubbin", rarity: "Common", imageUrl: null, imageUrlLarge: null },
+      { id: "c3", checklistId: "cl1", number: "3", name: "Charmander", rarity: "Rare", imageUrl: null, imageUrlLarge: null },
     ];
     const ownedItems = [item({ setName: "Oscuridad Absoluta", number: "1/120" })];
     renderScreen(ownedItems, [], [setChecklist()], { cl1: cards });
@@ -284,5 +284,28 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText("Grubbin")).toBeInTheDocument();
     expect(screen.getByText("Charmander")).toBeInTheDocument();
     expect(screen.queryByText("Tropius")).not.toBeInTheDocument();
+  });
+
+  it("en la pestaña de Sets, hacer clic en una carta la abre en grande (prioriza la imagen de mayor resolución)", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      {
+        id: "c2",
+        checklistId: "cl1",
+        number: "2",
+        name: "Grubbin",
+        rarity: "Common",
+        imageUrl: "https://images.scrydex.com/pokemon/me5-2/small",
+        imageUrlLarge: "https://images.scrydex.com/pokemon/me5-2/large",
+      },
+    ];
+    renderScreen([], [], [setChecklist({ totalCards: 1 })], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Ver qué me falta" }));
+    await user.click(screen.getByRole("button", { name: "Ver Grubbin en grande" }));
+
+    const zoomedImage = screen.getByRole("dialog", { name: "Grubbin" }).querySelector("img");
+    expect(zoomedImage).toHaveAttribute("src", "https://images.scrydex.com/pokemon/me5-2/large");
   });
 });
