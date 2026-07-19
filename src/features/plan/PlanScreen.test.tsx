@@ -11,6 +11,8 @@ function item(overrides: Partial<PlanItem> = {}): PlanItem {
     month: "2026-08",
     category: "comprar",
     description: "1x ETB Megaevolución - Oscuridad Absoluta (ES)",
+    referencePrice: null,
+    searchTerm: null,
     done: false,
     position: 0,
     ...overrides,
@@ -71,14 +73,15 @@ describe("PlanScreen", () => {
     expect(text.className).toContain("line-through");
   });
 
-  it("editar la descripción inline llama a onUpdate", async () => {
+  it("edita el ítem completo desde el modal y llama a onUpdate", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);
 
-    await user.click(screen.getByText("1x ETB Megaevolución - Oscuridad Absoluta (ES)"));
-    const input = screen.getByDisplayValue("1x ETB Megaevolución - Oscuridad Absoluta (ES)");
-    await user.clear(input);
-    await user.type(input, "1x ETB nueva{Enter}");
+    await user.click(screen.getByRole("button", { name: 'Editar "1x ETB Megaevolución - Oscuridad Absoluta (ES)"' }));
+    const textarea = screen.getByDisplayValue("1x ETB Megaevolución - Oscuridad Absoluta (ES)");
+    await user.clear(textarea);
+    await user.type(textarea, "1x ETB nueva");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(handlers.onUpdate).toHaveBeenCalledWith(
       "p1",
@@ -136,7 +139,9 @@ describe("PlanScreen", () => {
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     renderScreen([
       item({
-        description: '1x Booster Bundle Oscuridad Absoluta (ES) (ref. ~35 €) — buscar: "Caja 6 Sobres Oscuridad Absoluta Español"',
+        description: "1x Booster Bundle Oscuridad Absoluta (ES)",
+        referencePrice: 35,
+        searchTerm: "Caja 6 Sobres Oscuridad Absoluta Español",
       }),
     ]);
 
@@ -194,15 +199,15 @@ describe("PlanScreen", () => {
     expect(screen.getByText("Cartas sueltas — mira el Trend Price.")).toBeInTheDocument();
   });
 
-  it("destaca tipográficamente el precio de referencia embebido en la descripción", () => {
-    renderScreen([item({ description: "1x ETB (ref. ~59 €) — lanzamiento 16 sept." })]);
-    const priceSpan = screen.getByText("(ref. ~59 €)");
+  it("destaca tipográficamente el precio de referencia", () => {
+    renderScreen([item({ description: "1x ETB — lanzamiento 16 sept.", referencePrice: 59 })]);
+    const priceSpan = screen.getByText("(ref. 59,00 €)");
     expect(priceSpan.className).toContain("text-[var(--amber)]");
   });
 
-  it("muestra el gasto estimado del mes cuando hay ítems con precio de referencia", () => {
-    renderScreen([item({ description: "1x ETB (ref. ~59 €)" })]);
-    expect(screen.getByText(/Estimado/)).toBeInTheDocument();
+  it("muestra el total gastado del mes cuando hay ítems con precio de referencia", () => {
+    renderScreen([item({ referencePrice: 59 })]);
+    expect(screen.getByText(/Total/)).toBeInTheDocument();
     expect(screen.getByText("59,00 €")).toBeInTheDocument();
   });
 

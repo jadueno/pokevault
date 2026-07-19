@@ -1,19 +1,11 @@
 import { useState } from "react";
 import type { NewPlanItem, PlanCategory, PlanItem, PlanSettings, ShoppingLink } from "../../domain/types";
-import {
-  PLAN_CATEGORIES,
-  PLAN_CATEGORY_LABELS,
-  annotatePlanDescription,
-  estimatePlanMonth,
-  formatMoney,
-  groupPlanByMonth,
-  monthLabel,
-  parseSearchTerm,
-} from "../../domain/calculations";
+import { PLAN_CATEGORIES, PLAN_CATEGORY_LABELS, estimatePlanMonth, formatMoney, groupPlanByMonth, monthLabel } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
-import { inputClass } from "../../components/Field";
+import { Field, inputClass } from "../../components/Field";
+import { Modal } from "../../components/Modal";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { PlanSettingsForm } from "./PlanSettingsForm";
 
@@ -131,32 +123,104 @@ function ShoppingLinksCard({
   );
 }
 
-/** Descripción de un ítem con su precio de referencia y su término de búsqueda embebidos
- * (si los tiene) resaltados tipográficamente en vez de mezclados en la misma frase sin
- * jerarquía — cada uno con su propio estilo para distinguirlos de un vistazo. */
-function ItemDescription({ description, done }: { description: string; done: boolean }) {
-  const segments = annotatePlanDescription(description);
-  const baseClass = done ? "text-[var(--text-muted)] line-through" : "text-[var(--text-primary)]";
+/** Descripción de un ítem con su precio de referencia y su término de búsqueda —ahora
+ * campos propios, ya no texto embebido— resaltados tipográficamente para distinguirlos
+ * de un vistazo en vez de mezclarlos en la misma frase sin jerarquía. */
+function ItemDescription({ item }: { item: PlanItem }) {
+  const baseClass = item.done ? "text-[var(--text-muted)] line-through" : "text-[var(--text-primary)]";
   return (
     <span className={baseClass}>
-      {segments.map((segment, i) => {
-        if (segment.kind === "price") {
-          return (
-            <span key={i} className={done ? "font-bold" : "font-bold text-[var(--amber)]"}>
-              {segment.text}
-            </span>
-          );
-        }
-        if (segment.kind === "search") {
-          return (
-            <span key={i} className="text-[var(--text-muted)] italic">
-              🔍 {segment.text.replace(/—\s*buscar:\s*/i, "")}
-            </span>
-          );
-        }
-        return segment.text;
-      })}
+      {item.description}
+      {item.referencePrice !== null && (
+        <span className={item.done ? "font-bold" : "font-bold text-[var(--amber)]"}> (ref. {formatMoney(item.referencePrice)})</span>
+      )}
+      {item.searchTerm && <span className="text-[var(--text-muted)] italic"> 🔍 {item.searchTerm}</span>}
     </span>
+  );
+}
+
+function stripId(item: PlanItem): NewPlanItem {
+  const { id: _id, ...rest } = item;
+  return rest;
+}
+
+/** Modal de edición completa de un ítem del plan: descripción, precio de referencia y
+ * término de búsqueda, todos editables (antes solo la descripción, con el precio
+ * embebido como texto sin poder tocarlo por separado). */
+function PlanItemEditForm({
+  item,
+  onSubmit,
+  onClose,
+}: {
+  item: PlanItem;
+  onSubmit: (entity: NewPlanItem) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [description, setDescription] = useState(item.description);
+  const [referencePrice, setReferencePrice] = useState(item.referencePrice !== null ? String(item.referencePrice) : "");
+  const [searchTerm, setSearchTerm] = useState(item.searchTerm ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription) return;
+    setSaving(true);
+    try {
+      await onSubmit({
+        ...stripId(item),
+        description: trimmedDescription,
+        referencePrice: referencePrice.trim() === "" ? null : Number(referencePrice),
+        searchTerm: searchTerm.trim() === "" ? null : searchTerm.trim(),
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title="Editar ítem del plan" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Field label="Descripción">
+          <textarea
+            autoFocus
+            className={`${inputClass} min-h-20 resize-y`}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
+        </Field>
+        <Field label="Precio de referencia (€)">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            className={inputClass}
+            value={referencePrice}
+            onChange={(e) => setReferencePrice(e.target.value)}
+            placeholder="Sin precio de referencia"
+          />
+        </Field>
+        <Field label="Término de búsqueda (opcional)">
+          <input
+            type="text"
+            className={inputClass}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Lo que se copiará para pegar en la tienda"
+          />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Guardando…" : "Guardar cambios"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -173,17 +237,11 @@ function PlanItemRow({
 }) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(item.description);
   const [copied, setCopied] = useState(false);
-  // Si el ítem tiene un término de búsqueda literal ("— buscar: "..."") se copia solo eso,
-  // listo para pegar en el buscador de la tienda — copiar la frase completa (con cantidad,
-  // precio de referencia, etc.) obligaría a limpiarla a mano antes de buscar.
-  const copyText = parseSearchTerm(item.description) ?? item.description;
-
-  function stripId(item: PlanItem): NewPlanItem {
-    const { id: _id, ...rest } = item;
-    return rest;
-  }
+  // Si el ítem tiene un término de búsqueda propio se copia solo eso, listo para pegar en
+  // el buscador de la tienda — copiar la descripción completa (con cantidad, precio de
+  // referencia, etc.) obligaría a limpiarla a mano antes de buscar.
+  const copyText = item.searchTerm ?? item.description;
 
   async function handleCopy() {
     if (navigator.clipboard?.writeText) {
@@ -206,17 +264,6 @@ function PlanItemRow({
     setTimeout(() => setCopied(false), 1500);
   }
 
-  async function handleSave() {
-    const description = text.trim();
-    if (!description || description === item.description) {
-      setText(item.description);
-      setEditing(false);
-      return;
-    }
-    await onUpdate(item.id, { ...stripId(item), description });
-    setEditing(false);
-  }
-
   async function handleRemove() {
     if (await confirm(`¿Quitar "${item.description}" del plan?`)) {
       await onRemove(item.id);
@@ -232,30 +279,17 @@ function PlanItemRow({
         aria-label={`Marcar "${item.description}" como hecho`}
         className="mt-1 size-4 shrink-0 accent-[var(--status-good)]"
       />
-      {editing ? (
-        <input
-          autoFocus
-          className={`${inputClass} flex-1 py-1 text-sm`}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
-            if (e.key === "Escape") {
-              setText(item.description);
-              setEditing(false);
-            }
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="flex-1 py-1 text-left text-sm leading-snug break-words whitespace-normal"
-        >
-          <ItemDescription description={item.description} done={item.done} />
-        </button>
-      )}
+      <span className="flex-1 py-1 text-left text-sm leading-snug break-words whitespace-normal">
+        <ItemDescription item={item} />
+      </span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={`Editar "${item.description}"`}
+        className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
+      >
+        ✏️
+      </button>
       <button
         type="button"
         onClick={handleCopy}
@@ -272,6 +306,13 @@ function PlanItemRow({
       >
         ×
       </button>
+      {editing && (
+        <PlanItemEditForm
+          item={item}
+          onSubmit={(entity) => onUpdate(item.id, entity)}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </li>
   );
 }
@@ -384,8 +425,8 @@ function MonthSection({
             </span>
           )}
           {estimate.pricedCount > 0 && (
-            <span title="Suma los ítems de 'Comprar' y 'Abrir' con precio de referencia en el texto — no incluye 'Guardar sellado', ya que no es un gasto nuevo. Aproximado.">
-              Estimado{" "}
+            <span title="Suma el precio de referencia de los ítems de 'Comprar' y 'Abrir' que lo tienen puesto — no incluye 'Guardar sellado', ya que no es un gasto nuevo.">
+              Total{" "}
               <span className="font-bold" style={{ color: overBudget ? "var(--status-critical)" : "var(--status-good)" }}>
                 {formatMoney(estimate.amount)}
               </span>
@@ -455,7 +496,7 @@ export function PlanScreen({
 
   async function handleAdd(month: string, category: PlanCategory, description: string) {
     const position = items.filter((i) => i.month === month && i.category === category).length;
-    await onAdd({ month, category, description, done: false, position });
+    await onAdd({ month, category, description, referencePrice: null, searchTerm: null, done: false, position });
   }
 
   return (

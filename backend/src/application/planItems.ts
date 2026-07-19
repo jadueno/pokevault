@@ -13,6 +13,9 @@ function validate(entity: NewPlanItem): void {
     throw new ValidationError(`La categoría debe ser una de: ${CATEGORIES.join(", ")}`);
   }
   assertNonEmpty(entity.description, "La descripción");
+  if (entity.referencePrice !== null && entity.referencePrice < 0) {
+    throw new ValidationError("El precio de referencia no puede ser negativo");
+  }
 }
 
 export function createPlanItemUseCases(repo: PlanItemRepository) {

@@ -9,6 +9,8 @@ function validItem(overrides: Partial<NewPlanItem> = {}): NewPlanItem {
     month: "2026-08",
     category: "comprar",
     description: "1x ETB Megaevolución - Oscuridad Absoluta (ES)",
+    referencePrice: null,
+    searchTerm: null,
     done: false,
     position: 0,
     ...overrides,
@@ -47,6 +49,20 @@ describe("createPlanItemUseCases", () => {
     await expect(callAsync(() => useCases.create(validItem({ description: "  " })))).rejects.toThrow(
       "no puede estar vacío",
     );
+  });
+
+  it("rechaza un precio de referencia negativo", async () => {
+    const { useCases } = setup();
+    await expect(callAsync(() => useCases.create(validItem({ referencePrice: -5 })))).rejects.toThrow(
+      "no puede ser negativo",
+    );
+  });
+
+  it("admite un ítem con precio de referencia y término de búsqueda", async () => {
+    const { useCases } = setup();
+    const created = await useCases.create(validItem({ referencePrice: 59, searchTerm: "ETB Oscuridad Absoluta Español" }));
+    expect(created.referencePrice).toBe(59);
+    expect(created.searchTerm).toBe("ETB Oscuridad Absoluta Español");
   });
 
   it("toggleDone marca como hecho un ítem sin tocar el resto de campos", async () => {

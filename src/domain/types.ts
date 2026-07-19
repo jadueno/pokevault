@@ -101,6 +101,11 @@ export interface PlanItem {
   month: string;
   category: PlanCategory;
   description: string;
+  /** Precio de referencia en euros, campo propio y editable (antes vivía como texto
+   * embebido en `description`). */
+  referencePrice: number | null;
+  /** Término de búsqueda literal para pegar en la tienda, campo propio y editable. */
+  searchTerm: string | null;
   done: boolean;
   position: number;
 }

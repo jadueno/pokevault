@@ -191,10 +191,20 @@ describe("/sealed-purchases", () => {
 
 describe("/plan-items", () => {
   it("crea, lista, marca como hecho y borra un ítem del plan, sin tocar la colección", async () => {
-    const payload = { month: "2026-08", category: "comprar", description: "1x ETB Megaevolución (ES)", done: false, position: 0 };
+    const payload = {
+      month: "2026-08",
+      category: "comprar",
+      description: "1x ETB Megaevolución (ES)",
+      referencePrice: 59,
+      searchTerm: "ETB Megaevolución Español",
+      done: false,
+      position: 0,
+    };
     const create = await app.inject({ method: "POST", url: "/plan-items", payload });
     expect(create.statusCode).toBe(201);
     expect(create.json().done).toBe(false);
+    expect(create.json().referencePrice).toBe(59);
+    expect(create.json().searchTerm).toBe("ETB Megaevolución Español");
 
     const list = await app.inject({ method: "GET", url: "/plan-items" });
     expect(list.json()).toHaveLength(1);
@@ -214,16 +224,49 @@ describe("/plan-items", () => {
     const badMonth = await app.inject({
       method: "POST",
       url: "/plan-items",
-      payload: { month: "agosto-2026", category: "comprar", description: "Algo", done: false, position: 0 },
+      payload: {
+        month: "agosto-2026",
+        category: "comprar",
+        description: "Algo",
+        referencePrice: null,
+        searchTerm: null,
+        done: false,
+        position: 0,
+      },
     });
     expect(badMonth.statusCode).toBe(400);
 
     const badCategory = await app.inject({
       method: "POST",
       url: "/plan-items",
-      payload: { month: "2026-08", category: "vender", description: "Algo", done: false, position: 0 },
+      payload: {
+        month: "2026-08",
+        category: "vender",
+        description: "Algo",
+        referencePrice: null,
+        searchTerm: null,
+        done: false,
+        position: 0,
+      },
     });
     expect(badCategory.statusCode).toBe(400);
+  });
+
+  it("responde 400 con un precio de referencia negativo", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/plan-items",
+      payload: {
+        month: "2026-08",
+        category: "comprar",
+        description: "Algo",
+        referencePrice: -10,
+        searchTerm: null,
+        done: false,
+        position: 0,
+      },
+    });
+    expect(res.statusCode).toBe(400);
   });
 });
 
