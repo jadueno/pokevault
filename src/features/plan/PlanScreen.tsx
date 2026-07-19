@@ -408,12 +408,26 @@ function MonthSection({
   const nonEmptyCategories = PLAN_CATEGORIES.filter((c) => byCategory[c].length > 0);
   const emptyCategories = PLAN_CATEGORIES.filter((c) => byCategory[c].length === 0);
   const progressPct = estimate.totalCount > 0 ? Math.round((estimate.doneCount / estimate.totalCount) * 100) : 0;
+  const allDone = estimate.totalCount > 0 && estimate.doneCount === estimate.totalCount;
+  // Un mes ya completado arranca cerrado (menos ruido visual), pero sigue siendo un mes
+  // más entre los demás mientras se está trabajando en él — no se cierra solo mientras lo
+  // estás viendo, solo al volver a cargar la pantalla. El estado del toggle nativo del
+  // usuario se refleja de vuelta aquí vía onToggle, así queda como un <details> normal.
+  const [open, setOpen] = useState(() => !allDone);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h2 className="font-[family-name:var(--font-display)] text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">
+    <details
+      className="group flex flex-col gap-3"
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 [&::-webkit-details-marker]:hidden">
+        <h2 className="flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-bold tracking-wide text-[var(--text-secondary)] uppercase">
+          <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">
+            ›
+          </span>
           {monthLabel(month)}
+          {allDone && <span title="Mes completado">✓</span>}
         </h2>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
           {estimate.totalCount > 0 && (
@@ -425,7 +439,7 @@ function MonthSection({
             </span>
           )}
           {estimate.pricedCount > 0 && (
-            <span title="Suma el precio de referencia de los ítems de 'Comprar' y 'Abrir' que lo tienen puesto — no incluye 'Guardar sellado', ya que no es un gasto nuevo.">
+            <span title="Suma el precio de referencia de los ítems de 'Comprar' que lo tienen puesto — no incluye 'Guardar sellado', ya que no es un gasto nuevo.">
               Total{" "}
               <span className="font-bold" style={{ color: overBudget ? "var(--status-critical)" : "var(--status-good)" }}>
                 {formatMoney(estimate.amount)}
@@ -434,43 +448,45 @@ function MonthSection({
             </span>
           )}
         </div>
+      </summary>
+
+      <div className="mt-3 flex flex-col gap-3">
+        {estimate.totalCount > 0 && (
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--gridline)]" role="presentation">
+            <div
+              className="h-full rounded-full bg-[var(--status-good)] transition-[width] duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
+
+        {nonEmptyCategories.length > 0 && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            {nonEmptyCategories.map((category) => (
+              <Card key={category} className="flex min-w-64 flex-1 basis-64 flex-col gap-1.5 p-3 sm:p-4">
+                <p className="px-2 text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase">
+                  {PLAN_CATEGORY_LABELS[category]}
+                </p>
+                <ul className="flex flex-col">
+                  {byCategory[category].map((item) => (
+                    <PlanItemRow key={item.id} item={item} onToggleDone={onToggleDone} onUpdate={onUpdate} onRemove={onRemove} />
+                  ))}
+                </ul>
+                <AddPlanItemRow onAdd={(description) => onAdd(category, description)} />
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {emptyCategories.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-1">
+            {emptyCategories.map((category) => (
+              <EmptyCategorySlot key={category} category={category} onAdd={(description) => onAdd(category, description)} />
+            ))}
+          </div>
+        )}
       </div>
-
-      {estimate.totalCount > 0 && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--gridline)]" role="presentation">
-          <div
-            className="h-full rounded-full bg-[var(--status-good)] transition-[width] duration-300"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-      )}
-
-      {nonEmptyCategories.length > 0 && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          {nonEmptyCategories.map((category) => (
-            <Card key={category} className="flex min-w-64 flex-1 basis-64 flex-col gap-1.5 p-3 sm:p-4">
-              <p className="px-2 text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase">
-                {PLAN_CATEGORY_LABELS[category]}
-              </p>
-              <ul className="flex flex-col">
-                {byCategory[category].map((item) => (
-                  <PlanItemRow key={item.id} item={item} onToggleDone={onToggleDone} onUpdate={onUpdate} onRemove={onRemove} />
-                ))}
-              </ul>
-              <AddPlanItemRow onAdd={(description) => onAdd(category, description)} />
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {emptyCategories.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-1">
-          {emptyCategories.map((category) => (
-            <EmptyCategorySlot key={category} category={category} onAdd={(description) => onAdd(category, description)} />
-          ))}
-        </div>
-      )}
-    </div>
+    </details>
   );
 }
 

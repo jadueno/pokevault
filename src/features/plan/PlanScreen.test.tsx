@@ -73,6 +73,23 @@ describe("PlanScreen", () => {
     expect(text.className).toContain("line-through");
   });
 
+  it("un mes con todos los ítems hechos empieza cerrado, y se puede reabrir con un clic", async () => {
+    const user = userEvent.setup();
+    renderScreen([item({ done: true })]);
+
+    const details = screen.getByText("Agosto de 2026").closest("details");
+    expect(details).not.toHaveAttribute("open");
+
+    await user.click(screen.getByText("Agosto de 2026"));
+    expect(details).toHaveAttribute("open");
+  });
+
+  it("un mes con ítems pendientes empieza abierto", () => {
+    renderScreen([item({ done: false })]);
+    const details = screen.getByText("Agosto de 2026").closest("details");
+    expect(details).toHaveAttribute("open");
+  });
+
   it("edita el ítem completo desde el modal y llama a onUpdate", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);
