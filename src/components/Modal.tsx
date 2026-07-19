@@ -52,7 +52,11 @@ export function Modal({
             ×
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        {/* overflow-x-hidden explícito: dejar overflow-y en "auto" sin fijar overflow-x
+            hace que el navegador trate también el eje X como "auto" (regla del spec de
+            CSS Overflow), así que cualquier contenido interno con ancho intrínseco propio
+            (p. ej. un <input type="date">) podía generar scroll horizontal aquí. */}
+        <div className="flex-1 overflow-x-hidden overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );
