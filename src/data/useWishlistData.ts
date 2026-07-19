@@ -38,6 +38,10 @@ export function useWishlistData() {
     },
     removeItem: async (id: string) => {
       await wishlistItemClient.remove(id);
+      // Quita el ítem de la lista de inmediato en vez de esperar solo al reload: si el
+      // reload falla o se retrasa (p. ej. por el rate-limit si hay varias pestañas
+      // abiertas), el ítem ya borrado en el backend no se queda visible por error.
+      setItems((prev) => prev.filter((i) => i.id !== id));
       await reload();
     },
     /** Registra la compra en la colección y quita el elemento de la wishlist —
