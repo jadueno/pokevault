@@ -91,6 +91,12 @@ body {
 input[type="date"],
 input[type="month"] {
   color-scheme: dark;
+  /* El propio <input> nativo (no solo su contenedor) impone un ancho mínimo por el
+     contenido interno (segmentos día/mes/año + icono) que puede superar el ancho que le
+     tocaría en el grid, aunque el contenedor ya pueda encogerse (ver min-w-0 en
+     Field.tsx) — sin esto, el campo de fecha se sigue viendo más ancho que sus vecinos
+     aunque ya no desborde la página. */
+  min-width: 0;
 }
 
 input[type="date"]::-webkit-datetime-edit,
