@@ -118,7 +118,7 @@ export interface RecognizedCardData {
 // rareza, sellado, o "una carta de entre varias opciones"). "done" es una casilla
 // independiente de "Ya la tengo": no exige idioma/estado/precio ni cuenta en el dashboard.
 
-export type PlanCategory = "comprar" | "abrir" | "guardar_sellado";
+export type PlanCategory = "comprar" | "guardar_sellado";
 
 export interface PlanItem {
   id: string;

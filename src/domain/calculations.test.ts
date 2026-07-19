@@ -243,10 +243,10 @@ describe("groupWishlistByMonth", () => {
 });
 
 describe("estimatePlanMonth", () => {
-  it("suma solo comprar/abrir (no guardar_sellado) y cuenta el progreso de todas las categorías", () => {
+  it("suma solo 'comprar' (no guardar_sellado) y cuenta el progreso de todas las categorías", () => {
     const items = [
       planItem({ id: "p1", category: "comprar", description: "1x ETB", referencePrice: 59, done: true }),
-      planItem({ id: "p2", category: "abrir", description: "1x Booster Bundle", referencePrice: 25, done: false }),
+      planItem({ id: "p2", category: "comprar", description: "1x Booster Bundle", referencePrice: 25, done: false }),
       planItem({ id: "p3", category: "guardar_sellado", description: "1x Booster Box", referencePrice: 120, done: false }),
       planItem({ id: "p4", category: "comprar", description: "Algo sin precio de referencia", referencePrice: null, done: false }),
     ];

@@ -38,10 +38,9 @@ export function groupWishlistByMonth(items: WishlistItem[]): WishlistMonthGroup[
   return result;
 }
 
-export const PLAN_CATEGORIES: PlanCategory[] = ["comprar", "abrir", "guardar_sellado"];
+export const PLAN_CATEGORIES: PlanCategory[] = ["comprar", "guardar_sellado"];
 export const PLAN_CATEGORY_LABELS: Record<PlanCategory, string> = {
   comprar: "Comprar",
-  abrir: "Abrir",
   guardar_sellado: "Guardar sellado",
 };
 
@@ -51,7 +50,7 @@ export interface PlanMonthGroup {
 }
 
 /** Agrupa el plan de compra mensual por mes (orden cronológico) y, dentro de cada mes,
- * por categoría en el orden fijo comprar/abrir/guardar_sellado del propio plan. */
+ * por categoría en el orden fijo comprar/guardar_sellado del propio plan. */
 export function groupPlanByMonth(items: PlanItem[]): PlanMonthGroup[] {
   const months = new Map<string, PlanItem[]>();
   for (const item of items) {
@@ -72,10 +71,10 @@ export function groupPlanByMonth(items: PlanItem[]): PlanMonthGroup[] {
 }
 
 export interface PlanMonthEstimate {
-  /** Suma de `referencePrice` de los ítems de "comprar" + "abrir" (no "guardar_sellado":
-   * eso ya es tuyo, no es un gasto nuevo del mes). Solo cuenta lo que tiene precio puesto. */
+  /** Suma de `referencePrice` de los ítems de "comprar" (no "guardar_sellado": eso ya es
+   * tuyo, no es un gasto nuevo del mes). Solo cuenta lo que tiene precio puesto. */
   amount: number;
-  /** Cuántos ítems de "comprar"/"abrir" tienen precio de referencia puesto. */
+  /** Cuántos ítems de "comprar" tienen precio de referencia puesto. */
   pricedCount: number;
   doneCount: number;
   totalCount: number;

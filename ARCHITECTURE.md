@@ -104,11 +104,11 @@ Las primeras migraciones usaban `date` para `purchase_date`. Al leer una fila de
 
 ## "Plan" vs "Wishlist": por qué son dos cosas distintas
 
-Al importar el plan de compra real del usuario (agosto 2026 - julio 2027) resultó que casi ningún ítem es una carta concreta: son accesorios (fundas, toploaders, archivador), cantidades por rareza ("9x Illustration Rare de temática cotidiana"), producto sellado con una acción asociada (comprar/abrir/guardar), o una carta a elegir entre varias opciones ("Pikachu, Gengar, Mew, Dragonite, Lugia o Charizard"). Nada de eso encaja en `wishlist_items`, que es un deseo puntual de una cosa concreta.
+Al importar el plan de compra real del usuario (agosto 2026 - julio 2027) resultó que casi ningún ítem es una carta concreta: son accesorios (fundas, toploaders, archivador), cantidades por rareza ("9x Illustration Rare de temática cotidiana"), producto sellado con una acción asociada (comprar/guardar), o una carta a elegir entre varias opciones ("Pikachu, Gengar, Mew, Dragonite, Lugia o Charizard"). Nada de eso encaja en `wishlist_items`, que es un deseo puntual de una cosa concreta.
 
 Por eso el plan vive en sus propias tablas, independientes de la wishlist:
 
-- **`plan_items`**: `month` (`"YYYY-MM"`), `category` (`comprar`/`abrir`/`guardar_sellado`, el mismo desglose que usa el propio plan del usuario), `description` (texto libre), `done`, `position` (orden dentro de mes+categoría).
+- **`plan_items`**: `month` (`"YYYY-MM"`), `category` (`comprar`/`guardar_sellado`, el mismo desglose que usa el propio plan del usuario — la categoría "abrir" se retiró por no aportar distinción real sobre "comprar"), `description` (texto libre), `done`, `position` (orden dentro de mes+categoría).
 - **`plan_settings`** (singleton, mismo patrón que `profile`): presupuesto mensual, páginas de compra habituales (`shopping_links`, `[{label, url}]`) y las dos notas generales del plan (reglas del año, objetivo final) que no pertenecen a ningún mes concreto.
 
 **"Hecho" es una casilla independiente, no un alias de "Ya la tengo".** Wishlist usa `moveToCollection` para pasar un deseo a la colección real (exige idioma/estado/precio y cuenta en el dashboard). El plan es solo seguimiento de una lista de la compra: `toggleDone` (`application/planItems.ts`) marca/desmarca sin tocar `collection_items` ni `sealed_purchases`, y por tanto sin afectar a `totalValue`/`totalInvested`. Decisión explícita del usuario al preguntarle cómo debía comportarse "marcar como hecho".

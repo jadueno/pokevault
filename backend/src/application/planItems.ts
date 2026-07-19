@@ -2,7 +2,7 @@ import type { PlanItemRepository } from "../domain/ports.js";
 import type { NewPlanItem, PlanCategory } from "../domain/types.js";
 import { assertNonEmpty, ValidationError } from "./errors.js";
 
-const CATEGORIES: PlanCategory[] = ["comprar", "abrir", "guardar_sellado"];
+const CATEGORIES: PlanCategory[] = ["comprar", "guardar_sellado"];
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function validate(entity: NewPlanItem): void {

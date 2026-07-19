@@ -92,7 +92,7 @@ describe("PlanScreen", () => {
   it("añadir un ítem nuevo en una categoría que ya tiene ítems llama a onAdd con mes y categoría correctos", async () => {
     const user = userEvent.setup();
     // Solo "comprar" tiene ítems: es la única categoría con la columna siempre visible
-    // (las categorías vacías del mes, "abrir" y "guardar_sellado", quedan como chips "+ …").
+    // (la categoría vacía del mes, "guardar_sellado", queda como chip "+ …").
     const handlers = renderScreen([item()]);
 
     const input = screen.getByPlaceholderText("Añadir ítem…");
@@ -108,17 +108,17 @@ describe("PlanScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]); // solo "comprar" tiene ítems
 
-    // Antes de pulsar el chip no hay ningún formulario de "abrir" visible.
+    // Antes de pulsar el chip no hay ningún formulario de "guardar_sellado" visible.
     expect(screen.getAllByPlaceholderText("Añadir ítem…")).toHaveLength(1);
 
-    await user.click(screen.getByRole("button", { name: "Añadir ítem a Abrir" }));
+    await user.click(screen.getByRole("button", { name: "Añadir ítem a Guardar sellado" }));
     const inputs = screen.getAllByPlaceholderText("Añadir ítem…");
     expect(inputs).toHaveLength(2);
-    await user.type(inputs[1], "Nuevo ítem para abrir");
+    await user.type(inputs[1], "Nuevo ítem para guardar sellado");
     await user.click(screen.getAllByRole("button", { name: "+ Añadir" })[1]);
 
     expect(handlers.onAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ month: "2026-08", category: "abrir", description: "Nuevo ítem para abrir" }),
+      expect.objectContaining({ month: "2026-08", category: "guardar_sellado", description: "Nuevo ítem para guardar sellado" }),
     );
   });
 

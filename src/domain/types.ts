@@ -94,7 +94,7 @@ export interface RecognizedCardData {
   confidence: RecognitionConfidence | null;
 }
 
-export type PlanCategory = "comprar" | "abrir" | "guardar_sellado";
+export type PlanCategory = "comprar" | "guardar_sellado";
 
 export interface PlanItem {
   id: string;
