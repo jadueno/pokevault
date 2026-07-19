@@ -1,14 +1,24 @@
 import { useState } from "react";
-import type { CardCondition, CollectionItem, NewSealedPurchase, SealedPurchase, SetChecklist, SetChecklistCard } from "../../domain/types";
+import type {
+  CardCondition,
+  CollectionItem,
+  NewCollectionItem,
+  NewSealedPurchase,
+  SealedPurchase,
+  SetChecklist,
+  SetChecklistCard,
+} from "../../domain/types";
 import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
 import { Badge, badgeToneColors, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
 import { inputClass, focusRing } from "../../components/Field";
+import { Modal } from "../../components/Modal";
 import { PhotoField } from "../../components/PhotoField";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { ScreenHeader } from "../../components/ScreenHeader";
+import { CollectionQuickForm } from "../anadir/CollectionQuickForm";
 import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
 import { SetChecklistTab } from "./SetChecklistTab";
 
@@ -63,6 +73,7 @@ function ItemCard({
   item,
   sealedPurchase,
   linkedCardCount,
+  onEdit,
   onRemove,
   onOverrideValue,
 }: {
@@ -72,6 +83,7 @@ function ItemCard({
   sealedPurchase: SealedPurchase | null;
   /** Cuántas cartas de toda la colección están vinculadas a ese mismo sobre (incluida esta). */
   linkedCardCount: number;
+  onEdit: (item: CollectionItem) => void;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
 }) {
@@ -190,7 +202,15 @@ function ItemCard({
         )}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1">
+        <button
+          type="button"
+          onClick={() => onEdit(item)}
+          aria-label={`Editar ejemplar de ${item.name}`}
+          className="rounded-lg px-2 py-1 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--gridline)] hover:text-[var(--text-primary)]"
+        >
+          Editar
+        </button>
         <button
           type="button"
           onClick={handleRemove}
@@ -211,6 +231,7 @@ function ItemCard({
 function SealedItemCard({
   item,
   linkedCardCount,
+  onEdit,
   onUpdate,
   onRemove,
   onOverrideValue,
@@ -218,6 +239,7 @@ function SealedItemCard({
   item: SealedPurchase;
   /** Cuántas cartas de la colección se han vinculado ya a este sobre concreto. */
   linkedCardCount: number;
+  onEdit: (item: SealedPurchase) => void;
   onUpdate: (id: string, entity: NewSealedPurchase) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
@@ -310,7 +332,15 @@ function SealedItemCard({
         )}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1">
+        <button
+          type="button"
+          onClick={() => onEdit(item)}
+          aria-label={`Editar ${item.productName}`}
+          className="rounded-lg px-2 py-1 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--gridline)] hover:text-[var(--text-primary)]"
+        >
+          Editar
+        </button>
         <button
           type="button"
           onClick={handleRemove}
@@ -326,6 +356,7 @@ function SealedItemCard({
 
 export function ColeccionScreen({
   items,
+  onUpdateItem,
   onRemove,
   onOverrideValue,
   sealedItems,
@@ -337,6 +368,7 @@ export function ColeccionScreen({
   cardsByChecklist,
 }: {
   items: CollectionItem[];
+  onUpdateItem: (id: string, entity: NewCollectionItem) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
   sealedItems: SealedPurchase[];
@@ -349,6 +381,8 @@ export function ColeccionScreen({
 }) {
   const [query, setQuery] = useState("");
   const [showSealedForm, setShowSealedForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
+  const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
   const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("cartas");
 
   const q = query.trim().toLowerCase();
@@ -435,6 +469,35 @@ export function ColeccionScreen({
         />
       )}
 
+      {editingSealed && (
+        <SealedPurchaseForm
+          initialValue={editingSealed}
+          onSubmit={async (entity) => {
+            await onUpdateSealed(editingSealed.id, entity);
+            setEditingSealed(null);
+          }}
+          onCancel={() => setEditingSealed(null)}
+        />
+      )}
+
+      {editingItem && (
+        <Modal title="Editar carta" onClose={() => setEditingItem(null)}>
+          <CollectionQuickForm
+            recognized={null}
+            initialItem={editingItem}
+            sealedItems={sealedItems}
+            collectionItems={items}
+            checklists={checklists}
+            cardsByChecklist={cardsByChecklist}
+            onSubmit={async (entity) => {
+              await onUpdateItem(editingItem.id, entity);
+              setEditingItem(null);
+            }}
+            onCancel={() => setEditingItem(null)}
+          />
+        </Modal>
+      )}
+
       {isEmpty && checklists.length === 0 ? (
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
@@ -456,6 +519,7 @@ export function ColeccionScreen({
                 item={item}
                 sealedPurchase={item.sealedPurchaseId ? (sealedItems.find((s) => s.id === item.sealedPurchaseId) ?? null) : null}
                 linkedCardCount={item.sealedPurchaseId ? (linkedCountsBySealedId.get(item.sealedPurchaseId) ?? 0) : 0}
+                onEdit={setEditingItem}
                 onRemove={onRemove}
                 onOverrideValue={onOverrideValue}
               />
@@ -476,6 +540,7 @@ export function ColeccionScreen({
                 key={item.id}
                 item={item}
                 linkedCardCount={linkedCountsBySealedId.get(item.id) ?? 0}
+                onEdit={setEditingSealed}
                 onUpdate={onUpdateSealed}
                 onRemove={onRemoveSealed}
                 onOverrideValue={onOverrideSealedValue}

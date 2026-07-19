@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { NewSealedPurchase, SealedProductType } from "../../domain/types";
+import type { NewSealedPurchase, SealedProductType, SealedPurchase } from "../../domain/types";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 import { Modal } from "../../components/Modal";
@@ -17,27 +17,32 @@ const PRODUCT_TYPES: { value: SealedProductType; label: string }[] = [
 export function SealedPurchaseForm({
   initialName,
   photo,
+  initialValue = null,
   onSubmit,
   onCancel,
 }: {
   initialName?: string;
   photo?: string | null;
+  /** Editar una compra ya existente en vez de dar una de alta: siembra el formulario
+   * entero con sus datos. Si se pasa, tiene prioridad sobre `initialName`/`photo`. */
+  initialValue?: SealedPurchase | null;
   onSubmit: (entity: NewSealedPurchase) => Promise<void>;
   onCancel: () => void;
 }) {
+  const isEditing = initialValue !== null;
   const [form, setForm] = useState<NewSealedPurchase>({
-    productName: initialName ?? "",
-    productType: "booster_pack",
-    quantity: 1,
-    purchasePrice: null,
-    purchaseCurrency: "EUR",
-    purchaseDate: new Date().toISOString().slice(0, 10),
-    estimatedValueOverride: null,
-    estimatedValueOverrideAt: null,
-    estimatedValueOverrideNote: null,
-    location: null,
-    notes: null,
-    photo: photo ?? null,
+    productName: initialValue?.productName ?? initialName ?? "",
+    productType: initialValue?.productType ?? "booster_pack",
+    quantity: initialValue?.quantity ?? 1,
+    purchasePrice: initialValue?.purchasePrice ?? null,
+    purchaseCurrency: initialValue?.purchaseCurrency ?? "EUR",
+    purchaseDate: initialValue?.purchaseDate ?? new Date().toISOString().slice(0, 10),
+    estimatedValueOverride: initialValue?.estimatedValueOverride ?? null,
+    estimatedValueOverrideAt: initialValue?.estimatedValueOverrideAt ?? null,
+    estimatedValueOverrideNote: initialValue?.estimatedValueOverrideNote ?? null,
+    location: initialValue?.location ?? null,
+    notes: initialValue?.notes ?? null,
+    photo: initialValue?.photo ?? photo ?? null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -52,7 +57,7 @@ export function SealedPurchaseForm({
   }
 
   return (
-    <Modal title="Nueva compra de producto sellado" onClose={onCancel}>
+    <Modal title={isEditing ? "Editar producto sellado" : "Nueva compra de producto sellado"} onClose={onCancel}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <PhotoField photo={form.photo} onChange={(photo) => setForm({ ...form, photo })} />
         <Field label="Nombre del producto">

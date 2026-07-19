@@ -107,6 +107,7 @@ export default function App() {
                 <>
                   <ColeccionScreen
                     items={collection.items}
+                    onUpdateItem={collection.updateItem}
                     onRemove={collection.removeItem}
                     onOverrideValue={collection.overrideValue}
                     sealedItems={sealed.items}

@@ -74,6 +74,7 @@ function renderScreen(
   cardsByChecklist: Record<string, SetChecklistCard[]> = {},
 ) {
   const handlers = {
+    onUpdateItem: vi.fn().mockResolvedValue(undefined),
     onRemove: vi.fn().mockResolvedValue(undefined),
     onOverrideValue: vi.fn().mockResolvedValue(undefined),
     onAddSealed: vi.fn().mockResolvedValue(undefined),
@@ -172,6 +173,52 @@ describe("ColeccionScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Cerrar" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("el botón Editar de una carta abre el formulario precargado y guarda los cambios", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()]);
+
+    await user.click(screen.getByRole("button", { name: "Editar ejemplar de Charizard" }));
+    expect(screen.getByDisplayValue("Charizard")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Base")).toBeInTheDocument();
+
+    const nameInput = screen.getByDisplayValue("Charizard");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Charizard ex");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(handlers.onUpdateItem).toHaveBeenCalledWith("i1", expect.objectContaining({ name: "Charizard ex", setName: "Base" }));
+  });
+
+  it("al editar una carta sin foto propia coincidente con ningún set, se conserva la foto que ya tenía", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item({ photo: "data:image/jpeg;base64,YAYA" })]);
+
+    await user.click(screen.getByRole("button", { name: "Editar ejemplar de Charizard" }));
+    expect(screen.getByText(/Se mantiene la foto que ya tenía/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(handlers.onUpdateItem).toHaveBeenCalledWith("i1", expect.objectContaining({ photo: "data:image/jpeg;base64,YAYA" }));
+  });
+
+  it("el botón Editar de un producto sellado abre el formulario precargado y guarda los cambios", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()], [sealedItem()]);
+
+    await user.click(screen.getByRole("button", { name: "Sellado (1)" }));
+    await user.click(screen.getByRole("button", { name: "Editar Sobre Evoluciones Prismáticas" }));
+    expect(screen.getByDisplayValue("Sobre Evoluciones Prismáticas")).toBeInTheDocument();
+
+    const nameInput = screen.getByDisplayValue("Sobre Evoluciones Prismáticas");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Sobre Evoluciones Prismáticas (ES)");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(handlers.onUpdateSealed).toHaveBeenCalledWith(
+      "s1",
+      expect.objectContaining({ productName: "Sobre Evoluciones Prismáticas (ES)", location: "Cajón" }),
+    );
   });
 
   it("cartas y sellado están en pestañas separadas, con el recuento en cada una", async () => {

@@ -53,6 +53,7 @@ export function CollectionQuickForm({
   checklists,
   cardsByChecklist,
   initialSealedPurchaseId = null,
+  initialItem = null,
   onSubmit,
   onCancel,
 }: {
@@ -70,33 +71,39 @@ export function CollectionQuickForm({
   /** Preseleccionar un sobre (p. ej. para seguir añadiendo cartas del mismo sobre sin tener
    * que volver a elegirlo en cada foto — ver "sticky sobre" en AnadirScreen). */
   initialSealedPurchaseId?: string | null;
+  /** Editar un ejemplar ya existente en vez de dar uno de alta: siembra el formulario
+   * entero con sus datos (no solo lo que reconocería la IA) y cambia el texto de guardado.
+   * No hay foto nueva que reconocer al editar, así que `recognized` no aplica aquí. */
+  initialItem?: CollectionItem | null;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
+  const isEditing = initialItem !== null;
   const [form, setForm] = useState<NewCollectionItem>({
-    name: recognized?.name ?? "",
-    setName: recognized?.setName ?? null,
-    number: recognized?.number ?? null,
-    rarity: recognized?.rarity ?? null,
-    language: "es",
-    condition: "near_mint",
-    quantity: 1,
-    acquisitionType: initialSealedPurchaseId ? "pulled_from_pack" : "purchased_single",
-    sealedPurchaseId: initialSealedPurchaseId,
-    purchasePrice: null,
-    purchaseCurrency: "EUR",
-    purchaseDate: new Date().toISOString().slice(0, 10),
-    isGraded: false,
-    gradingCompany: null,
-    grade: null,
-    estimatedValueOverride: null,
-    estimatedValueOverrideAt: null,
-    estimatedValueOverrideNote: null,
-    notes: null,
-    // La foto que hizo el usuario nunca se guarda — solo sirvió para que la IA
-    // autocompletara el texto. La foto final (si hay) se busca al enviar, entre los sets
-    // sincronizados, y es la imagen oficial del proveedor, no la instantánea del usuario.
-    photo: null,
+    name: initialItem?.name ?? recognized?.name ?? "",
+    setName: initialItem?.setName ?? recognized?.setName ?? null,
+    number: initialItem?.number ?? recognized?.number ?? null,
+    rarity: initialItem?.rarity ?? recognized?.rarity ?? null,
+    language: initialItem?.language ?? "es",
+    condition: initialItem?.condition ?? "near_mint",
+    quantity: initialItem?.quantity ?? 1,
+    acquisitionType: initialItem?.acquisitionType ?? (initialSealedPurchaseId ? "pulled_from_pack" : "purchased_single"),
+    sealedPurchaseId: initialItem?.sealedPurchaseId ?? initialSealedPurchaseId,
+    purchasePrice: initialItem?.purchasePrice ?? null,
+    purchaseCurrency: initialItem?.purchaseCurrency ?? "EUR",
+    purchaseDate: initialItem?.purchaseDate ?? new Date().toISOString().slice(0, 10),
+    isGraded: initialItem?.isGraded ?? false,
+    gradingCompany: initialItem?.gradingCompany ?? null,
+    grade: initialItem?.grade ?? null,
+    estimatedValueOverride: initialItem?.estimatedValueOverride ?? null,
+    estimatedValueOverrideAt: initialItem?.estimatedValueOverrideAt ?? null,
+    estimatedValueOverrideNote: initialItem?.estimatedValueOverrideNote ?? null,
+    notes: initialItem?.notes ?? null,
+    // Al dar de alta, la foto que hizo el usuario nunca se guarda — solo sirvió para que
+    // la IA autocompletara el texto, la foto final (si hay) se busca entre los sets
+    // sincronizados. Al editar, se parte de la foto que ya tenía (por si no hay una
+    // coincidencia mejor en handleSubmit).
+    photo: initialItem?.photo ?? null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -112,7 +119,10 @@ export function CollectionQuickForm({
     e.preventDefault();
     setSaving(true);
     try {
-      const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? null;
+      // Una coincidencia nueva (p. ej. tras editar la expansión/número) siempre gana. Sin
+      // coincidencia: al editar se conserva la foto que ya tenía, al dar de alta se queda
+      // sin foto (nunca se guarda la instantánea del usuario).
+      const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? (isEditing ? form.photo : null);
       await onSubmit({ ...form, photo });
     } finally {
       setSaving(false);
@@ -259,7 +269,9 @@ export function CollectionQuickForm({
 
       <p className="text-xs text-[var(--text-muted)]">
         {matchedChecklistCard ? (
-          <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}" (no la foto que has hecho).</>
+          <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}"{isEditing ? "" : " (no la foto que has hecho)"}.</>
+        ) : isEditing ? (
+          <>📷 Se mantiene la foto que ya tenía.</>
         ) : (
           <>📷 La foto solo se ha usado para autocompletar estos datos — no hay imagen oficial disponible para este set/número todavía.</>
         )}
@@ -307,7 +319,7 @@ export function CollectionQuickForm({
           Cancelar
         </Button>
         <Button type="submit" tone="beacon" disabled={saving}>
-          {saving ? "Guardando…" : "Añadir a mi colección"}
+          {saving ? "Guardando…" : isEditing ? "Guardar cambios" : "Añadir a mi colección"}
         </Button>
       </div>
     </form>
