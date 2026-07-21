@@ -2,12 +2,12 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { Client } from "pg";
 
-const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items"];
+const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items", "set_checklists"];
 
 /** Prepara la base de datos de test antes de la suite E2E: migra y la deja vacía
- * (salvo "plan_settings", singleton sembrado por la propia migración). Sin catálogo
- * externo que sincronizar: el reconocimiento de fotos usa el proveedor fake en E2E
- * (forzado en playwright.config.ts con OLLAMA_BASE_URL vacío), determinista sin red. */
+ * (salvo "plan_settings", singleton sembrado por la propia migración). La búsqueda y
+ * sincronización de sets usa el proveedor fake en E2E (forzado en playwright.config.ts
+ * con POKEMON_TCG_PROVIDER=fake), determinista sin red. */
 export default async function globalSetup() {
   const testUrl = process.env.TEST_DATABASE_URL;
   if (!testUrl) {

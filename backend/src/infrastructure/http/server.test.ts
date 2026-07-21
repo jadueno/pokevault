@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPool, resetDatabase } from "../../test/testPool.js";
-import { createFakeVisionProvider } from "../vision/fakeVisionProvider.js";
+import { createFakePokemonTcgProvider } from "../catalog/fakePokemonTcgProvider.js";
 import { buildServer } from "./server.js";
 
 let pool: Pool;
@@ -10,7 +10,7 @@ let app: FastifyInstance;
 
 beforeAll(async () => {
   pool = createTestPool();
-  app = await buildServer(pool, createFakeVisionProvider(), { logger: false });
+  app = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false });
 });
 
 afterEach(async () => {
@@ -300,30 +300,9 @@ describe("/plan-settings", () => {
   });
 });
 
-describe("/card-recognition", () => {
-  it("devuelve los datos reconocidos por el proveedor de visión (fake en tests)", async () => {
-    const res = await app.inject({
-      method: "POST",
-      url: "/card-recognition",
-      payload: { imageDataUrl: "data:image/jpeg;base64,AAAA" },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ name: "Charizard", setName: "Base", number: "4/102", rarity: "Rare Holo", confidence: "high" });
-  });
-
-  it("responde 400 si la foto no es una data URL de imagen", async () => {
-    const res = await app.inject({
-      method: "POST",
-      url: "/card-recognition",
-      payload: { imageDataUrl: "https://ejemplo.com/foto.jpg" },
-    });
-    expect(res.statusCode).toBe(400);
-  });
-});
-
 describe("/set-checklists", () => {
-  // Solo lectura desde la API — se rellenan directamente en la base de datos, como haría
-  // `syncSetChecklist.ts` (el script puntual), nunca a través de una ruta de escritura.
+  // Para los tests de lectura (list/cards) se sigue sembrando directamente en la base de
+  // datos — más simple que pasar por el flujo de búsqueda+sincronización del fake.
   async function seedChecklist() {
     const {
       rows: [checklist],
@@ -364,11 +343,51 @@ describe("/set-checklists", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
+
+  it("GET /set-search devuelve los candidatos que encuentra el proveedor (fake en tests)", async () => {
+    const res = await app.inject({ method: "GET", url: "/set-search?q=Test Set" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([{ externalSetId: "ts1", name: "Test Set", totalCards: 2, releaseDate: "2026/01/01" }]);
+  });
+
+  it("POST /set-checklists sincroniza el set elegido, con precio de referencia incluido", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/set-checklists",
+      payload: { externalSetId: "ts1", setNameEs: "Set de Prueba" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ externalSetId: "ts1", setNameEs: "Set de Prueba", totalCards: 2 });
+
+    const cards = await app.inject({ method: "GET", url: `/set-checklists/${res.json().id}/cards` });
+    expect(cards.json()).toEqual([
+      expect.objectContaining({ number: "1", name: "Fake Pikachu", referencePrice: 1.5 }),
+      expect.objectContaining({ number: "2", name: "Fake Charizard", referencePrice: null }),
+    ]);
+  });
+
+  it("POST /set-checklists responde 404 si ya estaba sincronizado", async () => {
+    await app.inject({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
+    const res = await app.inject({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("POST /set-checklists/:id/resync vuelve a traer las cartas del mismo set", async () => {
+    const sync = await app.inject({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
+    const res = await app.inject({ method: "POST", url: `/set-checklists/${sync.json().id}/resync` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().externalSetId).toBe("ts1");
+  });
+
+  it("POST /set-checklists/:id/resync responde 404 si el checklist no existe", async () => {
+    const res = await app.inject({ method: "POST", url: "/set-checklists/00000000-0000-0000-0000-000000000000/resync" });
+    expect(res.statusCode).toBe(404);
+  });
 });
 
 describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
   it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
-    const authedApp = await buildServer(pool, createFakeVisionProvider(), { logger: false, apiToken: "demo-token" });
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false, apiToken: "demo-token" });
 
     const withoutToken = await authedApp.inject({ method: "GET", url: "/collection-items" });
     expect(withoutToken.statusCode).toBe(401);

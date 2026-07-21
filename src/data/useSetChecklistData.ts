@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { SetChecklist, SetChecklistCard } from "../domain/types";
-import { getSetChecklistCards, getSetChecklists } from "./api";
+import type { SetChecklist, SetChecklistCard, SetSearchCandidate } from "../domain/types";
+import { createSetChecklist, getSetChecklistCards, getSetChecklists, resyncSetChecklist, searchSets } from "./api";
 
 export function useSetChecklistData() {
   const [checklists, setChecklists] = useState<SetChecklist[]>([]);
@@ -33,5 +33,22 @@ export function useSetChecklistData() {
     reload();
   }, [reload]);
 
-  return { checklists, cardsByChecklist, loading, error, reload };
+  return {
+    checklists,
+    cardsByChecklist,
+    loading,
+    error,
+    reload,
+    search: (query: string): Promise<SetSearchCandidate[]> => searchSets(query),
+    sync: async (externalSetId: string, setNameEs: string | null) => {
+      const result = await createSetChecklist(externalSetId, setNameEs);
+      await reload();
+      return result;
+    },
+    resync: async (checklistId: string) => {
+      const result = await resyncSetChecklist(checklistId);
+      await reload();
+      return result;
+    },
+  };
 }

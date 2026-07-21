@@ -94,6 +94,7 @@ function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistC
     rarity: "Common",
     imageUrl: null,
     imageUrlLarge: null,
+    referencePrice: null,
     ...overrides,
   };
 }

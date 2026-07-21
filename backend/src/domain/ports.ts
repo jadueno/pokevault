@@ -6,7 +6,6 @@ import type {
   NewWishlistItem,
   PlanItem,
   PlanSettings,
-  RecognizedCardData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -30,21 +29,54 @@ export interface PlanSettingsRepository {
   update(entity: PlanSettings): Promise<PlanSettings>;
 }
 
-// ---- Checklist de set (solo lectura desde la API; la escritura la hace el script de
-// sincronización directamente contra el pool, no pasa por este puerto) ----
+// ---- Checklist de set ----
+
+export interface UpsertChecklistInput {
+  externalSetId: string;
+  setName: string;
+  setNameEs: string | null;
+  cards: PokemonTcgCardData[];
+}
 
 export interface SetChecklistRepository {
   list(): Promise<SetChecklist[]>;
   getCards(checklistId: string): Promise<SetChecklistCard[]>;
+  /** Reemplazo completo (borra y vuelve a insertar) — usado tanto al sincronizar un set
+   * nuevo como al "Actualizar" uno ya existente (mismo externalSetId). */
+  upsertChecklist(input: UpsertChecklistInput): Promise<SetChecklist>;
 }
 
-// ---- Reconocimiento visual (puerto intercambiable) ----
-// El dominio/aplicación nunca depende de un modelo de IA concreto — solo de esta forma.
-// Mismo patrón que el proveedor de LLM/embeddings de "nous": adaptador real (Ollama
-// local, ver infrastructure/vision/ollamaVisionProvider.ts) + fake determinista para
-// tests. El resultado nunca se guarda automáticamente: siempre se revisa/edita a mano.
+// ---- Proveedor de datos de pokemontcg.io (puerto intercambiable) ----
+// El dominio/aplicación nunca depende directamente del proveedor externo — solo de esta
+// forma. Mismo patrón que el proveedor de LLM/embeddings de "nous": adaptador real
+// (ver infrastructure/catalog/pokemonTcgApiProvider.ts) + fake determinista para tests.
+// pokemontcg.io/Scrydex tiene ~45% de error y ~8s de latencia media (ver ARCHITECTURE.md)
+// — por eso solo se llama en acciones explícitas del usuario (buscar/sincronizar un set),
+// nunca en segundo plano ni en cada carga de la app.
 
-export interface VisualMatchProvider {
-  readonly name: string;
-  recognizeCard(imageDataUrl: string): Promise<RecognizedCardData>;
+export interface PokemonTcgSetCandidate {
+  externalSetId: string;
+  name: string;
+  totalCards: number;
+  releaseDate: string | null;
+}
+
+export interface PokemonTcgCardData {
+  number: string;
+  name: string;
+  rarity: string | null;
+  imageUrl: string | null;
+  imageUrlLarge: string | null;
+  referencePrice: number | null;
+}
+
+export interface PokemonTcgSetCards {
+  setName: string;
+  totalCards: number;
+  cards: PokemonTcgCardData[];
+}
+
+export interface PokemonTcgProvider {
+  searchSets(query: string): Promise<PokemonTcgSetCandidate[]>;
+  getSetCards(externalSetId: string): Promise<PokemonTcgSetCards>;
 }

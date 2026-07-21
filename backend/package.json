@@ -15,8 +15,7 @@
     "test:watch": "vitest",
     "test:migrate": "node-pg-migrate up --tsx --migrations-dir src/infrastructure/db/migrations --migration-file-language ts -d TEST_DATABASE_URL",
     "seed:demo": "tsx src/infrastructure/db/seedDemoData.ts",
-    "seed:demo:clear": "tsx src/infrastructure/db/seedDemoData.ts --clear",
-    "sync:set-checklist": "tsx src/infrastructure/catalog/syncSetChecklist.ts"
+    "seed:demo:clear": "tsx src/infrastructure/db/seedDemoData.ts --clear"
   },
   "keywords": [],
   "author": "",

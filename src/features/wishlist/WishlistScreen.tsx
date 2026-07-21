@@ -10,7 +10,7 @@ import { Modal } from "../../components/Modal";
 import { PhotoField } from "../../components/PhotoField";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { MoveToCollectionForm } from "./MoveToCollectionForm";
-import { WishlistQuickForm } from "../anadir/WishlistQuickForm";
+import { WishlistQuickForm } from "./WishlistQuickForm";
 
 const PRIORITY_LABELS: Record<WishlistPriority, string> = { low: "Baja", medium: "Media", high: "Alta" };
 
@@ -197,8 +197,6 @@ export function WishlistScreen({
       {showForm && (
         <Modal title="Añadir a la wishlist" onClose={() => setShowForm(false)}>
           <WishlistQuickForm
-            recognized={null}
-            photo={null}
             onSubmit={async (entity) => {
               await onAdd(entity);
               setShowForm(false);

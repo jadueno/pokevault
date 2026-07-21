@@ -36,6 +36,13 @@ export function useCollectionData() {
       await collectionItemClient.create(entity);
       await reload();
     },
+    /** Alta en lote (p. ej. marcar de golpe varias cartas de un set como tuyas): crea
+     * todas en paralelo y hace un solo reload al final, en vez de uno por cada `addItem`
+     * — evita disparar N recargas (2N peticiones GET) al marcar un set entero de golpe. */
+    addItems: async (entities: NewCollectionItem[]) => {
+      await Promise.all(entities.map((entity) => collectionItemClient.create(entity)));
+      await reload();
+    },
     updateItem: async (id: string, entity: NewCollectionItem) => {
       await collectionItemClient.update(id, entity);
       await reload();

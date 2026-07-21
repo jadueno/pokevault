@@ -5,7 +5,6 @@ import type {
   CardLanguage,
   CollectionItem,
   NewCollectionItem,
-  RecognizedCardData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -47,48 +46,42 @@ const ACQUISITION_TYPES: { value: AcquisitionType; label: string }[] = [
 ];
 
 export function CollectionQuickForm({
-  recognized,
   sealedItems,
   collectionItems,
   checklists,
   cardsByChecklist,
-  initialSealedPurchaseId = null,
   initialItem = null,
   onSubmit,
   onCancel,
 }: {
-  recognized: RecognizedCardData | null;
   /** Sobres/cajas de producto sellado ya registrados, para poder vincular esta carta a
    * uno concreto y repartir su coste. */
   sealedItems: SealedPurchase[];
   /** El resto de la colección, para saber cuántas cartas hay ya vinculadas a cada sobre y
    * poder previsualizar el coste por carta antes de guardar. */
   collectionItems: CollectionItem[];
-  /** Sets sincronizados, para poder usar la imagen oficial de la carta en vez de la foto
-   * que hizo el usuario (esa foto solo sirve para que la IA autocomplete el texto). */
+  /** Sets sincronizados, para poder usar la imagen y el precio oficiales de la carta en
+   * vez de dejarlos en blanco (alta manual: la vía principal es marcar cartas desde la
+   * pestaña "Sets", esto es la red de seguridad para lo que no está en ningún set). */
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
-  /** Preseleccionar un sobre (p. ej. para seguir añadiendo cartas del mismo sobre sin tener
-   * que volver a elegirlo en cada foto — ver "sticky sobre" en AnadirScreen). */
-  initialSealedPurchaseId?: string | null;
   /** Editar un ejemplar ya existente en vez de dar uno de alta: siembra el formulario
-   * entero con sus datos (no solo lo que reconocería la IA) y cambia el texto de guardado.
-   * No hay foto nueva que reconocer al editar, así que `recognized` no aplica aquí. */
+   * entero con sus datos y cambia el texto de guardado. */
   initialItem?: CollectionItem | null;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
   const isEditing = initialItem !== null;
   const [form, setForm] = useState<NewCollectionItem>({
-    name: initialItem?.name ?? recognized?.name ?? "",
-    setName: initialItem?.setName ?? recognized?.setName ?? null,
-    number: initialItem?.number ?? recognized?.number ?? null,
-    rarity: initialItem?.rarity ?? recognized?.rarity ?? null,
+    name: initialItem?.name ?? "",
+    setName: initialItem?.setName ?? null,
+    number: initialItem?.number ?? null,
+    rarity: initialItem?.rarity ?? null,
     language: initialItem?.language ?? "es",
     condition: initialItem?.condition ?? "near_mint",
     quantity: initialItem?.quantity ?? 1,
-    acquisitionType: initialItem?.acquisitionType ?? (initialSealedPurchaseId ? "pulled_from_pack" : "purchased_single"),
-    sealedPurchaseId: initialItem?.sealedPurchaseId ?? initialSealedPurchaseId,
+    acquisitionType: initialItem?.acquisitionType ?? "purchased_single",
+    sealedPurchaseId: initialItem?.sealedPurchaseId ?? null,
     purchasePrice: initialItem?.purchasePrice ?? null,
     purchaseCurrency: initialItem?.purchaseCurrency ?? "EUR",
     purchaseDate: initialItem?.purchaseDate ?? new Date().toISOString().slice(0, 10),
@@ -99,10 +92,9 @@ export function CollectionQuickForm({
     estimatedValueOverrideAt: initialItem?.estimatedValueOverrideAt ?? null,
     estimatedValueOverrideNote: initialItem?.estimatedValueOverrideNote ?? null,
     notes: initialItem?.notes ?? null,
-    // Al dar de alta, la foto que hizo el usuario nunca se guarda — solo sirvió para que
-    // la IA autocompletara el texto, la foto final (si hay) se busca entre los sets
-    // sincronizados. Al editar, se parte de la foto que ya tenía (por si no hay una
-    // coincidencia mejor en handleSubmit).
+    // Al dar de alta, la foto sale de un set sincronizado si expansión+número coinciden
+    // con alguno (ver handleSubmit); si no hay coincidencia, se queda sin foto. Al editar,
+    // se parte de la foto que ya tenía por si no hay una coincidencia mejor.
     photo: initialItem?.photo ?? null,
   });
   const [saving, setSaving] = useState(false);
@@ -121,7 +113,7 @@ export function CollectionQuickForm({
     try {
       // Una coincidencia nueva (p. ej. tras editar la expansión/número) siempre gana. Sin
       // coincidencia: al editar se conserva la foto que ya tenía, al dar de alta se queda
-      // sin foto (nunca se guarda la instantánea del usuario).
+      // sin foto.
       const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? (isEditing ? form.photo : null);
       await onSubmit({ ...form, photo });
     } finally {
@@ -269,11 +261,14 @@ export function CollectionQuickForm({
 
       <p className="text-xs text-[var(--text-muted)]">
         {matchedChecklistCard ? (
-          <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}"{isEditing ? "" : " (no la foto que has hecho)"}.</>
+          <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}" (set sincronizado).</>
         ) : isEditing ? (
           <>📷 Se mantiene la foto que ya tenía.</>
         ) : (
-          <>📷 La foto solo se ha usado para autocompletar estos datos — no hay imagen oficial disponible para este set/número todavía.</>
+          <>
+            📷 Sin foto: expansión/número no coinciden con ningún set sincronizado todavía. Puedes sincronizar el set desde la
+            pestaña "Sets".
+          </>
         )}
       </p>
 

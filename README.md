@@ -1,6 +1,6 @@
 # PokéVault
 
-Gestor personal de colecciones de cartas Pokémon TCG: haces una foto a lo que compras (carta o caja), se identifica con IA local, y queda registrado con precio de compra, valor estimado y plan de compra mensual.
+Gestor personal de colecciones de cartas Pokémon TCG: buscas y sincronizas el set que te interesa, marcas de golpe las cartas que ya tienes (con precio de referencia y foto oficial), y queda registrado con precio de compra, valor estimado y plan de compra mensual.
 
 Es una herramienta de uso personal (como sus hermanos [rumbo](../rumbo), [nous](../nous) y [faro](../faro)) construida con calidad de producto real: base de datos real, arquitectura hexagonal, tests de verdad. Multi-usuario real (login, colecciones compartidas) queda para más adelante — ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -25,16 +25,6 @@ cd ..
 # 4. Frontend
 npm install
 ```
-
-### Reconocimiento de fotos (opcional, recomendado)
-
-Sin nada configurado, "Añadir" sigue funcionando pero siempre hay que rellenar los datos a mano. Con [Ollama](https://ollama.com) instalado y corriendo (el mismo que usa `nous`):
-
-```bash
-ollama pull minicpm-v
-```
-
-Y descomenta `OLLAMA_BASE_URL=http://localhost:11434` en `backend/.env`. `minicpm-v` es, de los modelos de visión habituales en Ollama, de los que mejor lee texto pequeño (nombre, número, rareza) para su tamaño — alternativas: `llava`, `llama3.2-vision` (`OLLAMA_VISION_MODEL` en `backend/.env`).
 
 ## Arrancar en el día a día
 
@@ -78,19 +68,11 @@ Rellena colección, producto sellado y wishlist con datos ficticios repartidos e
 
 ## Checklist de set ("¿qué me falta?")
 
-Para ver qué cartas te faltan de un set concreto (pestaña "Sets" dentro de "Mi colección"), primero hay que traer su listado una vez desde pokemontcg.io:
-
-```bash
-cd backend
-npm run sync:set-checklist -- me5 "Oscuridad Absoluta"
-```
-
-El primer argumento es el id del set en pokemontcg.io (búscalo en `https://api.pokemontcg.io/v2/sets`), el segundo es opcional — el nombre en español, para que se relacione con cómo sueles nombrar tus cartas. No es una dependencia en vivo: es un script puntual (como `seed:demo`), se ejecuta una vez por set y queda guardado en tu base de datos. Volver a ejecutarlo con el mismo id reemplaza el checklist entero.
+Desde la pestaña "Sets" de "Mi colección" puedes buscar un set (nombre en inglés, p. ej. "Pitch Black") y elegirlo de la lista de candidatos que devuelve pokemontcg.io — nunca se adivina el set a partir de lo que escribes, siempre lo confirmas tú de una lista real. Al añadirlo se descarga su listado completo de cartas (con precio de referencia de Cardmarket cuando el proveedor lo tiene) y queda guardado en tu base de datos: no es una dependencia en vivo, la app nunca vuelve a llamar al proveedor salvo que pulses "🔄 Actualizar" en un set ya sincronizado. Dentro de un set puedes filtrar (todas / que tienes / que te faltan), buscar por número o nombre, y marcar de golpe varias cartas como tuyas.
 
 ## Qué hace la app
 
-- **Añadir**: haz una foto a una carta o a una caja. Un modelo de visión local (Ollama) sugiere nombre, expansión, número y rareza — siempre revisas y editas antes de guardar, nunca se da de alta nada automáticamente. Eliges el destino: tu colección, la wishlist, o producto sellado.
-- **Mi colección**: todos tus ejemplares, con tu propia estimación de valor (sin catálogo externo, no hay precio de mercado automático) y la diferencia frente a lo que pagaste. Buscador propio sobre lo que ya tienes. La pestaña "Sets" muestra, para cada set sincronizado (ver "Checklist de set" más abajo), qué porcentaje tienes y qué cartas concretas te faltan.
+- **Mi colección**: todos tus ejemplares, con tu propia estimación de valor y la diferencia frente a lo que pagaste. Buscador propio sobre lo que ya tienes. La pestaña "Sets" es la vía principal para dar de alta cartas (ver más arriba); para una carta suelta que no pertenezca a ningún set sincronizado, el botón "+" abre un alta manual.
 - **Producto sellado**: sobres, cajas, ETBs — registro de compra con ubicación física y valor estimado a mano.
 - **Plan**: tu checklist de compra mes a mes (comprar / guardar sellado), con presupuesto mensual, páginas de compra habituales y notas generales del año. El "hecho" de cada ítem es una casilla de seguimiento independiente — no registra nada en tu colección ni cuenta en el valor total.
 - **Wishlist**: deseos puntuales de algo que no tienes todavía, con prioridad, precio máximo y un **mes objetivo de compra** — agrupa la propia wishlist por mes, sin necesitar una pantalla aparte. "Ya la tengo" mueve el deseo a tu colección registrando la compra real.
@@ -99,12 +81,12 @@ El primer argumento es el id del set en pokemontcg.io (búscalo en `https://api.
 ## Estructura
 
 - `src/` — frontend (React + Vite + Tailwind).
-- `backend/src/domain|application|infrastructure/` — hexagonal: dominio puro, casos de uso, adaptadores (Postgres, visión).
-- `backend/src/infrastructure/vision/` — `ollamaVisionProvider.ts` (real, Ollama local) + `fakeVisionProvider.ts` (tests/E2E).
-- `e2e/` — Playwright, contra el proveedor de visión fake (determinista, forzado en `playwright.config.ts`).
+- `backend/src/domain|application|infrastructure/` — hexagonal: dominio puro, casos de uso, adaptadores (Postgres, pokemontcg.io).
+- `backend/src/infrastructure/catalog/` — `pokemonTcgApiProvider.ts` (real) + `fakePokemonTcgProvider.ts` (tests/E2E).
+- `e2e/` — Playwright, contra el proveedor de sets fake (determinista, forzado en `playwright.config.ts` con `POKEMON_TCG_PROVIDER=fake`).
 
-Más detalle de las decisiones técnicas (por qué no hay catálogo externo, cómo funciona el reconocimiento por foto, por qué no hay auth todavía) en [ARCHITECTURE.md](ARCHITECTURE.md).
+Más detalle de las decisiones técnicas (por qué no hay catálogo externo en vivo, cómo funciona la búsqueda/sincronización de sets, por qué no hay auth todavía) en [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Privacidad
 
-Herramienta de uso personal: no hay despliegue público. Los datos viven en tu propia base de datos local (Docker), igual que rumbo/nous/faro. Las fotos se procesan con un modelo de IA local (Ollama, en tu propia máquina) — nunca se suben a un servicio de terceros.
+Herramienta de uso personal: no hay despliegue público. Los datos viven en tu propia base de datos local (Docker), igual que rumbo/nous/faro.

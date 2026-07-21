@@ -6,13 +6,13 @@ Este documento explica cómo está construido PokéVault y por qué — para el 
 
 PokéVault es un gestor de colecciones Pokémon TCG: qué cartas y qué producto sellado posees, cuánto pagaste, cuánto valen (a tu propia estimación), y qué quieres conseguir a continuación. Nace de un brief mucho más ambicioso (multi-usuario, escáner de cartas, logros, compras/ventas con terceros...) que se recortó deliberadamente a lo que el propio usuario marcó como mínimo indispensable: registrar lo que tienes (carta suelta o sellado), de dónde salió, tu wishlist de deseos puntuales, y un plan de compra mensual.
 
-La Fase 1 original tenía un catálogo sincronizado desde pokemontcg.io para buscar cartas y traer su precio de mercado. Se eliminó por completo (ver más abajo): el usuario decidió que no lo necesitaba y que prefería un flujo de "hacer una foto a lo que compro" con reconocimiento por IA local, buscando solo sobre sus propios productos.
+La Fase 1 original tenía un catálogo sincronizado desde pokemontcg.io para buscar cartas y traer su precio de mercado. Se eliminó por completo (ver más abajo): el usuario decidió que no lo necesitaba. Más adelante volvió a hacer falta una pieza de ese proveedor, pero de forma acotada y explícita: buscar un set, confirmarlo de una lista de candidatos, y descargar su listado de cartas (con precio de referencia) una vez — nunca un catálogo en vivo ni una llamada automática (ver "Checklist de set" más abajo).
 
 ```
 Frontend (React + TS)  ──HTTP/JSON──▶  Backend (Fastify + TS)  ──SQL──▶  PostgreSQL
      dominio puro                        hexagonal                      (Docker)
                                               │
-                                              └──▶ Ollama local (solo para /card-recognition)
+                                              └──▶ pokemontcg.io (solo al buscar/sincronizar un set, a propósito)
 ```
 
 ## Stack y por qué
@@ -25,27 +25,27 @@ Frontend (React + TS)  ──HTTP/JSON──▶  Backend (Fastify + TS)  ──S
 | Base de datos | PostgreSQL en Docker (local) | Herramienta personal, sin despliegue público |
 | Migraciones | `node-pg-migrate` | Versionadas en TypeScript |
 | Sin ORM | Repositorio con `pg` + SQL explícito | Volumen pequeño, un solo usuario; un ORM no aporta nada aquí |
-| Reconocimiento de fotos | Ollama local (`minicpm-v` por defecto) | Gratis, privado (la foto nunca sale de tu máquina), mismo Ollama que ya usa `nous` |
+| Datos de set | pokemontcg.io, solo en acciones explícitas | Gratis; ~45%/~8s de error/latencia media documentados, por eso nunca se llama en una petición normal de la app, solo al buscar/sincronizar un set a propósito |
 
 ## Rediseño visual: energía de Pokédex, identidad propia
 
 A partir de una captura de referencia (una web de Pokédex: banner con degradado vivo, tarjetas con fondo degradado, insignias de color sólido, tipografía muy bold y redondeada), se trasladó esa energía visual a las pantallas ya existentes — **sin** reconstruir el listado de tipo catálogo que mostraba esa referencia, que es justo la funcionalidad que se eliminó deliberadamente (ver más abajo). El usuario confirmó explícitamente que quería solo el estilo, no la pantalla.
 
 - **Paleta**: se mantiene "casi negro + rojo Poké Ball + dorado" (la identidad ya construida) en vez de adoptar el verde de la referencia, que solo aparecía porque el Pokémon protagonista de esa captura era de tipo planta.
-- **`ScreenHeader`**: banner "hero" con degradado de marca (`--hero-gradient`), en Resumen/Colección/Wishlist/Añadir.
+- **`ScreenHeader`**: banner "hero" con degradado de marca (`--hero-gradient`), en Resumen/Colección/Wishlist.
 - **`Card variant="gradient"`**: tarjetas "protagonista" (carta, producto sellado, deseo, valor total) con fondo degradado oscuro y brillo de marca al pasar el ratón (`shadow-glow`); las tarjetas de utilidad (formularios, estados vacíos) se quedan planas para no competir en jerarquía visual.
-- **`Badge`**: insignias de color sólido para metadatos cortos (idioma, estado de conservación, tipo de producto, prioridad de wishlist, confianza del reconocimiento por IA).
+- **`Badge`**: insignias de color sólido para metadatos cortos (idioma, estado de conservación, tipo de producto, prioridad de wishlist).
 - **Tipografía**: Baloo 2 (`--font-display`) para títulos de pantalla, nombres de carta/producto y cifras protagonistas; Inter se mantiene para formularios y datos densos, donde es más legible.
 
 ## Arquitectura hexagonal (backend)
 
 ```
 backend/src/
-  domain/           tipos + puertos (VisualMatchProvider, repositorios) — cero dependencias externas
+  domain/           tipos + puertos (PokemonTcgProvider, repositorios) — cero dependencias externas
   application/      casos de uso: validación de negocio + orquestación
   infrastructure/
     db/             pool de conexión, migraciones, repositorios Postgres
-    vision/         proveedor de reconocimiento por foto (real Ollama + fake)
+    catalog/        proveedor de datos de set (real pokemontcg.io + fake)
     http/           servidor Fastify, rutas HTTP
 ```
 
@@ -55,30 +55,25 @@ La Fase 1 original cacheaba localmente el catálogo de pokemontcg.io (`catalog_s
 
 En su lugar:
 
-1. **`collection_items`/`wishlist_items` guardan sus propios datos directamente** (`name`, `setName`, `number`, `rarity`) en vez de un `catalog_card_id` — no hay nada externo con lo que enlazarlos. `sealed_purchases` pierde su `catalog_set_id` (siempre había sido opcional y sin uso real en el frontend).
-2. **"Añadir" es un flujo de foto → reconocimiento → confirmación manual**, nunca alta automática. `VisualMatchProvider` es un puerto intercambiable (mismo patrón que `infrastructure/llm/` en `nous`, con proveedores de IA intercambiables): `ollamaVisionProvider.ts` es el adaptador real (fetch crudo a `/api/chat` de Ollama con la imagen en base64 y `format: "json"`, sin SDK), `fakeVisionProvider.ts` es un fixture determinista para tests/E2E.
-3. **Sin precio de mercado automático.** Sin catálogo no hay de dónde traerlo — el valor de cada ejemplar es siempre `estimatedValueOverride`, la estimación del propio usuario (mismo campo, mismo patrón que ya usaba `sealed_purchases`, que nunca tuvo precio de catálogo). `resolveItemEstimatedValue` (la función que elegía entre corrección manual y precio de catálogo) desaparece: ya no hay nada que "overridear".
-4. **La búsqueda ahora es sobre tus propios productos**: `ColeccionScreen` y `SelladoScreen` tienen su propio filtro por nombre en cliente, sin pantalla ni endpoint aparte — no hace falta indexar nada en el servidor para el volumen de una colección personal.
+1. **`collection_items`/`wishlist_items` guardan sus propios datos directamente** (`name`, `setName`, `number`, `rarity`) en vez de un `catalog_card_id` — no hay FK hacia nada externo. `sealed_purchases` pierde su `catalog_set_id` (siempre había sido opcional y sin uso real en el frontend).
+2. **Dar de alta una carta pasa siempre por revisión manual antes de guardar**, nunca alta automática — primero fue foto + reconocimiento por IA (se quitó después, ver más abajo), ahora es elegir del checklist de un set sincronizado (con foto y precio oficiales ya rellenos, pero editable) o un formulario de texto libre para lo que no está en ningún set.
+3. **Sin precio de mercado automático salvo el que trae el checklist de un set sincronizado.** El valor de cada ejemplar es `estimatedValueOverride` — al marcar varias cartas de golpe desde un set se prerellena con el precio de referencia de Cardmarket del momento de la sincronización (si el proveedor lo tenía), pero sigue siendo un campo editable como cualquier otro, nunca un "precio oficial" que no se pueda corregir.
+4. **La búsqueda del día a día sigue siendo sobre tus propios productos**: `ColeccionScreen` tiene su propio filtro por nombre en cliente, sin pantalla ni endpoint aparte. La búsqueda contra pokemontcg.io (`GET /set-search`) es una cosa distinta y explícita: solo para encontrar y elegir un set nuevo que sincronizar, nunca para buscar cartas sueltas.
 
-## Checklist de set ("¿qué me falta?"): referencia puntual, no el catálogo que se quitó
+## Checklist de set ("¿qué me falta?"): la vía principal de alta de cartas
 
-Pedido explícito del usuario: ver qué cartas le faltan de un set concreto (p. ej. "Oscuridad Absoluta"). Esto **no revierte** la decisión de arriba — es una pieza nueva y deliberadamente distinta:
+Pedido explícito del usuario: ver qué cartas le faltan de un set concreto (p. ej. "Oscuridad Absoluta") y poder marcar de golpe las que ya tiene, con su precio aproximado. Esto **no revierte** la decisión de quitar el catálogo — sigue siendo una pieza deliberadamente acotada, no un catálogo en vivo:
 
-- **`set_checklists`/`set_checklist_cards`** (migración `1784000000009_create-set-checklists`) son tablas de solo lectura desde la API (`GET /set-checklists`, `GET /set-checklists/:id/cards`), sin ningún endpoint de escritura ni de búsqueda en pokemontcg.io/Scrydex en tiempo de petición. Antes de construir esto se comprobó ese proveedor en vivo: ~45% de error y ~8s de latencia media en su endpoint de cartas (mismo patrón de riesgo que Google Custom Search/Bing, ya vividos en otros proyectos) — exactamente el motivo original para quitar el catálogo, así que no tenía sentido volver a depender de él en caliente.
-- **Se rellenan con un script puntual**, `npm run sync:set-checklist -- <externalSetId> ["Nombre en español"]` (`backend/src/infrastructure/catalog/syncSetChecklist.ts`), ejecutado a mano cuando se quiere el checklist de un set — mismo espíritu que `seedDemoData.ts` o que las fotos de `demoPhotos.ts` (dato traído una vez, no sondeado en cada visita). Reemplaza el checklist entero si ya existía (sin acumular duplicados).
-- **No hay FK hacia `collection_items`.** Como la colección es freeform (nombre del set en cualquier idioma o forma), "qué tengo de este set" se calcula en el frontend (`computeSetChecklistCompletion`, `src/domain/calculations.ts`) comparando por **número de carta** — universal, no depende del idioma — dentro de los ejemplares cuyo `setName` se parece (contención de texto, insensible a mayúsculas/acentos) al nombre del set en inglés o al alias en español guardado al sincronizar.
-- El proveedor no da nombres en español, así que `set_name_es` se pasa a mano al ejecutar el script — es lo que se usa para relacionar con la forma en que el usuario suele nombrar sus propias cartas.
+- **Búsqueda con confirmación explícita, nunca una suposición.** La primera versión de esto intentaba adivinar el set a partir del texto que el usuario escribiera — se descartó tras comprobar en vivo que pokemontcg.io solo tiene nombres en inglés (`GET /v2/sets?q=name:"Oscuridad Absoluta"` da 0 resultados) y una coincidencia forzada podría sincronizar el set equivocado. En su lugar: `GET /set-search?q=...` hace una búsqueda parcial (`name:*query*`, sí funciona bien para texto en inglés — probado en vivo, "black" devuelve 12 candidatos razonables) y el usuario **elige de una lista real** antes de confirmar `POST /set-checklists`.
+- **El precio viene gratis en la misma respuesta.** `card.cardmarket.prices.averageSellPrice` (EUR) ya está en el payload que se usa para traer las cartas del set — no hace falta ninguna llamada aparte. Sin conversión de divisa ni fallback a tcgplayer/USD: si el proveedor no tiene precio de Cardmarket para una carta (habitual en sets recién salidos, sin datos de mercado todavía), se deja `null` antes que inventar una cifra en otra divisa.
+- **`set_checklists`/`set_checklist_cards`** (migraciones `1784000000009`/`1784000000013`) se escriben a través de `SetChecklistRepository.upsertChecklist` (reemplazo completo: borra y reinserta, evita duplicados), llamado desde `POST /set-checklists` (set nuevo) o `POST /set-checklists/:id/resync` (volver a traer un set ya sincronizado, p. ej. para rellenar precio en uno sincronizado antes de que ese campo existiera).
+- **`PokemonTcgProvider`** es un puerto intercambiable (mismo patrón que `infrastructure/llm/` en `nous`): `pokemonTcgApiProvider.ts` es el adaptador real (`fetch` con `AbortSignal.timeout(10000)`, dado el ~8s de latencia media documentado), `fakePokemonTcgProvider.ts` es un fixture determinista (un único set fijo "Test Set"/"ts1") para tests/E2E — forzado con `POKEMON_TCG_PROVIDER=fake` en `playwright.config.ts`, nunca contra la red real en CI.
+- **No hay FK hacia `collection_items`.** Como la colección es freeform (nombre del set en cualquier idioma o forma), "qué tengo de este set" se calcula en el frontend (`computeSetChecklistCompletion`, `src/domain/calculations.ts`) comparando por **número de carta** — universal, no depende del idioma — dentro de los ejemplares cuyo `setName` se parece (contención de texto, insensible a mayúsculas/acentos) al nombre del set en inglés o al alias guardado al sincronizar. Ese alias (`set_name_es`) es literalmente el texto que el usuario escribió para encontrar el set, no una traducción — así la siguiente carta del mismo set se sigue relacionando en local aunque se escriba distinto al nombre oficial en inglés.
+- **Marcar varias como mías** (`SetCardsGrid` en `SetChecklistTab.tsx`) construye un `NewCollectionItem` por carta seleccionada con valores por defecto (español, Near Mint, x1, sin precio de compra, foto y precio de referencia del checklist) y los crea todos en paralelo (`useCollectionData.addItems`) con un único `reload()` al final, en vez de uno por alta.
 
-## Reconocimiento de fotos: Ollama local, siempre con revisión manual
+## Reconocimiento de fotos por IA: se probó, se quitó
 
-`POST /card-recognition` recibe una foto como data URL (comprimida en el cliente antes de enviarla, `src/data/imageCapture.ts` — redimensiona a 1024px máx. vía canvas, sin librería) y devuelve `{name, setName, number, rarity, confidence}`, todos nullable. El prompt (`infrastructure/vision/ollamaVisionProvider.ts`) le pide al modelo JSON estricto y le insiste en no inventar nada que no vea en la imagen.
-
-Reglas explícitas:
-
-- **Nunca dar de alta nada automáticamente.** El resultado se muestra en `AnadirScreen` como sugerencia; el usuario elige el destino (colección/wishlist/sellado) y revisa/edita cada campo en un formulario normal antes de guardar — el flujo funciona igual de bien si el reconocimiento falla o viene todo a `null`, solo que hay que rellenar más a mano.
-- **`minicpm-v` por defecto** porque, de los modelos de visión habituales en Ollama (`llava`, `llama3.2-vision`, `qwen2.5vl`, `minicpm-v`, `moondream`), es de los que mejor lee texto pequeño (nombre/número/rareza impresos en la carta) para su tamaño — probado con una foto real de un Charizard de Base Set: identificó el nombre correctamente, con número y rareza aproximados (esperable de un modelo local pequeño, de ahí que la revisión manual sea obligatoria, no opcional).
-- **Sin Ollama configurado, cae al proveedor fake** (mismo criterio que `nous`): la app sigue funcionando, solo que sin sugerencias — nunca un error duro por no tener IA instalada.
-- **El E2E fuerza el fake** (`OLLAMA_BASE_URL=""` en `playwright.config.ts`), determinista y sin red, aunque el `.env` local del desarrollador tenga Ollama configurado.
+Hubo una fase intermedia con un flujo "hacer una foto → reconocimiento por IA (Ollama local) → revisión manual" para las tres altas (carta, wishlist, sellado), con un puerto `VisualMatchProvider` y su propio adaptador real/fake. Tras usar la app de verdad, el usuario decidió quitarlo: "complica todo mucho y no aporta nada" frente a elegir directamente del checklist de un set (más preciso, con foto y precio oficiales) o rellenar un formulario corto a mano. Se eliminó por completo: puerto, adaptadores, ruta `/card-recognition`, componente `PhotoCapture`, tipos `RecognizedCardData`/`RecognitionConfidence`. `src/data/imageCapture.ts` (compresión de fotos en cliente) se mantiene — lo sigue usando `PhotoField`, el adjuntar-foto-a-mano de producto sellado/wishlist, que es una cosa distinta (sin IA, nunca lo fue).
 
 ## Sin autenticación multi-usuario (todavía)
 
@@ -119,13 +114,14 @@ La wishlist sigue teniendo su propio uso, distinto del plan: deseos puntuales de
 
 - El bug de fechas de arriba, con test de regresión en `server.test.ts` que compara la fecha exacta enviada contra la devuelta.
 - Al escribir el E2E original (con catálogo), se encontró que el modal de detalle de carta no se cerraba al añadir a la wishlist — bug de UX real corregido en su momento, antes de que esa pantalla se eliminara junto con el catálogo.
-- El reconocimiento por foto se probó con una imagen real (Charizard de Base Set) contra el Ollama local, no solo con el fake — confirmó que el prompt y el parseo de JSON funcionan con una respuesta real del modelo, no solo con el fixture determinista.
+- Al construir la búsqueda de sets se comprobó en vivo contra la API real (no solo se asumió) tanto el payload de precio (`card.cardmarket.prices.averageSellPrice`, presente en sets antiguos, ausente en uno recién salido) como el fallo de la búsqueda por nombre en español — esas dos comprobaciones cambiaron el diseño antes de escribir código, no después.
+- Con la colección/sellado/wishlist totalmente vacíos, la barra de pestañas de "Mi colección" se ocultaba por completo (condición heredada de cuando "Sets" era secundario), dejando sin forma de llegar a la pestaña "Sets" pese a que el propio mensaje de vacío la mencionaba — encontrado ejecutando el E2E nuevo de principio a fin, no solo con tests de componente aislados.
 
 ## Estructura del repositorio
 
-- `src/domain/` — tipos y cálculos puros (`formatMoney`, `groupWishlistByMonth`, `groupPlanByMonth`).
-- `src/data/` — un hook por área (`useCollectionData`, `useWishlistData`, `useSealedData`, `usePlanData`) + `api.ts` + `imageCapture.ts` (compresión de fotos en cliente).
-- `src/features/` — una pantalla por carpeta: `anadir/` (foto + reconocimiento + confirmación), `coleccion/`, `wishlist/`, `sellado/`, `dashboard/`, `plan/`.
+- `src/domain/` — tipos y cálculos puros (`formatMoney`, `groupWishlistByMonth`, `groupPlanByMonth`, `computeSetChecklistCompletion`).
+- `src/data/` — un hook por área (`useCollectionData`, `useWishlistData`, `useSealedData`, `usePlanData`, `useSetChecklistData`) + `api.ts` + `imageCapture.ts` (compresión de fotos en cliente, usada por el adjuntar-foto-a-mano de `PhotoField`).
+- `src/features/` — una pantalla por carpeta: `coleccion/` (incluye `SetChecklistTab.tsx` y el alta manual de carta), `wishlist/`, `sellado/`, `dashboard/`, `plan/`.
 - `backend/src/domain|application|infrastructure/` — ver arquitectura hexagonal arriba.
 - `docker-compose.yml` — Postgres local, puerto 5436.
 
@@ -134,4 +130,4 @@ La wishlist sigue teniendo su propio uso, distinto del plan: deseos puntuales de
 - **Fase 2 — Progreso y organización**: vista grid/lista con agrupar/ordenar/filtrar avanzado, estadísticas (carta más valiosa, distribución por rareza/idioma). Solo lecturas nuevas sobre datos que ya existen.
 - **Fase 3 — Dinero histórico**: `collection_value_snapshots` para la evolución del valor en el tiempo, transacciones de compra/venta/intercambio con terceros (comisiones, envío, beneficio neto), presupuesto mensual vs gasto real (complementa el plan, que es planificación *antes* de comprar, con seguimiento de lo *ya* gastado).
 - **Fase 4 — Multi-usuario real**: el día que se decida abrir a otros coleccionistas (ver sección de auth arriba).
-- **Fase 5 — Mejorar el reconocimiento**: recorte automático de la foto antes de enviarla al modelo (mejora la lectura de texto pequeño), comparar varios modelos de Ollama para ver cuál acierta más con cartas reales, quizás un modelo de pago con visión como opción adicional (mismo puerto `VisualMatchProvider`, solo añadir un adaptador).
+- **Fase 5 — Ampliar la búsqueda de sets**: una tabla de alias ES/EN curada a mano (no adivinada) para que la búsqueda encuentre sets aunque se escriban en español, actualización automática periódica de precio de los sets ya sincronizados (hoy es manual, botón "🔄 Actualizar").

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
-import type { CollectionItem, SealedPurchase, SetChecklist, SetChecklistCard } from "../../domain/types";
+import type { CollectionItem, SealedPurchase, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
 import { ColeccionScreen } from "./ColeccionScreen";
 
 vi.mock("../../data/imageCapture", () => ({
@@ -67,6 +67,30 @@ function setChecklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
   };
 }
 
+function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistCard {
+  return {
+    id: "c1",
+    checklistId: "cl1",
+    number: "1",
+    name: "Tropius",
+    rarity: "Common",
+    imageUrl: null,
+    imageUrlLarge: null,
+    referencePrice: null,
+    ...overrides,
+  };
+}
+
+function searchCandidate(overrides: Partial<SetSearchCandidate> = {}): SetSearchCandidate {
+  return {
+    externalSetId: "me5",
+    name: "Pitch Black",
+    totalCards: 120,
+    releaseDate: "2026/07/17",
+    ...overrides,
+  };
+}
+
 function renderScreen(
   items: CollectionItem[],
   sealedItems: SealedPurchase[] = [],
@@ -74,6 +98,7 @@ function renderScreen(
   cardsByChecklist: Record<string, SetChecklistCard[]> = {},
 ) {
   const handlers = {
+    onAddItem: vi.fn().mockResolvedValue(undefined),
     onUpdateItem: vi.fn().mockResolvedValue(undefined),
     onRemove: vi.fn().mockResolvedValue(undefined),
     onOverrideValue: vi.fn().mockResolvedValue(undefined),
@@ -81,6 +106,10 @@ function renderScreen(
     onUpdateSealed: vi.fn().mockResolvedValue(undefined),
     onRemoveSealed: vi.fn().mockResolvedValue(undefined),
     onOverrideSealedValue: vi.fn().mockResolvedValue(undefined),
+    onSearchSets: vi.fn().mockResolvedValue([]),
+    onSyncSet: vi.fn().mockResolvedValue(undefined),
+    onResyncSet: vi.fn().mockResolvedValue(undefined),
+    onMarkOwned: vi.fn().mockResolvedValue(undefined),
   };
   render(
     <ConfirmProvider>
@@ -202,6 +231,17 @@ describe("ColeccionScreen", () => {
     expect(handlers.onUpdateItem).toHaveBeenCalledWith("i1", expect.objectContaining({ photo: "data:image/jpeg;base64,YAYA" }));
   });
 
+  it("el FAB de Cartas abre el alta manual y la envía", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()]);
+
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.type(screen.getByPlaceholderText("Charizard"), "Mew");
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+
+    expect(handlers.onAddItem).toHaveBeenCalledWith(expect.objectContaining({ name: "Mew" }));
+  });
+
   it("el botón Editar de un producto sellado abre el formulario precargado y guarda los cambios", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()], [sealedItem()]);
@@ -297,6 +337,45 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText(/Todavía no has sincronizado ningún set/)).toBeInTheDocument();
   });
 
+  it("en Sets, busca un set nuevo y lo añade al elegirlo de la lista", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()], [], []);
+    handlers.onSearchSets.mockResolvedValue([searchCandidate()]);
+
+    await user.click(screen.getByRole("button", { name: "Sets (0)" }));
+    await user.type(screen.getByPlaceholderText("Nombre en inglés, p. ej. Pitch Black"), "Pitch Black");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(handlers.onSearchSets).toHaveBeenCalledWith("Pitch Black");
+    expect(await screen.findByText("Pitch Black")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Añadir este set" }));
+    expect(handlers.onSyncSet).toHaveBeenCalledWith("me5", "Pitch Black");
+  });
+
+  it("en Sets, un candidato ya sincronizado se marca como 'Ya lo tienes' en vez de poder añadirlo de nuevo", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([], [], [setChecklist()]);
+    handlers.onSearchSets.mockResolvedValue([searchCandidate()]);
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.type(screen.getByPlaceholderText("Nombre en inglés, p. ej. Pitch Black"), "Pitch Black");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(await screen.findByText("Ya lo tienes")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Añadir este set" })).not.toBeInTheDocument();
+  });
+
+  it("en Sets, el botón Actualizar de un checklist llama a onResyncSet", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([], [], [setChecklist()]);
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Actualizar Oscuridad Absoluta" }));
+
+    expect(handlers.onResyncSet).toHaveBeenCalledWith("cl1");
+  });
+
   it("en la pestaña de Sets, muestra el progreso y al expandir el set completo (o 'Cargando…' si aún no han llegado las cartas)", async () => {
     const user = userEvent.setup();
     renderScreen([item({ setName: "Oscuridad Absoluta", number: "1/120" })], [], [setChecklist()]);
@@ -312,9 +391,9 @@ describe("ColeccionScreen", () => {
   it("en la pestaña de Sets, muestra todo el set (tuyas y las que faltan) y atenúa/pone en blanco y negro solo las que faltan", async () => {
     const user = userEvent.setup();
     const cards: SetChecklistCard[] = [
-      { id: "c1", checklistId: "cl1", number: "1", name: "Tropius", rarity: "Common", imageUrl: null, imageUrlLarge: null },
-      { id: "c2", checklistId: "cl1", number: "2", name: "Grubbin", rarity: "Common", imageUrl: null, imageUrlLarge: null },
-      { id: "c3", checklistId: "cl1", number: "3", name: "Charmander", rarity: "Rare", imageUrl: null, imageUrlLarge: null },
+      checklistCard({ id: "c1", number: "1", name: "Tropius" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin" }),
+      checklistCard({ id: "c3", number: "3", name: "Charmander", rarity: "Rare" }),
     ];
     const ownedItems = [item({ setName: "Oscuridad Absoluta", number: "1/120" })];
     renderScreen(ownedItems, [], [setChecklist()], { cl1: cards });
@@ -333,18 +412,81 @@ describe("ColeccionScreen", () => {
     expect(grubbinPlaceholder?.className).toContain("opacity-60");
   });
 
+  it("en Sets, el filtro Que tengo/Que me faltan esconde las que no tocan", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Tropius" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin" }),
+    ];
+    const ownedItems = [item({ setName: "Oscuridad Absoluta", number: "1/120" })];
+    renderScreen(ownedItems, [], [setChecklist()], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    expect(screen.getByText("Tropius")).toBeInTheDocument();
+    expect(screen.getByText("Grubbin")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Que me faltan" }));
+    expect(screen.queryByText("Tropius")).not.toBeInTheDocument();
+    expect(screen.getByText("Grubbin")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Que tengo" }));
+    expect(screen.getByText("Tropius")).toBeInTheDocument();
+    expect(screen.queryByText("Grubbin")).not.toBeInTheDocument();
+  });
+
+  it("en Sets, el buscador local filtra por número o nombre dentro del set", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Tropius" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin" }),
+    ];
+    renderScreen([], [], [setChecklist()], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    await user.type(screen.getByPlaceholderText("Buscar por número o nombre…"), "grub");
+
+    expect(screen.queryByText("Tropius")).not.toBeInTheDocument();
+    expect(screen.getByText("Grubbin")).toBeInTheDocument();
+  });
+
+  it("en Sets, seleccionar varias y marcarlas como mías llama a onMarkOwned con los datos por defecto", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Tropius", referencePrice: 1.5 }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin", referencePrice: null }),
+    ];
+    const handlers = renderScreen([], [], [setChecklist({ totalCards: 2 })], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    await user.click(screen.getByRole("button", { name: "Seleccionar varias" }));
+    await user.click(screen.getByRole("button", { name: "Marcar Tropius como mía" }));
+    await user.click(screen.getByRole("button", { name: "Marcar 1 como mías" }));
+
+    expect(handlers.onMarkOwned).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "Tropius",
+        setName: "Oscuridad Absoluta",
+        number: "1/2",
+        language: "es",
+        condition: "near_mint",
+        estimatedValueOverride: 1.5,
+      }),
+    ]);
+  });
+
   it("en la pestaña de Sets, hacer clic en una carta la abre en grande (prioriza la imagen de mayor resolución)", async () => {
     const user = userEvent.setup();
     const cards: SetChecklistCard[] = [
-      {
+      checklistCard({
         id: "c2",
-        checklistId: "cl1",
         number: "2",
         name: "Grubbin",
-        rarity: "Common",
         imageUrl: "https://images.scrydex.com/pokemon/me5-2/small",
         imageUrlLarge: "https://images.scrydex.com/pokemon/me5-2/large",
-      },
+      }),
     ];
     renderScreen([], [], [setChecklist({ totalCards: 1 })], { cl1: cards });
 

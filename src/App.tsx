@@ -4,19 +4,17 @@ import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
 import { usePlanData } from "./data/usePlanData";
 import { useSetChecklistData } from "./data/useSetChecklistData";
-import { AnadirScreen } from "./features/anadir/AnadirScreen";
 import { ColeccionScreen } from "./features/coleccion/ColeccionScreen";
 import { WishlistScreen } from "./features/wishlist/WishlistScreen";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { PlanScreen } from "./features/plan/PlanScreen";
 import { LoadingState } from "./components/LoadingState";
 
-type Section = "dashboard" | "anadir" | "coleccion" | "wishlist" | "plan";
+type Section = "dashboard" | "coleccion" | "wishlist" | "plan";
 
-// "anadir" no aparece aquí a propósito: se accede desde el botón flotante de Mi
-// colección, no ocupa un hueco fijo en el menú.
 // "Sellado" ya no es una sección aparte: se fusionó dentro de "Mi colección" (para el
-// usuario, la colección es todo, tanto cartas como cajas).
+// usuario, la colección es todo, tanto cartas como cajas). Tampoco hay una sección
+// "Añadir": cada destino (cartas, wishlist, sellado) tiene su propio botón "+" directo.
 const sections: { id: Section; label: string }[] = [
   { id: "plan", label: "Plan" },
   { id: "coleccion", label: "Mi colección" },
@@ -92,42 +90,29 @@ export default function App() {
           {!loading && (
             <>
               {section === "dashboard" && <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />}
-              {section === "anadir" && (
-                <AnadirScreen
+              {section === "coleccion" && (
+                <ColeccionScreen
+                  items={collection.items}
+                  onAddItem={collection.addItem}
+                  onUpdateItem={collection.updateItem}
+                  onRemove={collection.removeItem}
+                  onOverrideValue={collection.overrideValue}
                   sealedItems={sealed.items}
-                  collectionItems={collection.items}
+                  onAddSealed={sealed.addItem}
+                  onUpdateSealed={sealed.updateItem}
+                  onRemoveSealed={sealed.removeItem}
+                  onOverrideSealedValue={sealed.overrideValue}
                   checklists={setChecklists.checklists}
                   cardsByChecklist={setChecklists.cardsByChecklist}
-                  onAddToCollection={collection.addItem}
-                  onAddToWishlist={wishlist.addItem}
-                  onAddToSealed={sealed.addItem}
+                  onSearchSets={setChecklists.search}
+                  onSyncSet={async (externalSetId, setNameEs) => {
+                    await setChecklists.sync(externalSetId, setNameEs);
+                  }}
+                  onResyncSet={async (checklistId) => {
+                    await setChecklists.resync(checklistId);
+                  }}
+                  onMarkOwned={collection.addItems}
                 />
-              )}
-              {section === "coleccion" && (
-                <>
-                  <ColeccionScreen
-                    items={collection.items}
-                    onUpdateItem={collection.updateItem}
-                    onRemove={collection.removeItem}
-                    onOverrideValue={collection.overrideValue}
-                    sealedItems={sealed.items}
-                    onAddSealed={sealed.addItem}
-                    onUpdateSealed={sealed.updateItem}
-                    onRemoveSealed={sealed.removeItem}
-                    onOverrideSealedValue={sealed.overrideValue}
-                    checklists={setChecklists.checklists}
-                    cardsByChecklist={setChecklists.cardsByChecklist}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSection("anadir")}
-                    aria-label="Añadir carta o caja"
-                    className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
-                    style={{ background: "var(--hero-gradient)" }}
-                  >
-                    +
-                  </button>
-                </>
               )}
               {section === "wishlist" && (
                 <WishlistScreen

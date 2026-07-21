@@ -22,10 +22,10 @@ export default defineConfig({
       cwd: "backend",
       port: BACKEND_PORT,
       reuseExistingServer: !process.env.CI,
-      // OLLAMA_BASE_URL vacío fuerza el proveedor de visión fake (determinista, sin
-      // red), aunque el .env local del desarrollador tenga Ollama configurado —
-      // mismo criterio que "nous" para que el E2E no dependa de qué haya corriendo.
-      env: { PORT: String(BACKEND_PORT), DATABASE_URL: process.env.TEST_DATABASE_URL ?? "", OLLAMA_BASE_URL: "" },
+      // POKEMON_TCG_PROVIDER=fake fuerza el proveedor de sets fake (determinista, sin
+      // red) — el real tiene ~45% de error y ~8s de latencia media, haría el E2E lento
+      // y no determinista.
+      env: { PORT: String(BACKEND_PORT), DATABASE_URL: process.env.TEST_DATABASE_URL ?? "", POKEMON_TCG_PROVIDER: "fake" },
     },
     {
       command: `npx vite --port ${FRONTEND_PORT}`,

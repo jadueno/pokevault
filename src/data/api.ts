@@ -7,10 +7,10 @@ import type {
   NewWishlistItem,
   PlanItem,
   PlanSettings,
-  RecognizedCardData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
+  SetSearchCandidate,
   WishlistItem,
 } from "../domain/types";
 
@@ -47,12 +47,6 @@ export function createCrudClient<T, TNew>(path: string) {
     update: (id: string, entity: TNew) => request<T>(`${path}/${id}`, { method: "PUT", body: JSON.stringify(entity) }),
     remove: (id: string) => request<void>(`${path}/${id}`, { method: "DELETE" }),
   };
-}
-
-// ---- Reconocimiento de fotos: nunca da de alta nada, solo sugiere datos a revisar ----
-
-export function recognizeCard<T = RecognizedCardData>(imageDataUrl: string): Promise<T> {
-  return request("/card-recognition", { method: "POST", body: JSON.stringify({ imageDataUrl }) });
 }
 
 // ---- Colección ----
@@ -99,7 +93,7 @@ export function updatePlanSettings<T>(entity: PlanSettings): Promise<T> {
   return request("/plan-settings", { method: "PUT", body: JSON.stringify(entity) });
 }
 
-// ---- Checklist de set (solo lectura — se sincroniza con un script puntual, no en vivo) ----
+// ---- Checklist de set (búsqueda + sincronización explícita, nunca en segundo plano) ----
 
 export function getSetChecklists<T = SetChecklist[]>(): Promise<T> {
   return request("/set-checklists");
@@ -107,4 +101,16 @@ export function getSetChecklists<T = SetChecklist[]>(): Promise<T> {
 
 export function getSetChecklistCards<T = SetChecklistCard[]>(checklistId: string): Promise<T> {
   return request(`/set-checklists/${checklistId}/cards`);
+}
+
+export function searchSets<T = SetSearchCandidate[]>(query: string): Promise<T> {
+  return request(`/set-search?q=${encodeURIComponent(query)}`);
+}
+
+export function createSetChecklist<T = SetChecklist>(externalSetId: string, setNameEs: string | null): Promise<T> {
+  return request("/set-checklists", { method: "POST", body: JSON.stringify({ externalSetId, setNameEs }) });
+}
+
+export function resyncSetChecklist<T = SetChecklist>(checklistId: string): Promise<T> {
+  return request(`/set-checklists/${checklistId}/resync`, { method: "POST" });
 }

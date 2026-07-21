@@ -32,10 +32,9 @@ export type CardCondition = "mint" | "near_mint" | "excellent" | "good" | "light
 export type AcquisitionType = "purchased_single" | "pulled_from_pack" | "trade" | "gift";
 
 /** Un ejemplar físico que posee el usuario, con sus propios datos (no hay catálogo
- * externo: ver domain/ports.ts VisualMatchProvider — los datos vienen de reconocer una
- * foto, y siempre se revisan/editan a mano antes de guardar). La misma carta puede tener
- * varias filas (distinto idioma, estado, graduación...), cada una con su propio
- * historial de compra. */
+ * externo salvo el checklist de set opcional, ver SetChecklist más abajo — el resto se
+ * rellena a mano). La misma carta puede tener varias filas (distinto idioma, estado,
+ * graduación...), cada una con su propio historial de compra. */
 export interface CollectionItem {
   id: string;
   name: string;
@@ -98,20 +97,6 @@ export interface CollectionSummary {
   totalInvested: number;
 }
 
-// ---- Reconocimiento de cartas/producto a partir de una foto ----
-// Ver domain/ports.ts VisualMatchProvider. Nunca se da de alta nada automáticamente: el
-// resultado siempre se muestra en un formulario para revisar/editar antes de guardar.
-
-export type RecognitionConfidence = "high" | "medium" | "low";
-
-export interface RecognizedCardData {
-  name: string | null;
-  setName: string | null;
-  number: string | null;
-  rarity: string | null;
-  confidence: RecognitionConfidence | null;
-}
-
 // ---- Plan de compra mensual ----
 // Lista de tareas de texto libre, distinta de la wishlist: la mayoría de ítems del plan
 // real del usuario no son una carta de catálogo concreta (accesorios, cantidades por
@@ -154,9 +139,10 @@ export interface PlanSettings {
 }
 
 // ---- Checklist de set (referencia, no catálogo en vivo) ----
-// Se rellena con un script puntual (ver syncSetChecklist.ts), nunca en una petición de
-// usuario. "¿qué cartas tiene este set y cuáles me faltan?" se calcula en el frontend
-// comparando esto con collection_items (freeform) por número de carta.
+// Se sincroniza explícitamente (buscar el set → elegirlo → descargar sus cartas, ver
+// domain/ports.ts PokemonTcgProvider), nunca en segundo plano. "¿qué cartas tiene este
+// set y cuáles me faltan?" se calcula en el frontend comparando esto con
+// collection_items (freeform) por número de carta.
 
 export interface SetChecklist {
   id: string;
@@ -178,4 +164,7 @@ export interface SetChecklistCard {
   /** Resolución mayor del mismo proveedor, para el visor a pantalla completa — sin esto,
    * ampliar la miniatura se vería pixelado. */
   imageUrlLarge: string | null;
+  /** Precio de referencia de Cardmarket en euros, del momento de la sincronización — ver
+   * la migración 1784000000013. `null` si el proveedor no tenía precio para esa carta. */
+  referencePrice: number | null;
 }

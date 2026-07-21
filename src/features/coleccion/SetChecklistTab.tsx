@@ -1,10 +1,118 @@
 import { useState } from "react";
-import type { CollectionItem, SetChecklist, SetChecklistCard } from "../../domain/types";
-import { computeSetChecklistCompletion } from "../../domain/calculations";
+import type { CollectionItem, NewCollectionItem, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
+import { computeSetChecklistCompletion, formatMoney } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
-import { focusRing } from "../../components/Field";
+import { focusRing, inputClass } from "../../components/Field";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
+
+/** Buscar un set nuevo en el proveedor y elegir de la lista de candidatos, en vez de
+ * adivinar el set a partir de texto libre — comprobado en vivo: el proveedor solo tiene
+ * nombres en inglés, así que buscar en español no encuentra nada. El alias en español se
+ * autorrellena con lo que se ha buscado, para que la próxima carta de este set se
+ * relacione en local aunque se escriba distinto al nombre oficial. */
+function SetSearchPanel({
+  checklists,
+  onSearch,
+  onSync,
+}: {
+  checklists: SetChecklist[];
+  onSearch: (query: string) => Promise<SetSearchCandidate[]>;
+  onSync: (externalSetId: string, setNameEs: string | null) => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<SetSearchCandidate[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const syncedIds = new Set(checklists.map((c) => c.externalSetId));
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    setError(null);
+    try {
+      setResults(await onSearch(q));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se ha podido buscar");
+      setResults(null);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleSync(candidate: SetSearchCandidate) {
+    setSyncingId(candidate.externalSetId);
+    try {
+      await onSync(candidate.externalSetId, query.trim() || null);
+      setResults(null);
+      setQuery("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se ha podido añadir el set");
+    } finally {
+      setSyncingId(null);
+    }
+  }
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <p className="text-sm font-bold text-[var(--text-primary)]">Buscar un set nuevo</p>
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <input
+          className={inputClass}
+          placeholder="Nombre en inglés, p. ej. Pitch Black"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <Button type="submit" variant="tint" disabled={searching} className="shrink-0">
+          {searching ? "Buscando…" : "Buscar"}
+        </Button>
+      </form>
+      {error && <p className="text-sm text-[var(--status-critical)]">{error}</p>}
+      {results && results.length === 0 && (
+        <p className="text-sm text-[var(--text-muted)]">
+          Sin resultados. El proveedor solo tiene nombres en inglés — prueba con el nombre en inglés del set.
+        </p>
+      )}
+      {results && results.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {results.map((candidate) => {
+            const already = syncedIds.has(candidate.externalSetId);
+            return (
+              <li
+                key={candidate.externalSetId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-[var(--text-primary)]">{candidate.name}</p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {candidate.totalCards} cartas{candidate.releaseDate ? ` · ${candidate.releaseDate}` : ""}
+                  </p>
+                </div>
+                {already ? (
+                  <span className="shrink-0 text-xs text-[var(--text-muted)]">Ya lo tienes</span>
+                ) : (
+                  <Button
+                    size="sm"
+                    tone="beacon"
+                    disabled={syncingId === candidate.externalSetId}
+                    onClick={() => handleSync(candidate)}
+                    className="shrink-0"
+                  >
+                    {syncingId === candidate.externalSetId ? "Añadiendo…" : "Añadir este set"}
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
 
 function ChecklistSummaryCard({
   checklist,
@@ -12,17 +120,29 @@ function ChecklistSummaryCard({
   collectionItems,
   expanded,
   onToggle,
+  onResync,
 }: {
   checklist: SetChecklist;
   cards: SetChecklistCard[] | undefined;
   collectionItems: CollectionItem[];
   expanded: boolean;
   onToggle: () => void;
+  onResync: (checklistId: string) => Promise<void>;
 }) {
+  const [resyncing, setResyncing] = useState(false);
   const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
   const ownedCount = completion?.owned.length ?? null;
   const total = checklist.totalCards;
   const pct = ownedCount !== null && total > 0 ? Math.round((ownedCount / total) * 100) : 0;
+
+  async function handleResync() {
+    setResyncing(true);
+    try {
+      await onResync(checklist.id);
+    } finally {
+      setResyncing(false);
+    }
+  }
 
   return (
     <Card variant="gradient" className="flex flex-col gap-3">
@@ -48,53 +168,110 @@ function ChecklistSummaryCard({
         </div>
       </div>
 
-      <Button variant="tint" size="sm" onClick={onToggle}>
-        {expanded ? "Ocultar" : "Ver el set completo"}
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="tint" size="sm" onClick={onToggle} className="flex-1">
+          {expanded ? "Ocultar" : "Ver el set completo"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleResync}
+          disabled={resyncing}
+          aria-label={`Actualizar ${checklist.setNameEs ?? checklist.setName}`}
+          title="Volver a traer las cartas de este set (rellena precio si no lo tenía)"
+        >
+          {resyncing ? "…" : "🔄"}
+        </Button>
+      </div>
     </Card>
   );
 }
 
-function ChecklistCardThumb({ card, owned, onZoom }: { card: SetChecklistCard; owned: boolean; onZoom: () => void }) {
+function ChecklistCardThumb({
+  card,
+  owned,
+  onZoom,
+  selecting,
+  selected,
+  onToggleSelect,
+}: {
+  card: SetChecklistCard;
+  owned: boolean;
+  onZoom: () => void;
+  selecting: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
+}) {
   const [failed, setFailed] = useState(false);
+  const hasImage = !!card.imageUrl && !failed;
+  // Solo se pueden marcar las que faltan — una que ya tienes se añade de nuevo (duplicado)
+  // desde el alta manual normal, no desde aquí.
+  const canSelect = selecting && !owned;
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      {card.imageUrl && !failed ? (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-full">
         <button
           type="button"
-          onClick={onZoom}
-          aria-label={`Ver ${card.name} en grande`}
-          className={`w-full rounded-xl ${focusRing}`}
+          onClick={canSelect ? onToggleSelect : hasImage ? onZoom : undefined}
+          disabled={!canSelect && !hasImage}
+          aria-label={canSelect ? `Marcar ${card.name} como mía` : `Ver ${card.name} en grande`}
+          aria-pressed={canSelect ? selected : undefined}
+          className={`w-full rounded-xl ${focusRing} disabled:cursor-default`}
         >
-          <img
-            src={card.imageUrl}
-            alt={card.name}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            onError={() => setFailed(true)}
-            // Blanco y negro (algo más tenue) para las que faltan, a color para las que
-            // ya tienes — se distingue de un vistazo sin tener que leer nada.
-            className={`w-full cursor-zoom-in rounded-xl border border-[var(--border)] shadow-card transition-all hover:scale-105 ${
-              owned ? "" : "opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
-            }`}
-          />
+          {hasImage ? (
+            <img
+              src={card.imageUrl!}
+              alt={card.name}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={() => setFailed(true)}
+              // Blanco y negro (algo más tenue) para las que faltan, a color para las que
+              // ya tienes — se distingue de un vistazo sin tener que leer nada.
+              className={`w-full rounded-xl border shadow-card transition-all ${
+                canSelect ? "cursor-pointer" : "cursor-zoom-in hover:scale-105"
+              } ${owned ? "border-[var(--border)]" : "opacity-60 grayscale hover:opacity-100 hover:grayscale-0"} ${
+                selected ? "border-2 border-[var(--beacon)]" : ""
+              }`}
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className={`flex aspect-[5/7] w-full items-center justify-center rounded-xl border text-3xl text-[var(--text-muted)] ${
+                selected ? "border-2 border-[var(--beacon)]" : "border-dashed border-[var(--border)]"
+              } ${owned ? "" : "opacity-60"}`}
+            >
+              🎴
+            </div>
+          )}
         </button>
-      ) : (
-        <div
-          aria-hidden="true"
-          className={`flex aspect-[5/7] w-full items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-3xl text-[var(--text-muted)] ${
-            owned ? "" : "opacity-60"
-          }`}
-        >
-          🎴
-        </div>
-      )}
+        {canSelect && (
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute top-1.5 left-1.5 flex size-5 items-center justify-center rounded-full border-2 text-xs font-bold ${
+              selected ? "border-[var(--beacon)] bg-[var(--beacon)] text-[var(--on-beacon)]" : "border-white bg-black/40"
+            }`}
+          >
+            {selected ? "✓" : ""}
+          </span>
+        )}
+      </div>
       <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
       <span className="text-xs tabular-nums text-[var(--text-muted)]">#{card.number}</span>
+      {card.referencePrice !== null && (
+        <span className="text-xs font-semibold text-[var(--amber)]">≈{formatMoney(card.referencePrice)}</span>
+      )}
     </div>
   );
 }
+
+type SetCardsFilter = "all" | "owned" | "missing";
+
+const FILTERS: { id: SetCardsFilter; label: string }[] = [
+  { id: "all", label: "Todas" },
+  { id: "owned", label: "Que tengo" },
+  { id: "missing", label: "Que me faltan" },
+];
 
 /** Todo el set (tuyas y las que faltan), a ancho completo — no metido dentro de la
  * tarjeta estrecha del set, para que las imágenes puedan ser grandes de verdad. */
@@ -103,33 +280,150 @@ function SetCardsGrid({
   cards,
   collectionItems,
   onZoom,
+  onMarkOwned,
 }: {
   checklist: SetChecklist;
   cards: SetChecklistCard[] | undefined;
   collectionItems: CollectionItem[];
   onZoom: (card: SetChecklistCard) => void;
+  onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
 }) {
+  const [filter, setFilter] = useState<SetCardsFilter>("all");
+  const [query, setQuery] = useState("");
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [marking, setMarking] = useState(false);
+
   const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
   const ownedIds = new Set(completion?.owned.map((c) => c.id) ?? []);
 
+  const q = query.trim().toLowerCase();
+  const visibleCards = (cards ?? []).filter((card) => {
+    if (filter === "owned" && !ownedIds.has(card.id)) return false;
+    if (filter === "missing" && ownedIds.has(card.id)) return false;
+    if (q && !card.name.toLowerCase().includes(q) && !card.number.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  function toggleSelected(cardId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }
+
+  async function handleMarkOwned() {
+    const selectedCards = (cards ?? []).filter((c) => selectedIds.has(c.id));
+    if (selectedCards.length === 0) return;
+    setMarking(true);
+    try {
+      const now = new Date().toISOString();
+      await onMarkOwned(
+        selectedCards.map((card) => ({
+          name: card.name,
+          setName: checklist.setNameEs ?? checklist.setName,
+          number: `${card.number}/${checklist.totalCards}`,
+          rarity: card.rarity,
+          language: "es",
+          condition: "near_mint",
+          quantity: 1,
+          acquisitionType: "purchased_single",
+          sealedPurchaseId: null,
+          purchasePrice: null,
+          purchaseCurrency: "EUR",
+          purchaseDate: null,
+          isGraded: false,
+          gradingCompany: null,
+          grade: null,
+          estimatedValueOverride: card.referencePrice,
+          estimatedValueOverrideAt: card.referencePrice !== null ? now : null,
+          estimatedValueOverrideNote: card.referencePrice !== null ? "Precio de referencia de Cardmarket (set sincronizado)" : null,
+          notes: null,
+          photo: card.imageUrlLarge ?? card.imageUrl,
+        })),
+      );
+      setSelectedIds(new Set());
+      setSelecting(false);
+    } finally {
+      setMarking(false);
+    }
+  }
+
   return (
     <Card className="flex flex-col gap-4">
-      <p className="font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">
-        {checklist.setNameEs ?? checklist.setName}
-        {completion && (
-          <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">
-            {completion.owned.length}/{cards?.length ?? checklist.totalCards} tuyas
-          </span>
-        )}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">
+          {checklist.setNameEs ?? checklist.setName}
+          {completion && (
+            <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">
+              {completion.owned.length}/{cards?.length ?? checklist.totalCards} tuyas
+            </span>
+          )}
+        </p>
+        <Button
+          variant={selecting ? "solid" : "tint"}
+          tone={selecting ? "critical" : "ink"}
+          size="sm"
+          onClick={() => {
+            setSelecting(!selecting);
+            setSelectedIds(new Set());
+          }}
+        >
+          {selecting ? "Cancelar selección" : "Seleccionar varias"}
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={`rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap transition-colors ${
+                filter === f.id ? "text-[var(--beacon)]" : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
+              }`}
+              style={filter === f.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 16%, transparent)" } : undefined}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <input
+          className={`${inputClass} max-w-56 py-1.5 text-sm`}
+          placeholder="Buscar por número o nombre…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
       {cards === undefined ? (
         <p className="text-sm text-[var(--text-muted)]">Cargando…</p>
+      ) : visibleCards.length === 0 ? (
+        <p className="text-sm text-[var(--text-muted)]">Sin resultados para ese filtro/búsqueda.</p>
       ) : (
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-          {cards.map((card) => (
-            <ChecklistCardThumb key={card.id} card={card} owned={ownedIds.has(card.id)} onZoom={() => onZoom(card)} />
+          {visibleCards.map((card) => (
+            <ChecklistCardThumb
+              key={card.id}
+              card={card}
+              owned={ownedIds.has(card.id)}
+              onZoom={() => onZoom(card)}
+              selecting={selecting}
+              selected={selectedIds.has(card.id)}
+              onToggleSelect={() => toggleSelected(card.id)}
+            />
           ))}
+        </div>
+      )}
+
+      {selecting && selectedIds.size > 0 && (
+        <div className="sticky bottom-4 flex justify-center">
+          <Button tone="beacon" disabled={marking} onClick={handleMarkOwned}>
+            {marking ? "Guardando…" : `Marcar ${selectedIds.size} como mías`}
+          </Button>
         </div>
       )}
     </Card>
@@ -140,10 +434,18 @@ export function SetChecklistTab({
   checklists,
   cardsByChecklist,
   collectionItems,
+  onSearchSets,
+  onSyncSet,
+  onResyncSet,
+  onMarkOwned,
 }: {
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
   collectionItems: CollectionItem[];
+  onSearchSets: (query: string) => Promise<SetSearchCandidate[]>;
+  onSyncSet: (externalSetId: string, setNameEs: string | null) => Promise<void>;
+  onResyncSet: (checklistId: string) => Promise<void>;
+  onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // Vive aquí (no dentro de SetCardsGrid) y el <PhotoLightbox> se renderiza fuera de
@@ -154,41 +456,45 @@ export function SetChecklistTab({
   // visores de la app (siempre como hermano de la tarjeta, nunca dentro).
   const [zoomedCard, setZoomedCard] = useState<SetChecklistCard | null>(null);
 
-  if (checklists.length === 0) {
-    return (
-      <Card>
-        <p className="text-sm text-[var(--text-muted)]">
-          📋 Todavía no has sincronizado ningún set. Pide que sincronice uno (p. ej. "sincroniza Oscuridad Absoluta") para ver qué
-          cartas te faltan.
-        </p>
-      </Card>
-    );
-  }
-
   const expandedChecklist = checklists.find((c) => c.id === expandedId);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {checklists.map((checklist) => (
-          <ChecklistSummaryCard
-            key={checklist.id}
-            checklist={checklist}
-            cards={cardsByChecklist[checklist.id]}
-            collectionItems={collectionItems}
-            expanded={expandedId === checklist.id}
-            onToggle={() => setExpandedId(expandedId === checklist.id ? null : checklist.id)}
-          />
-        ))}
-      </div>
+      <SetSearchPanel checklists={checklists} onSearch={onSearchSets} onSync={onSyncSet} />
 
-      {expandedChecklist && (
-        <SetCardsGrid
-          checklist={expandedChecklist}
-          cards={cardsByChecklist[expandedChecklist.id]}
-          collectionItems={collectionItems}
-          onZoom={setZoomedCard}
-        />
+      {checklists.length === 0 ? (
+        <Card>
+          <p className="text-sm text-[var(--text-muted)]">
+            📋 Todavía no has sincronizado ningún set. Búscalo arriba y añádelo para ver qué cartas tiene y marcar las que ya son
+            tuyas.
+          </p>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {checklists.map((checklist) => (
+              <ChecklistSummaryCard
+                key={checklist.id}
+                checklist={checklist}
+                cards={cardsByChecklist[checklist.id]}
+                collectionItems={collectionItems}
+                expanded={expandedId === checklist.id}
+                onToggle={() => setExpandedId(expandedId === checklist.id ? null : checklist.id)}
+                onResync={onResyncSet}
+              />
+            ))}
+          </div>
+
+          {expandedChecklist && (
+            <SetCardsGrid
+              checklist={expandedChecklist}
+              cards={cardsByChecklist[expandedChecklist.id]}
+              collectionItems={collectionItems}
+              onZoom={setZoomedCard}
+              onMarkOwned={onMarkOwned}
+            />
+          )}
+        </>
       )}
 
       {zoomedCard && (

@@ -3,11 +3,11 @@ import { compressImage } from "../data/imageCapture";
 import { focusRing } from "./Field";
 import { PhotoLightbox } from "./PhotoLightbox";
 
-/** Control de foto reutilizable: miniatura + añadir/cambiar/quitar. Mismo helper de
- * compresión que usa "Añadir" (PhotoCapture), así que el peso guardado es el mismo
- * tanto si la foto viene del flujo de reconocimiento como si se adjunta aquí directamente.
- * Clic en la miniatura abre la foto a tamaño completo (PhotoLightbox), separado de los
- * botones de cambiar/quitar para no confundir "ver" con "editar". */
+/** Control de foto reutilizable: miniatura + añadir/cambiar/quitar (foto adjunta a mano,
+ * p. ej. de un producto sellado o una carta que no coincide con ningún set sincronizado —
+ * no hay reconocimiento automático). Clic en la miniatura abre la foto a tamaño completo
+ * (PhotoLightbox), separado de los botones de cambiar/quitar para no confundir "ver" con
+ * "editar". */
 export function PhotoField({
   label = "Foto",
   photo,

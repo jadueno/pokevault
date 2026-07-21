@@ -84,16 +84,6 @@ export interface CollectionSummary {
   totalInvested: number;
 }
 
-export type RecognitionConfidence = "high" | "medium" | "low";
-
-export interface RecognizedCardData {
-  name: string | null;
-  setName: string | null;
-  number: string | null;
-  rarity: string | null;
-  confidence: RecognitionConfidence | null;
-}
-
 export type PlanCategory = "comprar" | "guardar_sellado";
 
 export interface PlanItem {
@@ -128,9 +118,9 @@ export interface PlanSettings {
 }
 
 // ---- Checklist de set (referencia, no catálogo en vivo) ----
-// Se rellena con un script puntual del lado del backend, nunca con una llamada en vivo
-// desde el frontend. "¿qué me falta de este set?" se calcula aquí comparando esto con
-// la colección (freeform) por número de carta.
+// Se sincroniza explícitamente (buscar el set → elegirlo → descargar sus cartas, desde la
+// pestaña "Sets" de Mi colección), nunca en segundo plano. "¿qué me falta de este set?" se
+// calcula aquí comparando esto con la colección (freeform) por número de carta.
 
 export interface SetChecklist {
   id: string;
@@ -151,4 +141,16 @@ export interface SetChecklistCard {
   imageUrl: string | null;
   /** Resolución mayor del mismo proveedor, para el visor a pantalla completa. */
   imageUrlLarge: string | null;
+  /** Precio de referencia de Cardmarket en euros, del momento de la sincronización.
+   * `null` si el proveedor no tenía precio para esa carta. */
+  referencePrice: number | null;
+}
+
+/** Un set encontrado al buscar en el proveedor, todavía sin sincronizar — solo para
+ * elegir de una lista antes de confirmar la descarga. */
+export interface SetSearchCandidate {
+  externalSetId: string;
+  name: string;
+  totalCards: number;
+  releaseDate: string | null;
 }

@@ -7,6 +7,7 @@ import type {
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
+  SetSearchCandidate,
 } from "../../domain/types";
 import { costPerCard, countLinkedCollectionItems, formatMoney } from "../../domain/calculations";
 import { Badge, badgeToneColors, type BadgeTone } from "../../components/Badge";
@@ -18,7 +19,7 @@ import { Modal } from "../../components/Modal";
 import { PhotoField } from "../../components/PhotoField";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { ScreenHeader } from "../../components/ScreenHeader";
-import { CollectionQuickForm } from "../anadir/CollectionQuickForm";
+import { CollectionQuickForm } from "./CollectionQuickForm";
 import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
 import { SetChecklistTab } from "./SetChecklistTab";
 
@@ -356,6 +357,7 @@ function SealedItemCard({
 
 export function ColeccionScreen({
   items,
+  onAddItem,
   onUpdateItem,
   onRemove,
   onOverrideValue,
@@ -366,8 +368,13 @@ export function ColeccionScreen({
   onOverrideSealedValue,
   checklists,
   cardsByChecklist,
+  onSearchSets,
+  onSyncSet,
+  onResyncSet,
+  onMarkOwned,
 }: {
   items: CollectionItem[];
+  onAddItem: (entity: NewCollectionItem) => Promise<void>;
   onUpdateItem: (id: string, entity: NewCollectionItem) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onOverrideValue: (id: string, value: number, note: string | null) => Promise<void>;
@@ -378,8 +385,13 @@ export function ColeccionScreen({
   onOverrideSealedValue: (id: string, value: number, note: string | null) => Promise<void>;
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
+  onSearchSets: (query: string) => Promise<SetSearchCandidate[]>;
+  onSyncSet: (externalSetId: string, setNameEs: string | null) => Promise<void>;
+  onResyncSet: (checklistId: string) => Promise<void>;
+  onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
   const [showSealedForm, setShowSealedForm] = useState(false);
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
@@ -411,8 +423,12 @@ export function ColeccionScreen({
         }
       />
 
-      {(!isEmpty || checklists.length > 0) && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {
+        // Las pestañas se muestran siempre, incluso sin nada todavía: "Sets" es ahora la
+        // vía principal de alta de cartas, así que tiene que poder alcanzarse desde una
+        // colección vacía (antes se ocultaban por completo hasta tener algo).
+      }
+      <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex w-fit gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
             {(
               [
@@ -437,13 +453,12 @@ export function ColeccionScreen({
               </button>
             ))}
           </div>
-          {tab === "sellado" && (
-            <Button tone="beacon" onClick={() => setShowSealedForm(true)}>
-              + Añadir compra sellada
-            </Button>
-          )}
-        </div>
-      )}
+        {tab === "sellado" && (
+          <Button tone="beacon" onClick={() => setShowSealedForm(true)}>
+            + Añadir compra sellada
+          </Button>
+        )}
+      </div>
 
       {!isEmpty && tab !== "sets" && (
         <div className="relative max-w-sm">
@@ -483,7 +498,6 @@ export function ColeccionScreen({
       {editingItem && (
         <Modal title="Editar carta" onClose={() => setEditingItem(null)}>
           <CollectionQuickForm
-            recognized={null}
             initialItem={editingItem}
             sealedItems={sealedItems}
             collectionItems={items}
@@ -498,10 +512,27 @@ export function ColeccionScreen({
         </Modal>
       )}
 
-      {isEmpty && checklists.length === 0 ? (
+      {showAddForm && (
+        <Modal title="Añadir carta suelta" onClose={() => setShowAddForm(false)}>
+          <CollectionQuickForm
+            sealedItems={sealedItems}
+            collectionItems={items}
+            checklists={checklists}
+            cardsByChecklist={cardsByChecklist}
+            onSubmit={async (entity) => {
+              await onAddItem(entity);
+              setShowAddForm(false);
+            }}
+            onCancel={() => setShowAddForm(false)}
+          />
+        </Modal>
+      )}
+
+      {isEmpty && checklists.length === 0 && tab !== "sets" ? (
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
-            🎴 Todavía no has añadido nada a tu colección. Ve a "Añadir" para empezar.
+            🎴 Todavía no has añadido nada a tu colección. Busca un set en la pestaña "Sets" para marcar tus cartas, o usa el botón
+            "+" para una carta suelta.
           </p>
         </Card>
       ) : tab === "cartas" ? (
@@ -549,7 +580,27 @@ export function ColeccionScreen({
           </div>
         )
       ) : (
-        <SetChecklistTab checklists={checklists} cardsByChecklist={cardsByChecklist} collectionItems={items} />
+        <SetChecklistTab
+          checklists={checklists}
+          cardsByChecklist={cardsByChecklist}
+          collectionItems={items}
+          onSearchSets={onSearchSets}
+          onSyncSet={onSyncSet}
+          onResyncSet={onResyncSet}
+          onMarkOwned={onMarkOwned}
+        />
+      )}
+
+      {tab === "cartas" && (
+        <button
+          type="button"
+          onClick={() => setShowAddForm(true)}
+          aria-label="Añadir carta suelta"
+          className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
+          style={{ background: "var(--hero-gradient)" }}
+        >
+          +
+        </button>
       )}
     </div>
   );

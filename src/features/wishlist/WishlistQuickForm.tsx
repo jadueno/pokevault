@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { NewWishlistItem, RecognizedCardData, WishlistPriority } from "../../domain/types";
+import type { NewWishlistItem, WishlistPriority } from "../../domain/types";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 import { PhotoField } from "../../components/PhotoField";
@@ -11,24 +11,20 @@ const PRIORITIES: { value: WishlistPriority; label: string }[] = [
 ];
 
 export function WishlistQuickForm({
-  recognized,
-  photo,
   onSubmit,
   onCancel,
 }: {
-  recognized: RecognizedCardData | null;
-  photo: string | null;
   onSubmit: (entity: NewWishlistItem) => Promise<void>;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<NewWishlistItem>({
-    name: recognized?.name ?? "",
-    setName: recognized?.setName ?? null,
+    name: "",
+    setName: null,
     priority: "medium",
     maxPrice: null,
     targetMonth: null,
     notes: null,
-    photo,
+    photo: null,
   });
   const [saving, setSaving] = useState(false);
 

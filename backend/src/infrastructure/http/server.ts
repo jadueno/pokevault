@@ -3,13 +3,12 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { Pool } from "pg";
-import type { VisualMatchProvider } from "../../domain/ports.js";
+import type { PokemonTcgProvider } from "../../domain/ports.js";
 import { registerAuth } from "./auth.js";
 import { registerCollectionRoutes } from "./collectionRoutes.js";
 import { registerWishlistRoutes } from "./wishlistRoutes.js";
 import { registerSealedPurchaseRoutes } from "./sealedPurchaseRoutes.js";
 import { registerPlanRoutes } from "./planRoutes.js";
-import { registerRecognitionRoutes } from "./recognitionRoutes.js";
 import { registerSetChecklistRoutes } from "./setChecklistRoutes.js";
 import { createCollectionItemRepository } from "../db/repositories/collectionItemRepository.js";
 import { createWishlistItemRepository } from "../db/repositories/wishlistItemRepository.js";
@@ -22,7 +21,6 @@ import { createWishlistItemUseCases } from "../../application/wishlistItems.js";
 import { createSealedPurchaseUseCases } from "../../application/sealedPurchases.js";
 import { createPlanItemUseCases } from "../../application/planItems.js";
 import { createPlanSettingsUseCases } from "../../application/planSettings.js";
-import { createCardRecognitionUseCases } from "../../application/cardRecognition.js";
 import { createSetChecklistUseCases } from "../../application/setChecklists.js";
 
 export interface BuildServerOptions {
@@ -30,12 +28,12 @@ export interface BuildServerOptions {
   apiToken?: string;
 }
 
-export async function buildServer(pool: Pool, visionProvider: VisualMatchProvider, options: BuildServerOptions = {}) {
+export async function buildServer(pool: Pool, pokemonTcgProvider: PokemonTcgProvider, options: BuildServerOptions = {}) {
   const app = Fastify({
     logger: options.logger ?? true,
-    // Fotos como data URL en el body de /card-recognition: el límite por defecto (1MB)
-    // se queda corto. El frontend ya comprime la imagen antes de enviarla, este límite
-    // es solo una red de seguridad generosa, no el tamaño esperado habitual.
+    // Fotos como data URL en el body de cartas/producto sellado: el límite por defecto
+    // (1MB) se queda corto. El frontend ya comprime la imagen antes de enviarla, este
+    // límite es solo una red de seguridad generosa, no el tamaño esperado habitual.
     bodyLimit: 8 * 1024 * 1024,
   });
   // CSP desactivada a propósito: esta API solo devuelve JSON, nunca HTML/JS, así que
@@ -62,14 +60,12 @@ export async function buildServer(pool: Pool, visionProvider: VisualMatchProvide
   const sealedPurchaseUseCases = createSealedPurchaseUseCases(sealedPurchaseRepository);
   const planItemUseCases = createPlanItemUseCases(planItemRepository);
   const planSettingsUseCases = createPlanSettingsUseCases(planSettingsRepository);
-  const cardRecognitionUseCases = createCardRecognitionUseCases(visionProvider);
-  const setChecklistUseCases = createSetChecklistUseCases(setChecklistRepository);
+  const setChecklistUseCases = createSetChecklistUseCases(setChecklistRepository, pokemonTcgProvider);
 
   registerCollectionRoutes(app, collectionItemUseCases);
   registerWishlistRoutes(app, wishlistItemUseCases);
   registerSealedPurchaseRoutes(app, sealedPurchaseUseCases);
   registerPlanRoutes(app, planItemUseCases, planSettingsUseCases);
-  registerRecognitionRoutes(app, cardRecognitionUseCases);
   registerSetChecklistRoutes(app, setChecklistUseCases);
 
   return app;
