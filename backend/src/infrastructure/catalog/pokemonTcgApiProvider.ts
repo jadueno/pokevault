@@ -42,7 +42,11 @@ function toCardData(card: RawCard) {
 export function createPokemonTcgApiProvider(): PokemonTcgProvider {
   return {
     async searchSets(query: string): Promise<PokemonTcgSetCandidate[]> {
-      const q = encodeURIComponent(`name:*${query}*`);
+      // El comodín SIN comillas (`name:*Black Bolt*`) da 400 en cuanto el nombre tiene
+      // más de una palabra — comprobado en vivo. Con la frase entrecomillada y los
+      // asteriscos dentro de las comillas (`name:"*Black Bolt*"`) funciona igual para
+      // una palabra o varias.
+      const q = encodeURIComponent(`name:"*${query}*"`);
       const { data } = await fetchJson<{ data: RawSet[] }>(`${API_BASE}/sets?q=${q}`);
       return data.map((set) => ({
         externalSetId: set.id,
