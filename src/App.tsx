@@ -16,14 +16,14 @@ type Section = "dashboard" | "coleccion" | "wishlist" | "plan";
 // usuario, la colección es todo, tanto cartas como cajas). Tampoco hay una sección
 // "Añadir": cada destino (cartas, wishlist, sellado) tiene su propio botón "+" directo.
 const sections: { id: Section; label: string }[] = [
-  { id: "plan", label: "Plan" },
   { id: "coleccion", label: "Mi colección" },
+  { id: "plan", label: "Plan" },
   { id: "wishlist", label: "Wishlist" },
   { id: "dashboard", label: "Resumen" },
 ];
 
 export default function App() {
-  const [section, setSection] = useState<Section>("plan");
+  const [section, setSection] = useState<Section>("coleccion");
   const collection = useCollectionData();
   const wishlist = useWishlistData();
   const sealed = useSealedData();
