@@ -111,7 +111,11 @@ export default function App() {
         ))}
       </nav>
 
-      <main className="relative flex-1 p-4 pb-28 sm:p-8 sm:pb-12">
+      {/* pt- explícito en vez de heredar del p-4/sm:p-8 general: con viewport-fit=cover
+          (index.html) el contenido se extiende debajo de la barra de estado/notch, así
+          que hace falta sumar env(safe-area-inset-top) al hueco de siempre o el título de
+          cabecera queda tapado por la hora/batería al desplazarse hasta arriba del todo. */}
+      <main className="relative flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-28 sm:px-8 sm:pt-[calc(env(safe-area-inset-top)+2rem)] sm:pb-12">
         <div className="mx-auto max-w-6xl">
           {error && (
             <div

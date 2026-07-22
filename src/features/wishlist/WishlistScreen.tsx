@@ -174,7 +174,7 @@ export function WishlistScreen({
         type="button"
         onClick={() => setShowForm(true)}
         aria-label="Añadir deseo a la wishlist"
-        className="fixed right-4 bottom-24 z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
+        className="fixed right-4 bottom-[var(--nav-clearance)] z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
         style={{ background: "var(--hero-gradient)" }}
       >
         +

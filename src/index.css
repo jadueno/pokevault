@@ -66,6 +66,14 @@
   --on-status-neutral: #ffffff;
 
   --shadow-tint: 0, 0, 0;
+
+  /* Alto real del menú inferior flotante en móvil (icono p-2.5 + size-6 ⇒ 44px de botón,
+     dentro de un contenedor py-2 ⇒ 60px de píldora, más el mb-3 de separación del borde)
+     más el área seguridad inferior del dispositivo (home indicator) — lo que hay que
+     dejar libre por encima para que un botón flotante (FAB, barra de acción pegajosa) no
+     quede tapado por el menú. Un solo sitio para este número: se usa en los tres botones
+     flotantes que conviven con el menú (ColeccionScreen, WishlistScreen, SetChecklistTab). */
+  --nav-clearance: calc(env(safe-area-inset-bottom) + 5.5rem);
 }
 
 html {
@@ -73,18 +81,21 @@ html {
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Solo <body> tenía fondo — normalmente el navegador "presta" el fondo de <body> para
-     pintar todo el lienzo, pero en Safari de iOS, al hacer scroll, la barra de estado
-     (hora/batería) se pinta sobre el hueco que deja la barra de direcciones al
-     colapsarse, y ese hueco no siempre hereda el fondo de <body> — aparece un tramo en
-     blanco (el blanco por defecto de <html>) en vez del crema de la app. Poniendo el
-     mismo fondo aquí también, ese hueco nunca queda del color equivocado. */
+  /* Refuerzo del fondo de <body> (ver overscroll-behavior más abajo para la causa real
+     del hueco blanco al hacer scroll): con <html> también pintado, cualquier resquicio
+     que el navegador deje ver por debajo de <body> muestra el mismo crema, nunca el
+     blanco por defecto. */
   background: var(--page);
 }
 
 body {
   margin: 0;
-  overscroll-behavior-x: none;
+  /* No solo el eje X (gesto de navegación atrás/adelante): el rebote elástico vertical de
+     iOS Safari, al estirarse más allá del contenido, deja ver el blanco nativo del propio
+     WebView por debajo del rebote — no el fondo que declara la app — durante la animación.
+     Es la causa real de la franja/hueco "más blanco" que se veía al hacer scroll, no el
+     fondo de <html>/<body> en sí (que ya estaba bien puesto). Se corta el rebote entero. */
+  overscroll-behavior: none;
   background: var(--page);
   color: var(--text-primary);
   font-feature-settings: "tnum" 1;
