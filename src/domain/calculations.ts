@@ -101,6 +101,23 @@ export function estimatePlanMonth(group: PlanMonthGroup): PlanMonthEstimate {
   return { amount, pricedCount, doneCount, totalCount };
 }
 
+/** Suma de `referencePrice` de los ítems de "comprar" ya marcados como hechos, de todos
+ * los meses — lo que el plan dice que ya has comprado de verdad, no solo lo previsto.
+ * "guardar_sellado" no cuenta (mismo motivo que en `estimatePlanMonth`: ya era tuyo, no
+ * es un gasto nuevo). Se suma al "Invertido" del Resumen porque bastantes ítems del plan
+ * (accesorios, cantidades por rareza) nunca llegan a tener su propia fila en
+ * `collection_items`/`sealed_purchases`, así que sin esto ese gasto real no se vería en
+ * ningún sitio. */
+export function totalPlanInvested(items: PlanItem[]): number {
+  let total = 0;
+  for (const item of items) {
+    if (item.category === "comprar" && item.done && item.referencePrice !== null) {
+      total += item.referencePrice;
+    }
+  }
+  return total;
+}
+
 /** Cuántas cartas físicas de la colección están vinculadas a un sobre/caja de producto
  * sellado concreto (suma `quantity`, no nº de filas — dos filas de x1 y una de x3 del mismo
  * sobre son 5 cartas, no 3 filas) — para poder repartir su coste de compra entre ellas. */

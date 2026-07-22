@@ -1,5 +1,5 @@
-import type { CollectionSummary, SealedPurchase } from "../../domain/types";
-import { formatMoney } from "../../domain/calculations";
+import type { CollectionSummary, PlanItem, SealedPurchase } from "../../domain/types";
+import { formatMoney, totalPlanInvested } from "../../domain/calculations";
 import { Card } from "../../components/Card";
 import { ScreenHeader } from "../../components/ScreenHeader";
 
@@ -18,13 +18,20 @@ function sealedValue(items: SealedPurchase[]): { value: number; invested: number
 export function DashboardScreen({
   summary,
   sealedItems,
+  planItems,
 }: {
   summary: CollectionSummary | null;
   sealedItems: SealedPurchase[];
+  planItems: PlanItem[];
 }) {
   const sealed = sealedValue(sealedItems);
+  // El plan solo aporta al invertido, nunca al valor: muchos ítems del plan (accesorios,
+  // cantidades por rareza) no tienen fila propia en collection_items/sealed_purchases con
+  // la que calcular un valor de mercado, así que sumar aquí sin un valor equivalente en
+  // el otro lado es más honesto que inventarlo — el hueco se nota en la ganancia/pérdida.
+  const planInvested = totalPlanInvested(planItems);
   const totalValue = (summary?.totalValue ?? 0) + sealed.value;
-  const totalInvested = (summary?.totalInvested ?? 0) + sealed.invested;
+  const totalInvested = (summary?.totalInvested ?? 0) + sealed.invested + planInvested;
   const gainLoss = totalValue - totalInvested;
   const itemsWithoutValue = (summary?.itemsWithoutValue ?? 0) + sealed.withoutValue;
 

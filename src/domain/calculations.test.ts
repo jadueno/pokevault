@@ -9,6 +9,7 @@ import {
   formatMoney,
   groupPlanByMonth,
   groupWishlistByMonth,
+  totalPlanInvested,
 } from "./calculations";
 
 function planItem(overrides: Partial<PlanItem> = {}): PlanItem {
@@ -278,5 +279,22 @@ describe("estimatePlanMonth", () => {
     const [group] = groupPlanByMonth(items);
     const estimate = estimatePlanMonth(group);
     expect(estimate).toEqual({ amount: 0, pricedCount: 0, doneCount: 0, totalCount: 1 });
+  });
+});
+
+describe("totalPlanInvested", () => {
+  it("suma el precio de referencia de los ítems 'comprar' ya hechos, de todos los meses", () => {
+    const items = [
+      planItem({ id: "p1", month: "2026-08", category: "comprar", referencePrice: 59, done: true }),
+      planItem({ id: "p2", month: "2026-09", category: "comprar", referencePrice: 25, done: true }),
+      planItem({ id: "p3", month: "2026-08", category: "comprar", referencePrice: 30, done: false }), // no hecho
+      planItem({ id: "p4", month: "2026-08", category: "guardar_sellado", referencePrice: 120, done: true }), // ya era tuyo
+      planItem({ id: "p5", month: "2026-08", category: "comprar", referencePrice: null, done: true }), // sin precio
+    ];
+    expect(totalPlanInvested(items)).toBe(84); // 59 + 25
+  });
+
+  it("sin ítems 'comprar' hechos con precio, devuelve 0", () => {
+    expect(totalPlanInvested([])).toBe(0);
   });
 });

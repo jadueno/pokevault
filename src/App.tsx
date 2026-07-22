@@ -89,7 +89,9 @@ export default function App() {
           {loading && !error && <LoadingState />}
           {!loading && (
             <>
-              {section === "dashboard" && <DashboardScreen summary={collection.summary} sealedItems={sealed.items} />}
+              {section === "dashboard" && (
+                <DashboardScreen summary={collection.summary} sealedItems={sealed.items} planItems={plan.items} />
+              )}
               {section === "coleccion" && (
                 <ColeccionScreen
                   items={collection.items}

@@ -240,4 +240,33 @@ describe("PlanScreen", () => {
 
     expect(handlers.onUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ shoppingLinks: [] }));
   });
+
+  it("edita una página de compra existente sin borrarla y volverla a crear", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen(
+      [item()],
+      planSettings({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }] }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Editar Cardmarket" }));
+    const urlInput = screen.getByDisplayValue("https://www.cardmarket.com");
+    await user.clear(urlInput);
+    await user.type(urlInput, "https://www.cardmarket.com/es");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(handlers.onUpdateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com/es" }] }),
+    );
+  });
+
+  it("cancelar la edición de una página de compra no envía cambios", async () => {
+    const user = userEvent.setup();
+    renderScreen([item()], planSettings({ shoppingLinks: [{ label: "Cardmarket", url: "https://www.cardmarket.com" }] }));
+
+    await user.click(screen.getByRole("button", { name: "Editar Cardmarket" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.getByRole("button", { name: "+ Añadir página" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Nombre, p. ej. Cardmarket")).toHaveValue("");
+  });
 });

@@ -21,6 +21,11 @@ function ShoppingLinksCard({
   const [url, setUrl] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  // null = formulario de alta; si no, índice del enlace que se está editando — reutiliza
+  // el mismo formulario en vez de uno aparte, mismo criterio de simplicidad que el resto
+  // de altas rápidas de la app.
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const isEditing = editingIndex !== null;
 
   async function saveLinks(links: ShoppingLink[]) {
     setSaving(true);
@@ -31,20 +36,38 @@ function ShoppingLinksCard({
     }
   }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!label.trim() || !url.trim()) return;
-    const newLink: ShoppingLink = { label: label.trim(), url: url.trim() };
-    if (note.trim()) newLink.note = note.trim();
-    await saveLinks([...settings.shoppingLinks, newLink]);
+  function resetForm() {
     setLabel("");
     setUrl("");
     setNote("");
+    setEditingIndex(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!label.trim() || !url.trim()) return;
+    const link: ShoppingLink = { label: label.trim(), url: url.trim() };
+    if (note.trim()) link.note = note.trim();
+    const links =
+      editingIndex !== null
+        ? settings.shoppingLinks.map((l, i) => (i === editingIndex ? link : l))
+        : [...settings.shoppingLinks, link];
+    await saveLinks(links);
+    resetForm();
+  }
+
+  function handleEdit(index: number) {
+    const link = settings.shoppingLinks[index];
+    setLabel(link.label);
+    setUrl(link.url);
+    setNote(link.note ?? "");
+    setEditingIndex(index);
   }
 
   async function handleRemove(index: number) {
     const link = settings.shoppingLinks[index];
     if (await confirm(`¿Quitar "${link.label}" de las páginas de compra?`)) {
+      if (editingIndex === index) resetForm();
       await saveLinks(settings.shoppingLinks.filter((_, i) => i !== index));
     }
   }
@@ -77,14 +100,24 @@ function ShoppingLinksCard({
                   {link.label}
                   <span aria-hidden="true"> ↗</span>
                 </a>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(i)}
-                  aria-label={`Quitar ${link.label} de las páginas de compra`}
-                  className="shrink-0 rounded-full px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
-                >
-                  ×
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(i)}
+                    aria-label={`Editar ${link.label}`}
+                    className="rounded-full px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(i)}
+                    aria-label={`Quitar ${link.label} de las páginas de compra`}
+                    className="rounded-full px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               {link.note && <p className="text-xs leading-snug text-[var(--text-secondary)]">{link.note}</p>}
             </li>
@@ -92,7 +125,7 @@ function ShoppingLinksCard({
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-col gap-2 border-t border-[var(--gridline)] pt-3">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 border-t border-[var(--gridline)] pt-3">
         <div className="flex flex-wrap gap-2">
           <input
             className={`${inputClass} w-auto min-w-32 flex-1 py-1.5 text-sm`}
@@ -114,8 +147,13 @@ function ShoppingLinksCard({
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
+          {isEditing && (
+            <Button type="button" size="sm" variant="ghost" onClick={resetForm} className="shrink-0">
+              Cancelar
+            </Button>
+          )}
           <Button type="submit" size="sm" variant="ghost" disabled={saving || !label.trim() || !url.trim()} className="shrink-0">
-            + Añadir página
+            {isEditing ? "Guardar cambios" : "+ Añadir página"}
           </Button>
         </div>
       </form>
