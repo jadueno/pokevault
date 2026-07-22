@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { CollectionItem, NewCollectionItem, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
-import { computeSetChecklistCompletion, formatMoney, normalizeCardNumber } from "../../domain/calculations";
+import {
+  computeSetChecklistCompletion,
+  findOwnedCollectionItemIds,
+  formatMoney,
+  normalizeCardNumber,
+} from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
+import { useConfirm } from "../../components/ConfirmProvider";
 import { focusRing, inputClass } from "../../components/Field";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 
@@ -204,9 +210,9 @@ function ChecklistCardThumb({
 }) {
   const [failed, setFailed] = useState(false);
   const hasImage = !!card.imageUrl && !failed;
-  // Solo se pueden marcar las que faltan — una que ya tienes se añade de nuevo (duplicado)
-  // desde el alta manual normal, no desde aquí.
-  const canSelect = selecting && !owned;
+  // En modo selección se pueden marcar tanto las que faltan (para darlas de alta) como
+  // las que ya tienes (para poder quitarlas de la colección de golpe si te equivocaste).
+  const canSelect = selecting;
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -215,7 +221,7 @@ function ChecklistCardThumb({
           type="button"
           onClick={canSelect ? onToggleSelect : hasImage ? onZoom : undefined}
           disabled={!canSelect && !hasImage}
-          aria-label={canSelect ? `Marcar ${card.name} como mía` : `Ver ${card.name} en grande`}
+          aria-label={canSelect ? (owned ? `Desmarcar ${card.name}` : `Marcar ${card.name} como mía`) : `Ver ${card.name} en grande`}
           aria-pressed={canSelect ? selected : undefined}
           className={`w-full rounded-xl ${focusRing} disabled:cursor-default`}
         >
@@ -281,18 +287,22 @@ function SetCardsGrid({
   collectionItems,
   onZoom,
   onMarkOwned,
+  onRemoveItems,
 }: {
   checklist: SetChecklist;
   cards: SetChecklistCard[] | undefined;
   collectionItems: CollectionItem[];
   onZoom: (card: SetChecklistCard) => void;
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
+  onRemoveItems: (ids: string[]) => Promise<void>;
 }) {
+  const confirm = useConfirm();
   const [filter, setFilter] = useState<SetCardsFilter>("all");
   const [query, setQuery] = useState("");
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marking, setMarking] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
   const ownedIds = new Set(completion?.owned.map((c) => c.id) ?? []);
@@ -305,6 +315,9 @@ function SetCardsGrid({
     return true;
   });
 
+  const selectedMissing = (cards ?? []).filter((c) => selectedIds.has(c.id) && !ownedIds.has(c.id));
+  const selectedOwned = (cards ?? []).filter((c) => selectedIds.has(c.id) && ownedIds.has(c.id));
+
   function toggleSelected(cardId: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -314,14 +327,21 @@ function SetCardsGrid({
     });
   }
 
+  function deselect(cardIds: string[]) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of cardIds) next.delete(id);
+      return next;
+    });
+  }
+
   async function handleMarkOwned() {
-    const selectedCards = (cards ?? []).filter((c) => selectedIds.has(c.id));
-    if (selectedCards.length === 0) return;
+    if (selectedMissing.length === 0) return;
     setMarking(true);
     try {
       const now = new Date().toISOString();
       await onMarkOwned(
-        selectedCards.map((card) => ({
+        selectedMissing.map((card) => ({
           name: card.name,
           setName: checklist.setNameEs ?? checklist.setName,
           number: `${normalizeCardNumber(card.number)}/${checklist.totalCards}`,
@@ -344,10 +364,30 @@ function SetCardsGrid({
           photo: card.imageUrlLarge ?? card.imageUrl,
         })),
       );
-      setSelectedIds(new Set());
-      setSelecting(false);
+      deselect(selectedMissing.map((c) => c.id));
     } finally {
       setMarking(false);
+    }
+  }
+
+  async function handleRemoveOwned() {
+    if (selectedOwned.length === 0) return;
+    const ids = findOwnedCollectionItemIds(
+      selectedOwned.map((c) => c.number),
+      collectionItems,
+      [checklist.setName, checklist.setNameEs],
+    );
+    if (ids.length === 0) return;
+    const confirmed = await confirm(
+      `¿Quitar ${ids.length} ejemplar${ids.length === 1 ? "" : "es"} de tu colección? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmed) return;
+    setRemoving(true);
+    try {
+      await onRemoveItems(ids);
+      deselect(selectedOwned.map((c) => c.id));
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -423,10 +463,17 @@ function SetCardsGrid({
         // bottom-24 en móvil: deja hueco para el menú inferior fijo (bottom-0, con
         // safe-area), igual que ya hace el FAB de "Añadir carta suelta" — en escritorio
         // no hay ese menú, así que basta con bottom-4. z-20 para quedar por encima.
-        <div className="sticky bottom-24 z-20 flex justify-center sm:bottom-4">
-          <Button tone="beacon" disabled={marking} onClick={handleMarkOwned} className="shadow-float">
-            {marking ? "Guardando…" : `Marcar ${selectedIds.size} como mías`}
-          </Button>
+        <div className="sticky bottom-24 z-20 flex flex-wrap justify-center gap-2 sm:bottom-4">
+          {selectedMissing.length > 0 && (
+            <Button tone="beacon" disabled={marking} onClick={handleMarkOwned} className="shadow-float">
+              {marking ? "Guardando…" : `Marcar ${selectedMissing.length} como mías`}
+            </Button>
+          )}
+          {selectedOwned.length > 0 && (
+            <Button tone="critical" disabled={removing} onClick={handleRemoveOwned} className="shadow-float">
+              {removing ? "Quitando…" : `Quitar ${selectedOwned.length} de mi colección`}
+            </Button>
+          )}
         </div>
       )}
     </Card>
@@ -441,6 +488,7 @@ export function SetChecklistTab({
   onSyncSet,
   onResyncSet,
   onMarkOwned,
+  onRemoveItems,
 }: {
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
@@ -449,6 +497,7 @@ export function SetChecklistTab({
   onSyncSet: (externalSetId: string, setNameEs: string | null) => Promise<void>;
   onResyncSet: (checklistId: string) => Promise<void>;
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
+  onRemoveItems: (ids: string[]) => Promise<void>;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   // Qué checklists ya han recibido su estado inicial (abierto si estaba incompleto), para
@@ -530,6 +579,7 @@ export function SetChecklistTab({
                 collectionItems={collectionItems}
                 onZoom={setZoomedCard}
                 onMarkOwned={onMarkOwned}
+                onRemoveItems={onRemoveItems}
               />
             ))}
         </>

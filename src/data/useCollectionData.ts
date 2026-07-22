@@ -55,6 +55,14 @@ export function useCollectionData() {
       setItems((prev) => prev.filter((i) => i.id !== id));
       await reload();
     },
+    /** Baja en lote (p. ej. "desmarcar" de golpe varias cartas de un set desde su
+     * checklist): borra todas en paralelo y hace un solo reload al final, mismo criterio
+     * que `addItems`. */
+    removeItems: async (ids: string[]) => {
+      await Promise.all(ids.map((id) => collectionItemClient.remove(id)));
+      setItems((prev) => prev.filter((i) => !ids.includes(i.id)));
+      await reload();
+    },
     overrideValue: async (id: string, value: number, note: string | null) => {
       await overrideCollectionItemValue(id, value, note);
       await reload();

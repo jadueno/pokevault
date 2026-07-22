@@ -372,6 +372,7 @@ export function ColeccionScreen({
   onSyncSet,
   onResyncSet,
   onMarkOwned,
+  onRemoveItems,
 }: {
   items: CollectionItem[];
   onAddItem: (entity: NewCollectionItem) => Promise<void>;
@@ -389,6 +390,7 @@ export function ColeccionScreen({
   onSyncSet: (externalSetId: string, setNameEs: string | null) => Promise<void>;
   onResyncSet: (checklistId: string) => Promise<void>;
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
+  onRemoveItems: (ids: string[]) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -588,6 +590,7 @@ export function ColeccionScreen({
           onSyncSet={onSyncSet}
           onResyncSet={onResyncSet}
           onMarkOwned={onMarkOwned}
+          onRemoveItems={onRemoveItems}
         />
       )}
 

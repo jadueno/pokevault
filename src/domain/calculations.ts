@@ -193,6 +193,28 @@ export function computeSetChecklistCompletion(
   return { owned, missing };
 }
 
+/** Ids de todos los ejemplares de la colección que corresponden a alguno de estos
+ * números de carta (mismo criterio de coincidencia que `computeSetChecklistCompletion`:
+ * por número, dentro de los ejemplares cuyo `setName` se parece). Puede haber más de un
+ * id por número si hay filas duplicadas — se devuelven todas, para poder "desmarcar"
+ * (borrar de la colección real) un número de golpe desde el checklist, no solo la
+ * primera fila que coincida. */
+export function findOwnedCollectionItemIds(
+  numbers: string[],
+  collectionItems: CollectionItem[],
+  setNameHints: (string | null)[],
+): string[] {
+  const hints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
+  const wanted = new Set(numbers.map(normalizeCardNumber));
+  return collectionItems
+    .filter((item) => {
+      if (!item.setName || !setTextMatches(item.setName, hints)) return false;
+      const number = item.number?.split("/")[0].trim();
+      return !!number && wanted.has(normalizeCardNumber(number));
+    })
+    .map((item) => item.id);
+}
+
 /** Busca, entre los checklists ya sincronizados, la carta que coincide por nombre de
  * expansión (parecido, no exacto — mismo criterio que `computeSetChecklistCompletion`) y
  * número, para poder usar la imagen oficial del proveedor al dar de alta una carta en vez

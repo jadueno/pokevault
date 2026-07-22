@@ -110,6 +110,7 @@ function renderScreen(
     onSyncSet: vi.fn().mockResolvedValue(undefined),
     onResyncSet: vi.fn().mockResolvedValue(undefined),
     onMarkOwned: vi.fn().mockResolvedValue(undefined),
+    onRemoveItems: vi.fn().mockResolvedValue(undefined),
   };
   render(
     <ConfirmProvider>
@@ -518,6 +519,43 @@ describe("ColeccionScreen", () => {
         estimatedValueOverride: 1.5,
       }),
     ]);
+  });
+
+  it("en Sets, seleccionar varias también permite desmarcar (quitar) las que ya tienes", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Tropius" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin" }),
+    ];
+    const ownedItems = [item({ id: "i1", name: "Tropius", setName: "Oscuridad Absoluta", number: "1/120" })];
+    const handlers = renderScreen(ownedItems, [], [setChecklist({ totalCards: 2 })], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    // Incompleto (1 de 2): ya está abierto por defecto.
+    await user.click(screen.getByRole("button", { name: "Seleccionar varias" }));
+    await user.click(screen.getByRole("button", { name: "Desmarcar Tropius" }));
+    await user.click(screen.getByRole("button", { name: "Quitar 1 de mi colección" }));
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+
+    expect(handlers.onRemoveItems).toHaveBeenCalledWith(["i1"]);
+  });
+
+  it("en Sets, seleccionar una mezcla de tenidas y que faltan muestra los dos botones de acción", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Tropius" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin" }),
+    ];
+    const ownedItems = [item({ id: "i1", name: "Tropius", setName: "Oscuridad Absoluta", number: "1/120" })];
+    renderScreen(ownedItems, [], [setChecklist({ totalCards: 2 })], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Seleccionar varias" }));
+    await user.click(screen.getByRole("button", { name: "Desmarcar Tropius" }));
+    await user.click(screen.getByRole("button", { name: "Marcar Grubbin como mía" }));
+
+    expect(screen.getByRole("button", { name: "Marcar 1 como mías" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar 1 de mi colección" })).toBeInTheDocument();
   });
 
   it("en la pestaña de Sets, hacer clic en una carta la abre en grande (prioriza la imagen de mayor resolución)", async () => {

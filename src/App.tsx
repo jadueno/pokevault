@@ -114,6 +114,7 @@ export default function App() {
                     await setChecklists.resync(checklistId);
                   }}
                   onMarkOwned={collection.addItems}
+                  onRemoveItems={collection.removeItems}
                 />
               )}
               {section === "wishlist" && (

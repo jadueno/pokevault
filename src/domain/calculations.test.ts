@@ -6,6 +6,7 @@ import {
   countLinkedCollectionItems,
   estimatePlanMonth,
   findChecklistCardImage,
+  findOwnedCollectionItemIds,
   formatMoney,
   groupPlanByMonth,
   groupWishlistByMonth,
@@ -195,6 +196,38 @@ describe("findChecklistCardImage", () => {
     const card = checklistCard({ number: "048", name: "Mega Darkrai ex" });
     const result = findChecklistCardImage("Oscuridad Absoluta", "48/120", [setChecklist()], { cl1: [card] });
     expect(result).toEqual(card);
+  });
+});
+
+describe("findOwnedCollectionItemIds", () => {
+  it("encuentra los ids de los ejemplares que coinciden por número y por set (parecido)", () => {
+    const items = [
+      collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" }),
+      collectionItem({ id: "c2", setName: "Oscuridad Absoluta", number: "2/120" }),
+      collectionItem({ id: "c3", setName: "Base Set", number: "1/102" }), // otro set, no cuenta
+    ];
+    const ids = findOwnedCollectionItemIds(["1"], items, ["Pitch Black", "Oscuridad Absoluta"]);
+    expect(ids).toEqual(["c1"]);
+  });
+
+  it("devuelve todos los ids si hay filas duplicadas para el mismo número", () => {
+    const items = [
+      collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" }),
+      collectionItem({ id: "c2", setName: "Oscuridad Absoluta", number: "1/120" }),
+    ];
+    const ids = findOwnedCollectionItemIds(["1"], items, ["Oscuridad Absoluta"]);
+    expect(ids).toEqual(["c1", "c2"]);
+  });
+
+  it("normaliza ceros a la izquierda al comparar (checklist con '001', colección con '1')", () => {
+    const items = [collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" })];
+    const ids = findOwnedCollectionItemIds(["001"], items, ["Oscuridad Absoluta"]);
+    expect(ids).toEqual(["c1"]);
+  });
+
+  it("sin coincidencias, devuelve una lista vacía", () => {
+    const items = [collectionItem({ id: "c1", setName: "Base Set", number: "1/102" })];
+    expect(findOwnedCollectionItemIds(["1"], items, ["Oscuridad Absoluta"])).toEqual([]);
   });
 });
 
