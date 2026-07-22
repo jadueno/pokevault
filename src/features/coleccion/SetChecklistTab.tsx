@@ -420,8 +420,11 @@ function SetCardsGrid({
       )}
 
       {selecting && selectedIds.size > 0 && (
-        <div className="sticky bottom-4 flex justify-center">
-          <Button tone="beacon" disabled={marking} onClick={handleMarkOwned}>
+        // bottom-24 en móvil: deja hueco para el menú inferior fijo (bottom-0, con
+        // safe-area), igual que ya hace el FAB de "Añadir carta suelta" — en escritorio
+        // no hay ese menú, así que basta con bottom-4. z-20 para quedar por encima.
+        <div className="sticky bottom-24 z-20 flex justify-center sm:bottom-4">
+          <Button tone="beacon" disabled={marking} onClick={handleMarkOwned} className="shadow-float">
             {marking ? "Guardando…" : `Marcar ${selectedIds.size} como mías`}
           </Button>
         </div>
