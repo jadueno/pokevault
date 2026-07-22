@@ -37,7 +37,7 @@ function PlanIcon({ className }: { className?: string }) {
 function WishlistIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 20s-7-4.35-9.5-8.5C.7 8 2.2 4 6.2 4c2 0 3.5 1.2 4 2.5.5-1.3 2-2.5 4-2.5 4 0 5.5 4 3.7 7.5C19 15.65 12 20 12 20Z" />
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
     </svg>
   );
 }
@@ -113,8 +113,11 @@ export default function App() {
 
       {/* pt- explícito en vez de heredar del p-4/sm:p-8 general: con viewport-fit=cover
           (index.html) el contenido se extiende debajo de la barra de estado/notch, así
-          que hace falta sumar env(safe-area-inset-top) al hueco de siempre o el título de
-          cabecera queda tapado por la hora/batería al desplazarse hasta arriba del todo. */}
+          que hace falta sumar env(safe-area-inset-top) al hueco de siempre (protege el
+          texto de error/skeleton de carga). ScreenHeader —siempre el primer elemento de
+          cada pantalla— cancela este padding con un margen negativo propio para quedar
+          pegado al borde real de arriba y que su degradado llegue hasta detrás de la
+          barra de estado, sin dejar una franja de --page plano por encima. */}
       <main className="relative flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-28 sm:px-8 sm:pt-[calc(env(safe-area-inset-top)+2rem)] sm:pb-12">
         <div className="mx-auto max-w-6xl">
           {error && (
