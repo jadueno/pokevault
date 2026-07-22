@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
@@ -12,14 +12,54 @@ import { LoadingState } from "./components/LoadingState";
 
 type Section = "dashboard" | "coleccion" | "wishlist" | "plan";
 
+// Iconos de trazo simple (mismo lenguaje visual que Instagram: líneas finas, sin relleno,
+// heredan el color del texto vía currentColor) en vez de emoji — el menú se distingue por
+// icono en vez de por etiqueta, así que cada uno lleva su propio aria-label en el botón.
+function ColeccionIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
+      <rect x="2" y="8" width="14" height="14" rx="3" />
+    </svg>
+  );
+}
+
+function PlanIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="4" y="3" width="16" height="18" rx="3" />
+      <path d="M8 8h8M8 12.5h4" />
+      <path d="m8 16.5 1.8 1.8L13 15" />
+    </svg>
+  );
+}
+
+function WishlistIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 20s-7-4.35-9.5-8.5C.7 8 2.2 4 6.2 4c2 0 3.5 1.2 4 2.5.5-1.3 2-2.5 4-2.5 4 0 5.5 4 3.7 7.5C19 15.65 12 20 12 20Z" />
+    </svg>
+  );
+}
+
+function ResumenIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="12" width="4.5" height="8" rx="1" />
+      <rect x="9.75" y="7" width="4.5" height="13" rx="1" />
+      <rect x="16.5" y="3" width="4.5" height="17" rx="1" />
+    </svg>
+  );
+}
+
 // "Sellado" ya no es una sección aparte: se fusionó dentro de "Mi colección" (para el
 // usuario, la colección es todo, tanto cartas como cajas). Tampoco hay una sección
 // "Añadir": cada destino (cartas, wishlist, sellado) tiene su propio botón "+" directo.
-const sections: { id: Section; label: string }[] = [
-  { id: "coleccion", label: "Mi colección" },
-  { id: "plan", label: "Plan" },
-  { id: "wishlist", label: "Wishlist" },
-  { id: "dashboard", label: "Resumen" },
+const sections: { id: Section; label: string; Icon: (props: { className?: string }) => ReactElement }[] = [
+  { id: "coleccion", label: "Mi colección", Icon: ColeccionIcon },
+  { id: "plan", label: "Plan", Icon: PlanIcon },
+  { id: "wishlist", label: "Wishlist", Icon: WishlistIcon },
+  { id: "dashboard", label: "Resumen", Icon: ResumenIcon },
 ];
 
 export default function App() {
@@ -65,6 +105,7 @@ export default function App() {
             }`}
             style={section === s.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
           >
+            <s.Icon className="size-5 shrink-0" />
             {s.label}
           </button>
         ))}
@@ -149,19 +190,20 @@ export default function App() {
         aria-label="Secciones de la app"
         className="fixed inset-x-0 bottom-0 z-10 pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
-        <div className="mx-2 mb-3 flex justify-around rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)]/90 px-0.5 py-1.5 shadow-float backdrop-blur-md">
+        <div className="mx-6 mb-3 flex items-center justify-around rounded-full border border-[var(--border)] bg-[var(--surface-1)]/90 px-2 py-2 shadow-float backdrop-blur-md">
           {sections.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => setSection(s.id)}
               aria-current={section === s.id ? "page" : undefined}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-full px-0.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
+              aria-label={s.label}
+              className={`flex items-center justify-center rounded-full p-2.5 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
                 section === s.id ? "text-[var(--beacon)]" : "text-[var(--text-muted)]"
               }`}
               style={section === s.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
             >
-              {s.label}
+              <s.Icon className="size-6" />
             </button>
           ))}
         </div>

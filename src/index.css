@@ -73,6 +73,13 @@ html {
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Solo <body> tenía fondo — normalmente el navegador "presta" el fondo de <body> para
+     pintar todo el lienzo, pero en Safari de iOS, al hacer scroll, la barra de estado
+     (hora/batería) se pinta sobre el hueco que deja la barra de direcciones al
+     colapsarse, y ese hueco no siempre hereda el fondo de <body> — aparece un tramo en
+     blanco (el blanco por defecto de <html>) en vez del crema de la app. Poniendo el
+     mismo fondo aquí también, ese hueco nunca queda del color equivocado. */
+  background: var(--page);
 }
 
 body {
