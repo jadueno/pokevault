@@ -395,7 +395,7 @@ export function ColeccionScreen({
   const [showSealedForm, setShowSealedForm] = useState(false);
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
-  const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("cartas");
+  const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("sets");
 
   const q = query.trim().toLowerCase();
   const filteredItems = q ? items.filter((i) => `${i.name} ${i.setName ?? ""}`.toLowerCase().includes(q)) : items;
@@ -432,9 +432,9 @@ export function ColeccionScreen({
           <div className="flex w-fit gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
             {(
               [
+                { id: "sets", label: `Sets (${checklists.length})` },
                 { id: "cartas", label: `Cartas (${items.length})` },
                 { id: "sellado", label: `Sellado (${sealedItems.length})` },
-                { id: "sets", label: `Sets (${checklists.length})` },
               ] as const
             ).map((t) => (
               <button

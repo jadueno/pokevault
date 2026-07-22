@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CollectionItem, NewCollectionItem, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
 import { computeSetChecklistCompletion, formatMoney, normalizeCardNumber } from "../../domain/calculations";
 import { Button } from "../../components/Button";
@@ -450,7 +450,32 @@ export function SetChecklistTab({
   onResyncSet: (checklistId: string) => Promise<void>;
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // Qué checklists ya han recibido su estado inicial (abierto si estaba incompleto), para
+  // no volver a abrirlos solos si el usuario los cierra a mano más tarde. Se aplica en un
+  // efecto (no en el useState inicial) porque las cartas de cada checklist llegan de forma
+  // asíncrona (`useSetChecklistData` las precarga aparte) — sin esto, un set podía quedar
+  // sin marcar como "ya visto" si sus cartas no habían llegado todavía en el primer render.
+  const initializedIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    setExpandedIds((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const checklist of checklists) {
+        if (initializedIds.current.has(checklist.id)) continue;
+        const cards = cardsByChecklist[checklist.id];
+        if (!cards) continue;
+        initializedIds.current.add(checklist.id);
+        const { missing } = computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]);
+        if (missing.length > 0) {
+          next.add(checklist.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [checklists, cardsByChecklist, collectionItems]);
+
   // Vive aquí (no dentro de SetCardsGrid) y el <PhotoLightbox> se renderiza fuera de
   // cualquier <Card> a propósito: `Card` (variant "flat", la que envuelve la rejilla) usa
   // `backdrop-blur`, y un `backdrop-filter` en un ancestro crea un "containing block"
@@ -459,7 +484,14 @@ export function SetChecklistTab({
   // visores de la app (siempre como hermano de la tarjeta, nunca dentro).
   const [zoomedCard, setZoomedCard] = useState<SetChecklistCard | null>(null);
 
-  const expandedChecklist = checklists.find((c) => c.id === expandedId);
+  function toggleExpanded(checklistId: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(checklistId)) next.delete(checklistId);
+      else next.add(checklistId);
+      return next;
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -481,22 +513,25 @@ export function SetChecklistTab({
                 checklist={checklist}
                 cards={cardsByChecklist[checklist.id]}
                 collectionItems={collectionItems}
-                expanded={expandedId === checklist.id}
-                onToggle={() => setExpandedId(expandedId === checklist.id ? null : checklist.id)}
+                expanded={expandedIds.has(checklist.id)}
+                onToggle={() => toggleExpanded(checklist.id)}
                 onResync={onResyncSet}
               />
             ))}
           </div>
 
-          {expandedChecklist && (
-            <SetCardsGrid
-              checklist={expandedChecklist}
-              cards={cardsByChecklist[expandedChecklist.id]}
-              collectionItems={collectionItems}
-              onZoom={setZoomedCard}
-              onMarkOwned={onMarkOwned}
-            />
-          )}
+          {checklists
+            .filter((checklist) => expandedIds.has(checklist.id))
+            .map((checklist) => (
+              <SetCardsGrid
+                key={checklist.id}
+                checklist={checklist}
+                cards={cardsByChecklist[checklist.id]}
+                collectionItems={collectionItems}
+                onZoom={setZoomedCard}
+                onMarkOwned={onMarkOwned}
+              />
+            ))}
         </>
       )}
 

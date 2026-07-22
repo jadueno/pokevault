@@ -17,7 +17,7 @@ test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y 
   await expect(page.getByText("Test Set", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Añadir este set" }).click();
 
-  await page.getByRole("button", { name: "Ver el set completo" }).click();
+  // Recién sincronizado y sin ninguna carta tuya, está incompleto: se abre solo.
   await expect(page.getByText("Fake Pikachu")).toBeVisible();
 
   await page.getByRole("button", { name: "Seleccionar varias" }).click();
@@ -36,6 +36,7 @@ test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y 
 test("da de alta una carta suelta a mano, sin depender de ningún set sincronizado", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Mi colección", exact: true }).click();
+  await page.getByRole("button", { name: /^Cartas/ }).click();
   await page.getByRole("button", { name: "Añadir carta suelta" }).click();
 
   await page.getByPlaceholder("Charizard").fill("Eevee");

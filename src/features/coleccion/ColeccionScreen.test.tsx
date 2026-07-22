@@ -126,24 +126,29 @@ function renderScreen(
 }
 
 describe("ColeccionScreen", () => {
-  it("sin nada, muestra el aviso de colección vacía", () => {
+  it("sin nada, la pestaña Sets (por defecto) explica cómo empezar", () => {
     renderScreen([], []);
-    expect(screen.getByText(/Todavía no has añadido nada a tu colección/)).toBeInTheDocument();
+    expect(screen.getByText(/Todavía no has sincronizado ningún set/)).toBeInTheDocument();
   });
 
-  it("lista los ejemplares con precio de compra y valor estimado", () => {
+  it("lista los ejemplares con precio de compra y valor estimado", async () => {
+    const user = userEvent.setup();
     renderScreen([item()]);
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     expect(screen.getByText("Charizard")).toBeInTheDocument();
     expect(screen.getByText("300,00 €")).toBeInTheDocument();
     expect(screen.getByText("350,00 €")).toBeInTheDocument();
   });
 
-  it("indica cuando un ejemplar no tiene precio de compra por haber salido de un sobre", () => {
+  it("indica cuando un ejemplar no tiene precio de compra por haber salido de un sobre", async () => {
+    const user = userEvent.setup();
     renderScreen([item({ purchasePrice: null, acquisitionType: "pulled_from_pack" })]);
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     expect(screen.getByText(/Sin precio \(salió de un sobre\)/)).toBeInTheDocument();
   });
 
-  it("si la carta está vinculada a un sobre con precio, muestra el coste repartido en vez de 'sin precio'", () => {
+  it("si la carta está vinculada a un sobre con precio, muestra el coste repartido en vez de 'sin precio'", async () => {
+    const user = userEvent.setup();
     renderScreen(
       [
         item({ id: "i1", name: "Eevee", purchasePrice: null, acquisitionType: "pulled_from_pack", sealedPurchaseId: "s1" }),
@@ -151,6 +156,7 @@ describe("ColeccionScreen", () => {
       ],
       [sealedItem({ id: "s1", purchasePrice: 60 })],
     );
+    await user.click(screen.getByRole("button", { name: "Cartas (2)" }));
     // 60 € repartidos entre 2 cartas = 30 € cada una.
     expect(screen.getAllByText(/≈30,00 €/)).toHaveLength(2);
     expect(screen.getAllByText(/repartido, 2 cartas/)).toHaveLength(2);
@@ -173,6 +179,7 @@ describe("ColeccionScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);
 
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     await user.click(screen.getByRole("button", { name: "Eliminar ejemplar de Charizard" }));
     expect(handlers.onRemove).not.toHaveBeenCalled();
 
@@ -184,6 +191,7 @@ describe("ColeccionScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);
 
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     await user.click(screen.getByText("350,00 €"));
     const input = screen.getByDisplayValue("350");
     await user.clear(input);
@@ -197,6 +205,7 @@ describe("ColeccionScreen", () => {
     const user = userEvent.setup();
     renderScreen([item({ photo: "data:image/jpeg;base64,AAAA" })]);
 
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     await user.click(screen.getByRole("button", { name: "Ver foto de Charizard en grande" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
@@ -208,6 +217,7 @@ describe("ColeccionScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);
 
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     await user.click(screen.getByRole("button", { name: "Editar ejemplar de Charizard" }));
     expect(screen.getByDisplayValue("Charizard")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Base")).toBeInTheDocument();
@@ -224,6 +234,7 @@ describe("ColeccionScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item({ photo: "data:image/jpeg;base64,YAYA" })]);
 
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     await user.click(screen.getByRole("button", { name: "Editar ejemplar de Charizard" }));
     expect(screen.getByText(/Se mantiene la foto que ya tenía/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
@@ -235,6 +246,7 @@ describe("ColeccionScreen", () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()]);
 
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
     await user.type(screen.getByPlaceholderText("Charizard"), "Mew");
     await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
@@ -266,6 +278,7 @@ describe("ColeccionScreen", () => {
     renderScreen([item()], [sealedItem()]);
 
     expect(screen.getByRole("button", { name: "Cartas (1)" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
     expect(screen.getByText("Charizard")).toBeInTheDocument();
     expect(screen.queryByText("Sobre Evoluciones Prismáticas")).not.toBeInTheDocument();
 
@@ -281,6 +294,7 @@ describe("ColeccionScreen", () => {
       [sealedItem({ id: "s1", productName: "ETB Paldean Fates" })],
     );
 
+    await user.click(screen.getByRole("button", { name: "Cartas (2)" }));
     await user.type(screen.getByPlaceholderText("Buscar en toda tu colección…"), "pika");
 
     expect(screen.getByText("Pikachu")).toBeInTheDocument();
@@ -366,6 +380,34 @@ describe("ColeccionScreen", () => {
     expect(screen.queryByRole("button", { name: "Añadir este set" })).not.toBeInTheDocument();
   });
 
+  it("en Sets, un set incompleto se abre solo y uno completo se queda cerrado por defecto", async () => {
+    const user = userEvent.setup();
+    const incompleteCards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Tropius" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin" }),
+    ];
+    const completeCards: SetChecklistCard[] = [checklistCard({ id: "c3", checklistId: "cl2", number: "1", name: "Charmander" })];
+    const ownedItems = [
+      item({ setName: "Oscuridad Absoluta", number: "1/120" }),
+      item({ id: "i2", name: "Charmander", setName: "Base Completo", number: "1/1" }),
+    ];
+    renderScreen(
+      ownedItems,
+      [],
+      [setChecklist(), setChecklist({ id: "cl2", externalSetId: "base1", setName: "Base Completo", setNameEs: null, totalCards: 1 })],
+      { cl1: incompleteCards, cl2: completeCards },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Sets (2)" }));
+
+    // Incompleto (1 de 2): ya abierto, sin tener que pulsar nada.
+    expect(screen.getByText("Grubbin")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ocultar" })).toBeInTheDocument();
+    // Completo (1 de 1): se queda cerrado hasta que se pulse.
+    expect(screen.queryByText("Charmander")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver el set completo" })).toBeInTheDocument();
+  });
+
   it("en Sets, el botón Actualizar de un checklist llama a onResyncSet", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([], [], [setChecklist()]);
@@ -401,7 +443,8 @@ describe("ColeccionScreen", () => {
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
     expect(screen.getByText("1/3 (33%)")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    // El set está incompleto (le faltan 2 de 3), así que ya está abierto por defecto —
+    // no hace falta pulsar "Ver el set completo".
     expect(screen.getByText("Tropius")).toBeInTheDocument();
     expect(screen.getByText("Grubbin")).toBeInTheDocument();
     expect(screen.getByText("Charmander")).toBeInTheDocument();
@@ -422,7 +465,7 @@ describe("ColeccionScreen", () => {
     renderScreen(ownedItems, [], [setChecklist()], { cl1: cards });
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
-    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    // Incompleto (1 de 2): ya está abierto por defecto.
     expect(screen.getByText("Tropius")).toBeInTheDocument();
     expect(screen.getByText("Grubbin")).toBeInTheDocument();
 
@@ -444,7 +487,7 @@ describe("ColeccionScreen", () => {
     renderScreen([], [], [setChecklist()], { cl1: cards });
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
-    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    // Incompleto (0 de 2): ya está abierto por defecto.
     await user.type(screen.getByPlaceholderText("Buscar por número o nombre…"), "grub");
 
     expect(screen.queryByText("Tropius")).not.toBeInTheDocument();
@@ -460,7 +503,7 @@ describe("ColeccionScreen", () => {
     const handlers = renderScreen([], [], [setChecklist({ totalCards: 2 })], { cl1: cards });
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
-    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    // Incompleto (0 de 2): ya está abierto por defecto.
     await user.click(screen.getByRole("button", { name: "Seleccionar varias" }));
     await user.click(screen.getByRole("button", { name: "Marcar Tropius como mía" }));
     await user.click(screen.getByRole("button", { name: "Marcar 1 como mías" }));
@@ -491,7 +534,7 @@ describe("ColeccionScreen", () => {
     renderScreen([], [], [setChecklist({ totalCards: 1 })], { cl1: cards });
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
-    await user.click(screen.getByRole("button", { name: "Ver el set completo" }));
+    // Incompleto (0 de 1): ya está abierto por defecto.
     await user.click(screen.getByRole("button", { name: "Ver Grubbin en grande" }));
 
     const zoomedImage = screen.getByRole("dialog", { name: "Grubbin" }).querySelector("img");
