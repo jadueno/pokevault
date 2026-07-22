@@ -10,57 +10,66 @@
 }
 
 :root {
-  /* Tema oscuro fijo: "vitrina de coleccionista" — casi negro de fondo, rojo Poké Ball
-     como acento vivo principal, dorado como acento secundario cálido (grading/rareza).
-     Paleta propia, distinta de rumbo (amarillo/violeta), nous (arcilla/musgo) y faro (navy/cian). */
-  --page: #0c0a0d;
-  --surface-1: #171215;
-  --surface-2: #211a1e;
-  --text-primary: #f7f2f0;
-  --text-secondary: #cdbfc2;
-  --text-muted: #8f7f83;
-  --gridline: #332a2e;
-  --border: rgba(255, 255, 255, 0.1);
+  /* Rediseño "Pokédex viva, estilo TCG Pocket": tema claro fijo (la propia referencia no
+     tiene modo oscuro, es una decisión de diseño deliberada del juego real) — fondo crema
+     casi blanco muy luminoso, rojo Poké Ball y dorado como acentos muy saturados sobre esa
+     base clara, en vez de acentos sobre un fondo oscuro. Paleta propia, distinta de rumbo
+     (amarillo/violeta), nous (arcilla/musgo) y faro (navy/cian). Todos los pares
+     texto/fondo están comprobados a ≥4.5:1 (WCAG AA, texto normal), salvo donde se indica
+     lo contrario. */
+  --page: #fef8ed;
+  --surface-1: #ffffff;
+  --surface-2: #fff1da;
+  --text-primary: #241608;
+  --text-secondary: #6b5745;
+  --text-muted: #7a6754;
+  --gridline: #f0e4cf;
+  --border: rgba(36, 22, 8, 0.12);
 
   /* --beacon/--amber son los nombres de los tokens de acento en toda la familia de
      proyectos (rumbo/nous/faro); aquí llevan los colores propios de PokéVault en vez de
-     renombrarlos, para poder reutilizar el kit de componentes (Button/Card/...) tal cual. */
-  --beacon: #e0263b;
+     renombrarlos, para poder reutilizar el kit de componentes (Button/Card/...) tal cual.
+     Ambos se usan también como color de texto directo (precios, enlaces), además de fondo
+     de insignia/botón, así que están elegidos para funcionar en los dos sentidos sobre el
+     fondo claro. */
+  --beacon: #c81f33;
   --on-beacon: #ffffff;
-  --amber: #d9a441;
-  --on-amber: #251a05;
+  --amber: #8b5b0a;
+  --on-amber: #fff8ec;
 
   --ink: var(--text-primary);
   --on-ink: var(--page);
-  --accent-beacon-blob: color-mix(in srgb, var(--beacon) 12%, transparent);
-  --accent-amber-blob: color-mix(in srgb, var(--amber) 8%, transparent);
+  --accent-beacon-blob: color-mix(in srgb, var(--beacon) 14%, transparent);
+  --accent-amber-blob: color-mix(in srgb, var(--amber) 10%, transparent);
 
-  /* Rediseño "Pokédex viva": degradados vivos para la cabecera hero de cada pantalla y
-     para las tarjetas "protagonistas" (carta/producto/deseo) — la energía visual de la
-     referencia, con rojo Poké Ball + dorado como colores propios en vez del verde
-     original, para no perder la identidad de marca ya construida. */
-  --hero-gradient: radial-gradient(120% 180% at 15% -20%, color-mix(in srgb, var(--amber) 55%, var(--beacon)) 0%, var(--beacon) 32%, #4a0812 72%, #1a0508 100%);
-  --card-gradient: linear-gradient(165deg, color-mix(in srgb, var(--beacon) 16%, var(--surface-2)) 0%, var(--surface-1) 45%, var(--page) 145%);
+  /* Degradados vivos para la cabecera hero de cada pantalla y para las tarjetas
+     "protagonistas" (carta/producto/deseo) — la energía visual de la referencia, con rojo
+     Poké Ball + dorado como colores propios. El hero sigue siendo un bloque de color
+     saturado (como una lámina/sticker) incluso sobre el fondo claro, con texto blanco
+     encima; las tarjetas, en cambio, se aclaran hacia --surface-1/--page (ambos ya claros)
+     en vez de oscurecer, para que se vean brillantes y "holográficas", no una vitrina. */
+  --hero-gradient: radial-gradient(120% 180% at 15% -20%, color-mix(in srgb, var(--amber) 55%, var(--beacon)) 0%, var(--beacon) 34%, #96162b 72%, #6b0f1f 100%);
+  --card-gradient: linear-gradient(165deg, color-mix(in srgb, var(--beacon) 14%, var(--surface-2)) 0%, var(--surface-1) 48%, var(--page) 145%);
   --on-hero: #ffffff;
 
   /* Estados (condición de carta, prioridad de wishlist, etc.) */
-  --status-good: #34b57a;
-  --status-warning: #d9a441;
-  --status-critical: #e0263b;
-  --status-info: #3b82c4;
-  --status-neutral: #8f7f83;
+  --status-good: #34b87a;
+  --status-warning: #8b5b0a;
+  --status-critical: #c81f33;
+  --status-info: #2e6fa8;
+  --status-neutral: #7a6754;
 
-  --on-status-good: #06210f;
-  --on-status-warning: #251a05;
+  --on-status-good: #14301f;
+  --on-status-warning: #fff8ec;
   --on-status-critical: #ffffff;
-  --on-status-info: #04141f;
-  --on-status-neutral: #171215;
+  --on-status-info: #ffffff;
+  --on-status-neutral: #ffffff;
 
   --shadow-tint: 0, 0, 0;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -82,15 +91,14 @@ body {
   }
 }
 
-/* Inputs nativos de fecha/mes ("Fecha de compra", "Mes objetivo"): `color-scheme: dark`
-   en <html> ya corrige la mayoría de navegadores, pero Safari en particular sigue
-   pintando el desplegable de calendario y, en algunos casos, el propio texto del campo
-   con el croma claro del sistema — rompe el tema oscuro cuidado del resto de la app.
-   Se fuerza aquí explícitamente con las pseudo-clases de WebKit, además del color-scheme
-   ya declarado, para que quede consistente sea cual sea el navegador. */
+/* Inputs nativos de fecha/mes ("Fecha de compra", "Mes objetivo"): con `color-scheme: light`
+   ya declarado en <html>, los navegadores pintan el desplegable y el texto del campo con
+   croma claro por defecto — pero se fija aquí también de forma explícita (mismo patrón que
+   ya usaba la app en su tema oscuro) para que el color del texto siga el token de la app en
+   vez del que decida el navegador, y quede consistente sea cual sea el navegador. */
 input[type="date"],
 input[type="month"] {
-  color-scheme: dark;
+  color-scheme: light;
   /* El propio <input> nativo (no solo su contenedor) impone un ancho mínimo por el
      contenido interno (segmentos día/mes/año + icono) que puede superar el ancho que le
      tocaría en el grid, aunque el contenedor ya pueda encogerse (ver min-w-0 en
@@ -117,15 +125,16 @@ input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="month"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   border-radius: 0.4rem;
-  /* El glifo por defecto es un trazo oscuro pensado para fondos claros; se invierte y
-     se atenúa para que quede legible (gris claro) sobre el fondo oscuro del input. */
-  filter: invert(1) brightness(1) opacity(0.6);
-  transition: filter 0.15s ease;
+  /* El glifo por defecto ya es un trazo oscuro pensado para fondos claros, así que sobre
+     el nuevo tema claro no hace falta invertirlo (al contrario que en el tema oscuro
+     anterior) — solo se atenúa un poco en reposo y se resalta al pasar el ratón. */
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator:hover,
 input[type="month"]::-webkit-calendar-picker-indicator:hover {
-  filter: invert(1) brightness(1) opacity(0.9);
+  opacity: 0.9;
 }
 
 .app-shell {
@@ -145,38 +154,38 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 }
 
 @utility shadow-card {
-  box-shadow: 0 1px 2px rgba(var(--shadow-tint), 0.05);
+  box-shadow: 0 1px 2px rgba(var(--shadow-tint), 0.04);
 }
 
 @utility shadow-card-hover {
-  box-shadow: 0 4px 12px -4px rgba(var(--shadow-tint), 0.14);
+  box-shadow: 0 4px 12px -4px rgba(var(--shadow-tint), 0.1);
 }
 
 @utility shadow-float {
   box-shadow:
-    0 2px 8px rgba(var(--shadow-tint), 0.08),
-    0 12px 28px -10px rgba(var(--shadow-tint), 0.2);
+    0 2px 8px rgba(var(--shadow-tint), 0.06),
+    0 16px 32px -12px rgba(var(--shadow-tint), 0.16);
 }
 
-/* Profundidad tipo "bento/glass" para superficies de contenido (Card variant="flat"):
-   una línea de luz muy sutil en el borde superior (como si la superficie captara algo de
-   luz) más una sombra ambiental más marcada que --shadow-card, para que las tarjetas se
-   perciban elevadas sobre el fondo en vez de cajas planas pegadas a él. Se combina con un
-   fondo translúcido (ver Card.tsx) y backdrop-blur para dejar entrever los degradados de
-   marca del fondo (.app-shell::before) a través de la tarjeta. */
+/* Profundidad tipo "bento/glass" para superficies de contenido (Card variant="flat"): una
+   línea de luz clara en el borde superior (como una carta satinada captando un reflejo)
+   más una sombra ambiental suave, para que las tarjetas se perciban elevadas y brillantes
+   sobre el fondo claro en vez de cajas planas pegadas a él. Se combina con un fondo
+   translúcido (ver Card.tsx) y backdrop-blur para dejar entrever los degradados de marca
+   del fondo (.app-shell::before) a través de la tarjeta. */
 @utility shadow-surface {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 1px 2px rgba(var(--shadow-tint), 0.08),
-    0 14px 28px -16px rgba(var(--shadow-tint), 0.45);
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(var(--shadow-tint), 0.05),
+    0 14px 26px -18px rgba(var(--shadow-tint), 0.18);
 }
 
 /* Resplandor de marca al pasar el ratón sobre una tarjeta "protagonista" (variant="gradient"
-   de Card) — el equivalente sutil al brillo de las tarjetas de la referencia. */
+   de Card) — el equivalente sutil al brillo/shine de las cartas de la referencia. */
 @utility shadow-glow {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--beacon) 25%, transparent),
-    0 18px 36px -18px color-mix(in srgb, var(--beacon) 65%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--beacon) 30%, transparent),
+    0 18px 32px -18px color-mix(in srgb, var(--beacon) 45%, transparent);
 }
 
 @keyframes shimmer {

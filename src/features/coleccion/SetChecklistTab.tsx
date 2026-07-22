@@ -425,7 +425,7 @@ function SetCardsGrid({
               className={`rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap transition-colors ${
                 filter === f.id ? "text-[var(--beacon)]" : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
               }`}
-              style={filter === f.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 16%, transparent)" } : undefined}
+              style={filter === f.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
             >
               {f.label}
             </button>

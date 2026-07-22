@@ -63,7 +63,7 @@ export default function App() {
             className={`flex items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-sm font-bold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
               section === s.id ? "text-[var(--beacon)]" : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
             }`}
-            style={section === s.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 16%, transparent)" } : undefined}
+            style={section === s.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
           >
             {s.label}
           </button>
@@ -159,7 +159,7 @@ export default function App() {
               className={`flex flex-1 flex-col items-center gap-0.5 rounded-full px-0.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)] ${
                 section === s.id ? "text-[var(--beacon)]" : "text-[var(--text-muted)]"
               }`}
-              style={section === s.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 16%, transparent)" } : undefined}
+              style={section === s.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
             >
               {s.label}
             </button>

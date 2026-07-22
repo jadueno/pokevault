@@ -449,7 +449,7 @@ export function ColeccionScreen({
                 className={`rounded-full px-4 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${focusRing} ${
                   tab === t.id ? "text-[var(--beacon)]" : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
                 }`}
-                style={tab === t.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 16%, transparent)" } : undefined}
+                style={tab === t.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
               >
                 {t.label}
               </button>
