@@ -43,7 +43,15 @@ export function DashboardScreen({
           de ancho y de alto que el resto — el resto de tarjetas quedan deliberadamente más
           pequeñas para no competir por la atención. */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card variant="gradient" className="flex flex-col justify-between sm:col-span-2 sm:row-span-2">
+        {/* Única tarjeta con fondo --hero-gradient (no --card-gradient, que con el tema
+            claro se aclara hacia blanco): es la cifra protagonista del bento, con el
+            mismo tratamiento "sticker" saturado que ScreenHeader, así que el texto en
+            blanco necesita un fondo oscuro de verdad para tener contraste. */}
+        <Card
+          variant="gradient"
+          className="flex flex-col justify-between sm:col-span-2 sm:row-span-2"
+          style={{ background: "var(--hero-gradient)" }}
+        >
           <h2 className="text-sm font-semibold text-white/70">Valor total estimado</h2>
           <p className="mt-3 font-[family-name:var(--font-display)] text-5xl font-bold tabular-nums text-[var(--on-hero)] sm:text-6xl">
             {formatMoney(totalValue)}
