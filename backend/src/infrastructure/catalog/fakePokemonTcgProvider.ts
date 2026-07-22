@@ -1,8 +1,8 @@
 import type { PokemonTcgProvider, PokemonTcgSetCandidate, PokemonTcgSetCards } from "../../domain/ports.js";
 
-/** Fixture determinista para tests: no depende de red ni de pokemontcg.io. Conoce un solo
- * set fijo ("Test Set" / "ts1", 2 cartas, una con precio y otra sin él) — suficiente para
- * probar buscar → elegir → sincronizar sin depender de datos reales. */
+/** Fixture determinista para tests: no depende de red ni del proveedor real (TCGdex).
+ * Conoce un solo set fijo ("Test Set" / "ts1", 2 cartas, una con precio y otra sin él) —
+ * suficiente para probar buscar → elegir → sincronizar sin depender de datos reales. */
 export function createFakePokemonTcgProvider(): PokemonTcgProvider {
   return {
     async searchSets(query: string): Promise<PokemonTcgSetCandidate[]> {

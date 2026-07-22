@@ -5,7 +5,7 @@ test.describe.configure({ mode: "serial" });
 // El proveedor de sets de test es el fake (forzado en playwright.config.ts con
 // POKEMON_TCG_PROVIDER=fake): conoce un único set fijo "Test Set" (id "ts1") con dos
 // cartas deterministas ("Fake Pikachu" con precio de referencia, "Fake Charizard" sin
-// él), sin red ni depender de pokemontcg.io en CI.
+// él), sin red ni depender del proveedor real (TCGdex) en CI.
 
 test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y ver su valor en el resumen", async ({ page }) => {
   await page.goto("/");

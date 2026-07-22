@@ -132,6 +132,15 @@ function setTextMatches(setName: string, hints: string[]): boolean {
   return hints.some((hint) => itemText.includes(hint) || hint.includes(itemText));
 }
 
+/** Quita ceros a la izquierda de un número de carta puramente numérico ("001" -> "1"),
+ * para poder comparar cartas guardadas antes de cambiar de proveedor (pokemontcg.io, sin
+ * relleno) con las de un checklist sincronizado después (TCGdex, con relleno a 3 dígitos)
+ * — mismo número real, formato de texto distinto. Los números con letras (p. ej. "TG01")
+ * se dejan tal cual, ahí sí importa el texto exacto. */
+export function normalizeCardNumber(number: string): string {
+  return /^\d+$/.test(number) ? String(Number(number)) : number;
+}
+
 export interface SetChecklistCompletion {
   owned: SetChecklistCard[];
   missing: SetChecklistCard[];
@@ -155,13 +164,14 @@ export function computeSetChecklistCompletion(
     collectionItems
       .filter((item) => item.setName && setTextMatches(item.setName, hints))
       .map((item) => item.number?.split("/")[0].trim())
-      .filter((number): number is string => !!number),
+      .filter((number): number is string => !!number)
+      .map(normalizeCardNumber),
   );
 
   const owned: SetChecklistCard[] = [];
   const missing: SetChecklistCard[] = [];
   for (const card of checklistCards) {
-    (ownedNumbers.has(card.number) ? owned : missing).push(card);
+    (ownedNumbers.has(normalizeCardNumber(card.number)) ? owned : missing).push(card);
   }
   return { owned, missing };
 }
@@ -178,13 +188,13 @@ export function findChecklistCardImage(
   cardsByChecklist: Record<string, SetChecklistCard[]>,
 ): SetChecklistCard | null {
   if (!setName || !number) return null;
-  const numberPrefix = number.split("/")[0].trim();
+  const numberPrefix = normalizeCardNumber(number.split("/")[0].trim());
   if (!numberPrefix) return null;
 
   for (const checklist of checklists) {
     const hints = [checklist.setName, checklist.setNameEs].filter((hint): hint is string => !!hint).map(normalizeSetText);
     if (!setTextMatches(setName, hints)) continue;
-    const match = (cardsByChecklist[checklist.id] ?? []).find((card) => card.number === numberPrefix);
+    const match = (cardsByChecklist[checklist.id] ?? []).find((card) => normalizeCardNumber(card.number) === numberPrefix);
     if (match) return match;
   }
   return null;

@@ -3,9 +3,9 @@ import type { SetChecklist } from "../domain/types.js";
 import { assertNonEmpty } from "./errors.js";
 
 /** Cualquier fallo del proveedor externo (red, timeout, HTTP no-2xx) se captura aquí y se
- * trata como "sin resultado" — nunca deja que un problema de pokemontcg.io se convierta
- * en un 500 de nuestra propia API. Ver ARCHITECTURE.md: ~45% de error y ~8s de latencia
- * media en ese proveedor, por eso solo se llama en acciones explícitas del usuario. */
+ * trata como "sin resultado" — nunca deja que un problema del proveedor se convierta en
+ * un 500 de nuestra propia API, por eso solo se llama en acciones explícitas del usuario
+ * (ver ARCHITECTURE.md). */
 export function createSetChecklistUseCases(repo: SetChecklistRepository, provider: PokemonTcgProvider) {
   return {
     list: () => repo.list(),

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CollectionItem, NewCollectionItem, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
-import { computeSetChecklistCompletion, formatMoney } from "../../domain/calculations";
+import { computeSetChecklistCompletion, formatMoney, normalizeCardNumber } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { focusRing, inputClass } from "../../components/Field";
@@ -324,7 +324,7 @@ function SetCardsGrid({
         selectedCards.map((card) => ({
           name: card.name,
           setName: checklist.setNameEs ?? checklist.setName,
-          number: `${card.number}/${checklist.totalCards}`,
+          number: `${normalizeCardNumber(card.number)}/${checklist.totalCards}`,
           rarity: card.rarity,
           language: "es",
           condition: "near_mint",

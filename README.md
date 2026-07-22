@@ -68,7 +68,7 @@ Rellena colección, producto sellado y wishlist con datos ficticios repartidos e
 
 ## Checklist de set ("¿qué me falta?")
 
-Desde la pestaña "Sets" de "Mi colección" puedes buscar un set (nombre en inglés, p. ej. "Pitch Black") y elegirlo de la lista de candidatos que devuelve pokemontcg.io — nunca se adivina el set a partir de lo que escribes, siempre lo confirmas tú de una lista real. Al añadirlo se descarga su listado completo de cartas (con precio de referencia de Cardmarket cuando el proveedor lo tiene) y queda guardado en tu base de datos: no es una dependencia en vivo, la app nunca vuelve a llamar al proveedor salvo que pulses "🔄 Actualizar" en un set ya sincronizado. Dentro de un set puedes filtrar (todas / que tienes / que te faltan), buscar por número o nombre, y marcar de golpe varias cartas como tuyas.
+Desde la pestaña "Sets" de "Mi colección" puedes buscar un set (en español o inglés, p. ej. "Oscuridad Absoluta" o "Pitch Black") y elegirlo de la lista de candidatos que devuelve [TCGdex](https://tcgdex.dev) — nunca se adivina el set a partir de lo que escribes, siempre lo confirmas tú de una lista real. Al añadirlo se descarga su listado completo de cartas (con precio de referencia de Cardmarket cuando el proveedor lo tiene) y queda guardado en tu base de datos: no es una dependencia en vivo, la app nunca vuelve a llamar al proveedor salvo que pulses "🔄 Actualizar" en un set ya sincronizado. Dentro de un set puedes filtrar (todas / que tienes / que te faltan), buscar por número o nombre, y marcar de golpe varias cartas como tuyas.
 
 ## Qué hace la app
 
@@ -81,8 +81,8 @@ Desde la pestaña "Sets" de "Mi colección" puedes buscar un set (nombre en ingl
 ## Estructura
 
 - `src/` — frontend (React + Vite + Tailwind).
-- `backend/src/domain|application|infrastructure/` — hexagonal: dominio puro, casos de uso, adaptadores (Postgres, pokemontcg.io).
-- `backend/src/infrastructure/catalog/` — `pokemonTcgApiProvider.ts` (real) + `fakePokemonTcgProvider.ts` (tests/E2E).
+- `backend/src/domain|application|infrastructure/` — hexagonal: dominio puro, casos de uso, adaptadores (Postgres, TCGdex).
+- `backend/src/infrastructure/catalog/` — `tcgdexApiProvider.ts` (real) + `fakePokemonTcgProvider.ts` (tests/E2E).
 - `e2e/` — Playwright, contra el proveedor de sets fake (determinista, forzado en `playwright.config.ts` con `POKEMON_TCG_PROVIDER=fake`).
 
 Más detalle de las decisiones técnicas (por qué no hay catálogo externo en vivo, cómo funciona la búsqueda/sincronización de sets, por qué no hay auth todavía) en [ARCHITECTURE.md](ARCHITECTURE.md).

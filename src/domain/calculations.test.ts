@@ -144,6 +144,13 @@ describe("computeSetChecklistCompletion", () => {
     expect(owned).toHaveLength(0);
     expect(missing).toHaveLength(2);
   });
+
+  it("relaciona el número aunque el checklist lo tenga con ceros a la izquierda (TCGdex) y la carta guardada no (pokemontcg.io)", () => {
+    const cards = [checklistCard({ number: "001" })];
+    const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "1/120" })];
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    expect(owned).toHaveLength(1);
+  });
 });
 
 function setChecklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
@@ -181,6 +188,12 @@ describe("findChecklistCardImage", () => {
     const card = checklistCard({ number: "48" });
     const result = findChecklistCardImage("Oscuridad Absoluta", "99/120", [setChecklist()], { cl1: [card] });
     expect(result).toBeNull();
+  });
+
+  it("encuentra la carta aunque el checklist tenga el número con ceros a la izquierda", () => {
+    const card = checklistCard({ number: "048", name: "Mega Darkrai ex" });
+    const result = findChecklistCardImage("Oscuridad Absoluta", "48/120", [setChecklist()], { cl1: [card] });
+    expect(result).toEqual(card);
   });
 });
 

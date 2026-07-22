@@ -46,13 +46,14 @@ export interface SetChecklistRepository {
   upsertChecklist(input: UpsertChecklistInput): Promise<SetChecklist>;
 }
 
-// ---- Proveedor de datos de pokemontcg.io (puerto intercambiable) ----
+// ---- Proveedor de datos de set de Pokémon TCG (puerto intercambiable) ----
 // El dominio/aplicación nunca depende directamente del proveedor externo — solo de esta
 // forma. Mismo patrón que el proveedor de LLM/embeddings de "nous": adaptador real
-// (ver infrastructure/catalog/pokemonTcgApiProvider.ts) + fake determinista para tests.
-// pokemontcg.io/Scrydex tiene ~45% de error y ~8s de latencia media (ver ARCHITECTURE.md)
-// — por eso solo se llama en acciones explícitas del usuario (buscar/sincronizar un set),
-// nunca en segundo plano ni en cada carga de la app.
+// (TCGdex, ver infrastructure/catalog/tcgdexApiProvider.ts) + fake determinista para
+// tests. Aunque TCGdex es bastante más fiable que pokemontcg.io (el proveedor anterior,
+// con ~45% de error y ~8s de latencia media documentados en ARCHITECTURE.md), sigue sin
+// llamarse nunca en segundo plano ni en cada carga de la app — solo en acciones
+// explícitas del usuario (buscar/sincronizar un set).
 
 export interface PokemonTcgSetCandidate {
   externalSetId: string;
