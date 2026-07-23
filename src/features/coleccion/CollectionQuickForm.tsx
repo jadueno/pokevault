@@ -6,6 +6,7 @@ import type {
   CardVariant,
   CollectionItem,
   NewCollectionItem,
+  RecognizedCardData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -13,6 +14,9 @@ import type {
 import { costPerCard, countLinkedCollectionItems, findChecklistCardImage, formatMoney } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
+import { PhotoCapture } from "./PhotoCapture";
+
+const CONFIDENCE_LABELS: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
 
 const LANGUAGES: { value: CardLanguage; label: string }[] = [
   { value: "es", label: "Español" },
@@ -58,6 +62,7 @@ export function CollectionQuickForm({
   checklists,
   cardsByChecklist,
   initialItem = null,
+  onRecognizeCard,
   onSubmit,
   onCancel,
 }: {
@@ -75,6 +80,11 @@ export function CollectionQuickForm({
   /** Editar un ejemplar ya existente en vez de dar uno de alta: siembra el formulario
    * entero con sus datos y cambia el texto de guardado. */
   initialItem?: CollectionItem | null;
+  /** Sugiere nombre/expansión/número/rareza a partir de una foto (modelo de visión local,
+   * o un proveedor simulado si no hay Ollama configurado) — solo al dar de alta, nunca al
+   * editar. El resultado siempre queda en los campos normales del formulario, revisable y
+   * editable antes de guardar; nunca se guarda nada automáticamente. */
+  onRecognizeCard: (imageDataUrl: string) => Promise<RecognizedCardData>;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -106,6 +116,12 @@ export function CollectionQuickForm({
     photo: initialItem?.photo ?? null,
   });
   const [saving, setSaving] = useState(false);
+  // Foto que ha hecho el usuario en este mismo alta (distinta de la oficial del set
+  // sincronizado, que sigue teniendo prioridad si hay coincidencia — ver handleSubmit).
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [recognizing, setRecognizing] = useState(false);
+  const [recognized, setRecognized] = useState<RecognizedCardData | null>(null);
+  const [recognizeError, setRecognizeError] = useState<string | null>(null);
 
   const cameFromPack = form.acquisitionType === "pulled_from_pack";
   const selectedSealedPurchase = form.sealedPurchaseId ? sealedItems.find((s) => s.id === form.sealedPurchaseId) : undefined;
@@ -115,14 +131,37 @@ export function CollectionQuickForm({
   const projectedCostPerCard = selectedSealedPurchase ? costPerCard(selectedSealedPurchase, projectedLinkedCount) : null;
   const matchedChecklistCard = findChecklistCardImage(form.setName, form.number, checklists, cardsByChecklist);
 
+  async function handleCapture(dataUrl: string) {
+    setCapturedPhoto(dataUrl);
+    setRecognized(null);
+    setRecognizeError(null);
+    setRecognizing(true);
+    try {
+      const result = await onRecognizeCard(dataUrl);
+      setRecognized(result);
+      // Solo se rellenan los campos que la foto sí ha identificado — nunca se borra algo
+      // que el usuario ya hubiera escrito a mano con un null del reconocimiento.
+      setForm((prev) => ({
+        ...prev,
+        name: result.name ?? prev.name,
+        setName: result.setName ?? prev.setName,
+        number: result.number ?? prev.number,
+        rarity: result.rarity ?? prev.rarity,
+      }));
+    } catch (e) {
+      setRecognizeError(e instanceof Error ? e.message : "No se ha podido identificar la foto");
+    } finally {
+      setRecognizing(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      // Una coincidencia nueva (p. ej. tras editar la expansión/número) siempre gana. Sin
-      // coincidencia: al editar se conserva la foto que ya tenía, al dar de alta se queda
-      // sin foto.
-      const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? (isEditing ? form.photo : null);
+      // Prioridad de la foto: la oficial del set sincronizado (si hay coincidencia) >
+      // la que acaba de hacer el usuario > la que ya tenía (al editar) > sin foto.
+      const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? capturedPhoto ?? (isEditing ? form.photo : null);
       await onSubmit({ ...form, photo });
     } finally {
       setSaving(false);
@@ -131,6 +170,25 @@ export function CollectionQuickForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {!isEditing && (
+        <div className="flex flex-col gap-2">
+          <PhotoCapture onCapture={handleCapture} />
+          {recognizing && <p className="text-sm text-[var(--text-secondary)]">Identificando…</p>}
+          {!recognizing && recognizeError && (
+            <p className="text-sm text-[var(--status-critical)]">
+              No se ha podido identificar automáticamente ({recognizeError}). Rellena los datos a mano.
+            </p>
+          )}
+          {!recognizing && recognized && !recognizeError && (
+            <p className={`text-sm ${recognized.name ? "text-[var(--status-good)]" : "text-[var(--text-muted)]"}`}>
+              {recognized.name
+                ? `Identificado${recognized.confidence ? ` (confianza ${CONFIDENCE_LABELS[recognized.confidence]})` : ""}: revisa los datos de abajo antes de guardar.`
+                : "No se ha podido identificar nada en la foto. Rellena los datos a mano."}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nombre">
           <input
@@ -279,12 +337,14 @@ export function CollectionQuickForm({
       <p className="text-sm text-[var(--text-muted)]">
         {matchedChecklistCard ? (
           <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}" (set sincronizado).</>
+        ) : capturedPhoto ? (
+          <>📷 Se guardará la foto que acabas de hacer.</>
         ) : isEditing ? (
           <>📷 Se mantiene la foto que ya tenía.</>
         ) : (
           <>
             📷 Sin foto: expansión/número no coinciden con ningún set sincronizado todavía. Puedes sincronizar el set desde la
-            pestaña "Sets".
+            pestaña "Sets", o hacer una foto arriba.
           </>
         )}
       </p>

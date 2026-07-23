@@ -7,6 +7,7 @@ import type {
   NewWishlistItem,
   PlanItem,
   PlanSettings,
+  RecognizedCardData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -113,4 +114,8 @@ export function createSetChecklist<T = SetChecklist>(externalSetId: string, setN
 
 export function resyncSetChecklist<T = SetChecklist>(checklistId: string): Promise<T> {
   return request(`/set-checklists/${checklistId}/resync`, { method: "POST" });
+}
+
+export function recognizeCard<T = RecognizedCardData>(imageDataUrl: string): Promise<T> {
+  return request("/card-recognition", { method: "POST", body: JSON.stringify({ imageDataUrl }) });
 }

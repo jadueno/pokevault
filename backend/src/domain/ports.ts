@@ -7,6 +7,7 @@ import type {
   NewWishlistItem,
   PlanItem,
   PlanSettings,
+  RecognizedCardData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -84,4 +85,14 @@ export interface PokemonTcgSetCards {
 export interface PokemonTcgProvider {
   searchSets(query: string): Promise<PokemonTcgSetCandidate[]>;
   getSetCards(externalSetId: string): Promise<PokemonTcgSetCards>;
+}
+
+// ---- Proveedor de reconocimiento visual (puerto intercambiable) ----
+// Igual criterio que PokemonTcgProvider: el dominio/aplicación nunca depende
+// directamente de Ollama, solo de esta forma — adaptador real
+// (infrastructure/vision/ollamaVisionProvider.ts) + fake determinista para tests.
+
+export interface VisualMatchProvider {
+  name: string;
+  recognizeCard(imageDataUrl: string): Promise<RecognizedCardData>;
 }

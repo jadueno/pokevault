@@ -181,3 +181,17 @@ export interface SetChecklistCard {
    * la migración 1784000000013. `null` si el proveedor no tenía precio para esa carta. */
   referencePrice: number | null;
 }
+
+// ---- Reconocimiento de fotos (carta/caja -> datos sugeridos) ----
+// Ayuda a rellenar el alta manual de una carta que no está en ningún set sincronizado —
+// nunca alta automática: el resultado siempre se revisa/edita a mano antes de guardar.
+
+export type RecognitionConfidence = "high" | "medium" | "low";
+
+export interface RecognizedCardData {
+  name: string | null;
+  setName: string | null;
+  number: string | null;
+  rarity: string | null;
+  confidence: RecognitionConfidence | null;
+}

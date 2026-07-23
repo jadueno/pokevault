@@ -166,3 +166,17 @@ export interface SetSearchCandidate {
   totalCards: number;
   releaseDate: string | null;
 }
+
+// ---- Reconocimiento de fotos (carta -> datos sugeridos) ----
+// Ayuda a rellenar el alta manual de una carta que no está en ningún set sincronizado —
+// nunca alta automática: el resultado siempre se revisa/edita a mano antes de guardar.
+
+export type RecognitionConfidence = "high" | "medium" | "low";
+
+export interface RecognizedCardData {
+  name: string | null;
+  setName: string | null;
+  number: string | null;
+  rarity: string | null;
+  confidence: RecognitionConfidence | null;
+}

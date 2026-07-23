@@ -1,4 +1,5 @@
 import { useState, type ReactElement } from "react";
+import { recognizeCard } from "./data/api";
 import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
@@ -167,6 +168,7 @@ export default function App() {
                   }}
                   onMarkOwned={collection.addItems}
                   onRemoveItems={collection.removeItems}
+                  onRecognizeCard={recognizeCard}
                 />
               )}
               {section === "wishlist" && (

@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPool, resetDatabase } from "../../test/testPool.js";
 import { createFakePokemonTcgProvider } from "../catalog/fakePokemonTcgProvider.js";
+import { createFakeVisionProvider } from "../vision/fakeVisionProvider.js";
 import { buildServer } from "./server.js";
 
 let pool: Pool;
@@ -10,7 +11,7 @@ let app: FastifyInstance;
 
 beforeAll(async () => {
   pool = createTestPool();
-  app = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false });
+  app = await buildServer(pool, createFakePokemonTcgProvider(), createFakeVisionProvider(), { logger: false });
 });
 
 afterEach(async () => {
@@ -386,9 +387,29 @@ describe("/set-checklists", () => {
   });
 });
 
+describe("/card-recognition", () => {
+  it("devuelve los datos que sugiere el proveedor de visión (fake en tests)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/card-recognition",
+      payload: { imageDataUrl: "data:image/png;base64,AAAA" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ name: "Charizard", setName: "Base", number: "4/102", rarity: "Rare Holo", confidence: "high" });
+  });
+
+  it("responde 400 si la foto no llega como data URL de imagen", async () => {
+    const res = await app.inject({ method: "POST", url: "/card-recognition", payload: { imageDataUrl: "no-es-una-data-url" } });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
   it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false, apiToken: "demo-token" });
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), createFakeVisionProvider(), {
+      logger: false,
+      apiToken: "demo-token",
+    });
 
     const withoutToken = await authedApp.inject({ method: "GET", url: "/collection-items" });
     expect(withoutToken.statusCode).toBe(401);

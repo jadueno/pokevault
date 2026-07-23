@@ -113,6 +113,7 @@ function renderScreen(
     onResyncSet: vi.fn().mockResolvedValue(undefined),
     onMarkOwned: vi.fn().mockResolvedValue(undefined),
     onRemoveItems: vi.fn().mockResolvedValue(undefined),
+    onRecognizeCard: vi.fn().mockResolvedValue({ name: null, setName: null, number: null, rarity: null, confidence: null }),
   };
   render(
     <ConfirmProvider>
@@ -255,6 +256,55 @@ describe("ColeccionScreen", () => {
     await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
 
     expect(handlers.onAddItem).toHaveBeenCalledWith(expect.objectContaining({ name: "Mew" }));
+  });
+
+  it("hacer una foto en el alta manual identifica la carta y rellena el formulario", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+    handlers.onRecognizeCard.mockResolvedValue({
+      name: "Grubbin",
+      setName: "Oscuridad Absoluta",
+      number: "2/120",
+      rarity: "Común",
+      confidence: "high",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["foto"], "carta.jpg", { type: "image/jpeg" });
+    await user.upload(input, file);
+
+    expect(handlers.onRecognizeCard).toHaveBeenCalledWith("data:image/jpeg;base64,AAAA");
+    expect(await screen.findByDisplayValue("Grubbin")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Oscuridad Absoluta")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("2/120")).toBeInTheDocument();
+    expect(screen.getByText(/Identificado \(confianza alta\)/)).toBeInTheDocument();
+  });
+
+  it("si la foto no se identifica, avisa y deja rellenar a mano", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+    handlers.onRecognizeCard.mockResolvedValue({ name: null, setName: null, number: null, rarity: null, confidence: null });
+
+    await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+
+    expect(await screen.findByText(/No se ha podido identificar nada en la foto/)).toBeInTheDocument();
+  });
+
+  it("al editar una carta ya existente no aparece la opción de hacer foto", async () => {
+    const user = userEvent.setup();
+    renderScreen([item()]);
+
+    await user.click(screen.getByRole("button", { name: "Cartas (1)" }));
+    await user.click(screen.getByRole("button", { name: "Editar ejemplar de Charizard" }));
+
+    expect(screen.queryByRole("button", { name: "Hacer foto a una carta" })).not.toBeInTheDocument();
   });
 
   it("el botón Editar de un producto sellado abre el formulario precargado y guarda los cambios", async () => {
