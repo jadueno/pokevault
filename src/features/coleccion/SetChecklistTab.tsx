@@ -10,14 +10,20 @@ import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
 import { focusRing, inputClass } from "../../components/Field";
+import { RefreshIcon } from "../../components/icons";
+import { IconButton } from "../../components/IconButton";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 
 /** Buscar un set nuevo en el proveedor y elegir de la lista de candidatos, en vez de
  * adivinar el set a partir de texto libre — comprobado en vivo: el proveedor solo tiene
  * nombres en inglés, así que buscar en español no encuentra nada. El alias en español se
  * autorrellena con lo que se ha buscado, para que la próxima carta de este set se
- * relacione en local aunque se escriba distinto al nombre oficial. */
-function SetSearchPanel({
+ * relacione en local aunque se escriba distinto al nombre oficial.
+ *
+ * Sin tarjeta ni título propios: vive siempre dentro de un <Modal> (ver ColeccionScreen),
+ * que ya pone su propio título/descripción — así este panel es solo el formulario y los
+ * resultados, sin duplicar la cabecera. */
+export function SetSearchPanel({
   checklists,
   onSearch,
   onSync,
@@ -64,16 +70,16 @@ function SetSearchPanel({
   }
 
   return (
-    <Card className="flex flex-col gap-3">
-      <p className="text-sm font-bold text-[var(--text-primary)]">Buscar un set nuevo</p>
-      <form onSubmit={handleSearch} className="flex gap-2">
+    <div className="flex flex-col gap-3">
+      <form onSubmit={handleSearch} className="flex flex-col gap-2">
         <input
+          autoFocus
           className={inputClass}
           placeholder="Nombre en inglés, p. ej. Pitch Black"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Button type="submit" variant="tint" disabled={searching} className="shrink-0">
+        <Button type="submit" variant="tint" disabled={searching} className="w-full">
           {searching ? "Buscando…" : "Buscar"}
         </Button>
       </form>
@@ -116,80 +122,7 @@ function SetSearchPanel({
           })}
         </ul>
       )}
-    </Card>
-  );
-}
-
-function ChecklistSummaryCard({
-  checklist,
-  cards,
-  collectionItems,
-  expanded,
-  onToggle,
-  onResync,
-}: {
-  checklist: SetChecklist;
-  cards: SetChecklistCard[] | undefined;
-  collectionItems: CollectionItem[];
-  expanded: boolean;
-  onToggle: () => void;
-  onResync: (checklistId: string) => Promise<void>;
-}) {
-  const [resyncing, setResyncing] = useState(false);
-  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
-  const ownedCount = completion?.owned.length ?? null;
-  const total = checklist.totalCards;
-  const pct = ownedCount !== null && total > 0 ? Math.round((ownedCount / total) * 100) : 0;
-
-  async function handleResync() {
-    setResyncing(true);
-    try {
-      await onResync(checklist.id);
-    } finally {
-      setResyncing(false);
-    }
-  }
-
-  return (
-    <Card variant="gradient" className="flex flex-col gap-3">
-      <div>
-        <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">
-          {checklist.setNameEs ?? checklist.setName}
-        </p>
-        {checklist.setNameEs && <p className="truncate text-xs text-[var(--text-muted)]">{checklist.setName}</p>}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-[var(--text-muted)]">Completado</span>
-          <span className="font-semibold text-[var(--text-primary)]">
-            {ownedCount !== null ? `${ownedCount}/${total} (${pct}%)` : `— / ${total}`}
-          </span>
-        </div>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--gridline)]">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, background: "var(--hero-gradient)" }}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <Button variant="tint" size="sm" onClick={onToggle} className="flex-1">
-          {expanded ? "Ocultar" : "Ver el set completo"}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleResync}
-          disabled={resyncing}
-          aria-label={`Actualizar ${checklist.setNameEs ?? checklist.setName}`}
-          title="Volver a traer las cartas de este set (rellena precio si no lo tenía)"
-        >
-          {resyncing ? "…" : "🔄"}
-        </Button>
-      </div>
-    </Card>
+    </div>
   );
 }
 
@@ -279,8 +212,10 @@ const FILTERS: { id: SetCardsFilter; label: string }[] = [
   { id: "missing", label: "Que me faltan" },
 ];
 
-/** Todo el set (tuyas y las que faltan), a ancho completo — no metido dentro de la
- * tarjeta estrecha del set, para que las imágenes puedan ser grandes de verdad. */
+/** Todo el set (tuyas y las que faltan). Vive dentro de un panel claro anidado en la
+ * propia tarjeta del set (ver SetCard) — no es una tarjeta aparte en otro punto de la
+ * página — para que las imágenes puedan ser grandes de verdad sobre un fondo legible,
+ * en vez de sobre el degradado oscuro de la tarjeta que la contiene. */
 function SetCardsGrid({
   checklist,
   cards,
@@ -325,6 +260,10 @@ function SetCardsGrid({
       else next.add(cardId);
       return next;
     });
+  }
+
+  function selectAllVisible() {
+    setSelectedIds(new Set(visibleCards.map((c) => c.id)));
   }
 
   function deselect(cardIds: string[]) {
@@ -392,16 +331,13 @@ function SetCardsGrid({
   }
 
   return (
-    <Card className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-[family-name:var(--font-display)] font-bold text-[var(--text-primary)]">
-          {checklist.setNameEs ?? checklist.setName}
-          {completion && (
-            <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">
-              {completion.owned.length}/{cards?.length ?? checklist.totalCards} tuyas
-            </span>
-          )}
-        </p>
+    <div className="-mx-5 -mb-5 flex flex-col gap-4 rounded-b-[1.75rem] bg-[var(--surface-1)] p-5 sm:-mx-6 sm:-mb-6 sm:p-6">
+      <div className="flex flex-wrap justify-end gap-2">
+        {selecting && (
+          <Button variant="tint" tone="ink" size="sm" onClick={selectAllVisible}>
+            Seleccionar todas
+          </Button>
+        )}
         <Button
           variant={selecting ? "solid" : "tint"}
           tone={selecting ? "critical" : "ink"}
@@ -476,6 +412,101 @@ function SetCardsGrid({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Tarjeta de un set sincronizado: identidad + progreso siempre visibles con el mismo
+ * tratamiento "sticker" que la cifra protagonista del Resumen (fondo --hero-gradient), y
+ * al pulsar "Ver el set completo" el propio checklist de cartas se abre dentro de esta
+ * misma tarjeta (panel claro anidado, ver SetCardsGrid) en vez de aparecer en otra caja
+ * en otro punto de la página. */
+function SetCard({
+  checklist,
+  cards,
+  collectionItems,
+  expanded,
+  onToggle,
+  onResync,
+  onZoom,
+  onMarkOwned,
+  onRemoveItems,
+}: {
+  checklist: SetChecklist;
+  cards: SetChecklistCard[] | undefined;
+  collectionItems: CollectionItem[];
+  expanded: boolean;
+  onToggle: () => void;
+  onResync: (checklistId: string) => Promise<void>;
+  onZoom: (card: SetChecklistCard) => void;
+  onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
+  onRemoveItems: (ids: string[]) => Promise<void>;
+}) {
+  const [resyncing, setResyncing] = useState(false);
+  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
+  const ownedCount = completion?.owned.length ?? null;
+  const total = checklist.totalCards;
+  const pct = ownedCount !== null && total > 0 ? Math.round((ownedCount / total) * 100) : 0;
+
+  async function handleResync() {
+    setResyncing(true);
+    try {
+      await onResync(checklist.id);
+    } finally {
+      setResyncing(false);
+    }
+  }
+
+  return (
+    <Card
+      variant="gradient"
+      className={`flex flex-col gap-4 ${expanded ? "sm:col-span-2 lg:col-span-3" : ""}`}
+      style={{ background: "var(--hero-gradient)" }}
+    >
+      <div>
+        <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--on-hero)]">
+          {checklist.setNameEs ?? checklist.setName}
+        </p>
+        {checklist.setNameEs && <p className="truncate text-xs text-white/70">{checklist.setName}</p>}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/70">Completado</span>
+          <span className="font-semibold text-[var(--on-hero)]">
+            {ownedCount !== null ? `${ownedCount}/${total} (${pct}%)` : `— / ${total}`}
+          </span>
+        </div>
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+          <div className="h-full rounded-full bg-white transition-all" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button variant="tint" tone="ink" size="sm" onClick={onToggle} className="flex-1">
+          {expanded ? "Ocultar" : "Ver el set completo"}
+        </Button>
+        <IconButton
+          onDark
+          onClick={handleResync}
+          disabled={resyncing}
+          label={`Actualizar ${checklist.setNameEs ?? checklist.setName}`}
+          title="Volver a traer las cartas de este set (rellena precio si no lo tenía)"
+        >
+          <RefreshIcon className={`size-4 ${resyncing ? "animate-spin" : ""}`} />
+        </IconButton>
+      </div>
+
+      {expanded && (
+        <SetCardsGrid
+          checklist={checklist}
+          cards={cards}
+          collectionItems={collectionItems}
+          onZoom={onZoom}
+          onMarkOwned={onMarkOwned}
+          onRemoveItems={onRemoveItems}
+        />
+      )}
     </Card>
   );
 }
@@ -484,8 +515,6 @@ export function SetChecklistTab({
   checklists,
   cardsByChecklist,
   collectionItems,
-  onSearchSets,
-  onSyncSet,
   onResyncSet,
   onMarkOwned,
   onRemoveItems,
@@ -493,8 +522,6 @@ export function SetChecklistTab({
   checklists: SetChecklist[];
   cardsByChecklist: Record<string, SetChecklistCard[]>;
   collectionItems: CollectionItem[];
-  onSearchSets: (query: string) => Promise<SetSearchCandidate[]>;
-  onSyncSet: (externalSetId: string, setNameEs: string | null) => Promise<void>;
   onResyncSet: (checklistId: string) => Promise<void>;
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
   onRemoveItems: (ids: string[]) => Promise<void>;
@@ -544,45 +571,29 @@ export function SetChecklistTab({
 
   return (
     <div className="flex flex-col gap-6">
-      <SetSearchPanel checklists={checklists} onSearch={onSearchSets} onSync={onSyncSet} />
-
       {checklists.length === 0 ? (
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
-            📋 Todavía no has sincronizado ningún set. Búscalo arriba y añádelo para ver qué cartas tiene y marcar las que ya son
-            tuyas.
+            📋 Todavía no has sincronizado ningún set. Usa el botón "+ Buscar set" para añadir el primero y ver qué cartas tiene.
           </p>
         </Card>
       ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {checklists.map((checklist) => (
-              <ChecklistSummaryCard
-                key={checklist.id}
-                checklist={checklist}
-                cards={cardsByChecklist[checklist.id]}
-                collectionItems={collectionItems}
-                expanded={expandedIds.has(checklist.id)}
-                onToggle={() => toggleExpanded(checklist.id)}
-                onResync={onResyncSet}
-              />
-            ))}
-          </div>
-
-          {checklists
-            .filter((checklist) => expandedIds.has(checklist.id))
-            .map((checklist) => (
-              <SetCardsGrid
-                key={checklist.id}
-                checklist={checklist}
-                cards={cardsByChecklist[checklist.id]}
-                collectionItems={collectionItems}
-                onZoom={setZoomedCard}
-                onMarkOwned={onMarkOwned}
-                onRemoveItems={onRemoveItems}
-              />
-            ))}
-        </>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {checklists.map((checklist) => (
+            <SetCard
+              key={checklist.id}
+              checklist={checklist}
+              cards={cardsByChecklist[checklist.id]}
+              collectionItems={collectionItems}
+              expanded={expandedIds.has(checklist.id)}
+              onToggle={() => toggleExpanded(checklist.id)}
+              onResync={onResyncSet}
+              onZoom={setZoomedCard}
+              onMarkOwned={onMarkOwned}
+              onRemoveItems={onRemoveItems}
+            />
+          ))}
+        </div>
       )}
 
       {zoomedCard && (

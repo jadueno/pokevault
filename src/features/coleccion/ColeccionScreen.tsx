@@ -21,7 +21,7 @@ import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { CollectionQuickForm } from "./CollectionQuickForm";
 import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
-import { SetChecklistTab } from "./SetChecklistTab";
+import { SetChecklistTab, SetSearchPanel } from "./SetChecklistTab";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   es: "ES",
@@ -294,7 +294,7 @@ function SealedItemCard({
       </div>
 
       {linkedCardCount > 0 && (
-        <p className="text-xs text-[var(--text-muted)]">
+        <p className="text-sm text-[var(--text-muted)]">
           🎴 {linkedCardCount} carta{linkedCardCount === 1 ? "" : "s"} de la colección vinculada{linkedCardCount === 1 ? "" : "s"} a
           este sobre
           {costPerCard(item, linkedCardCount) !== null && (
@@ -395,6 +395,7 @@ export function ColeccionScreen({
   const [query, setQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSealedForm, setShowSealedForm] = useState(false);
+  const [showSetSearch, setShowSetSearch] = useState(false);
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
   const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("sets");
@@ -415,23 +416,15 @@ export function ColeccionScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeader
-        title="Mi colección"
-        subtitle={
-          <>
-            <strong className="font-bold text-[var(--on-hero)]">{items.length}</strong> carta{items.length === 1 ? "" : "s"} y{" "}
-            <strong className="font-bold text-[var(--on-hero)]">{sealedItems.length}</strong> de producto sellado.
-          </>
-        }
-      />
+      <ScreenHeader title="Mi colección" subtitle="Tus cartas y tu producto sellado, todo en un mismo sitio." />
 
       {
         // Las pestañas se muestran siempre, incluso sin nada todavía: "Sets" es ahora la
         // vía principal de alta de cartas, así que tiene que poder alcanzarse desde una
         // colección vacía (antes se ocultaban por completo hasta tener algo).
       }
-      <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex w-fit gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
+      <div className="flex flex-nowrap items-center justify-between gap-2">
+          <div className="flex min-w-0 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
             {(
               [
                 { id: "sets", label: `Sets (${checklists.length})` },
@@ -446,7 +439,7 @@ export function ColeccionScreen({
                 aria-current={tab === t.id ? "page" : undefined}
                 // Tinte en vez de rojo sólido: es un selector de vista, no una acción —
                 // el rojo saturado se reserva para el FAB y los botones de guardar/enviar.
-                className={`rounded-full px-4 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${focusRing} ${
+                className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-bold whitespace-nowrap transition-colors sm:px-4 sm:text-sm ${focusRing} ${
                   tab === t.id ? "text-[var(--beacon)]" : "text-[var(--text-secondary)] hover:bg-[var(--gridline)]"
                 }`}
                 style={tab === t.id ? { backgroundColor: "color-mix(in srgb, var(--beacon) 14%, transparent)" } : undefined}
@@ -456,8 +449,13 @@ export function ColeccionScreen({
             ))}
           </div>
         {tab === "sellado" && (
-          <Button tone="beacon" onClick={() => setShowSealedForm(true)}>
-            + Añadir compra sellada
+          <Button tone="beacon" size="sm" onClick={() => setShowSealedForm(true)} className="shrink-0">
+            + Compra
+          </Button>
+        )}
+        {tab === "sets" && (
+          <Button tone="beacon" size="sm" onClick={() => setShowSetSearch(true)} className="shrink-0">
+            + Set
           </Button>
         )}
       </div>
@@ -511,6 +509,16 @@ export function ColeccionScreen({
             }}
             onCancel={() => setEditingItem(null)}
           />
+        </Modal>
+      )}
+
+      {showSetSearch && (
+        <Modal
+          title="Buscar un set nuevo"
+          description="El proveedor solo tiene nombres en inglés — prueba con el nombre en inglés del set."
+          onClose={() => setShowSetSearch(false)}
+        >
+          <SetSearchPanel checklists={checklists} onSearch={onSearchSets} onSync={onSyncSet} />
         </Modal>
       )}
 
@@ -586,8 +594,6 @@ export function ColeccionScreen({
           checklists={checklists}
           cardsByChecklist={cardsByChecklist}
           collectionItems={items}
-          onSearchSets={onSearchSets}
-          onSyncSet={onSyncSet}
           onResyncSet={onResyncSet}
           onMarkOwned={onMarkOwned}
           onRemoveItems={onRemoveItems}

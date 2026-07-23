@@ -5,8 +5,11 @@ import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
 import { Field, inputClass } from "../../components/Field";
+import { CheckIcon, CopyIcon, PencilIcon } from "../../components/icons";
+import { IconButton } from "../../components/IconButton";
 import { Modal } from "../../components/Modal";
 import { ScreenHeader } from "../../components/ScreenHeader";
+import { SectionLabel } from "../../components/SectionLabel";
 import { PlanSettingsForm } from "./PlanSettingsForm";
 
 function ShoppingLinksCard({
@@ -73,90 +76,96 @@ function ShoppingLinksCard({
   }
 
   return (
-    <Card className="flex flex-col gap-3">
-      <div>
-        <p className="text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase">Páginas donde comprar</p>
-        <p className="text-xs text-[var(--text-muted)]">Qué tipo de compra encaja en cada tienda, para tenerlo a mano mientras repasas el plan.</p>
-      </div>
+    <Card>
+      {/* Cerrada por defecto: el contenido (lista de enlaces + formulario de alta) no es
+       * algo que se consulte en cada visita al Plan, así que no hace falta que ocupe
+       * espacio siempre — mismo patrón <details> ya usado en "Reglas y objetivo del año"
+       * y en la cabecera de cada mes. */}
+      <details className="group">
+        <summary className="flex cursor-pointer items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+          <span aria-hidden="true" className="inline-block text-[var(--text-muted)] transition-transform group-open:rotate-90">
+            ›
+          </span>
+          <SectionLabel>Páginas donde comprar</SectionLabel>
+        </summary>
 
-      {settings.shoppingLinks.length > 0 && (
-        <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {settings.shoppingLinks.map((link, i) => (
-            <li
-              key={i}
-              className="flex flex-col gap-1 rounded-2xl border p-3"
-              style={{
-                backgroundColor: "color-mix(in srgb, var(--amber) 10%, var(--surface-1))",
-                borderColor: "color-mix(in srgb, var(--amber) 28%, transparent)",
-              }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-bold text-[var(--amber)] hover:underline"
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-sm text-[var(--text-muted)]">Qué tipo de compra encaja en cada tienda, para tenerlo a mano mientras repasas el plan.</p>
+
+          {settings.shoppingLinks.length > 0 && (
+            <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {settings.shoppingLinks.map((link, i) => (
+                <li
+                  key={i}
+                  className="flex flex-col gap-1 rounded-2xl border p-3"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--amber) 10%, var(--surface-1))",
+                    borderColor: "color-mix(in srgb, var(--amber) 28%, transparent)",
+                  }}
                 >
-                  {link.label}
-                  <span aria-hidden="true"> ↗</span>
-                </a>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(i)}
-                    aria-label={`Editar ${link.label}`}
-                    className="rounded-full px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(i)}
-                    aria-label={`Quitar ${link.label} de las páginas de compra`}
-                    className="rounded-full px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              {link.note && <p className="text-xs leading-snug text-[var(--text-secondary)]">{link.note}</p>}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 border-t border-[var(--gridline)] pt-3">
-        <div className="flex flex-wrap gap-2">
-          <input
-            className={`${inputClass} w-auto min-w-32 flex-1 py-1.5 text-sm`}
-            placeholder="Nombre, p. ej. Cardmarket"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-          />
-          <input
-            className={`${inputClass} w-auto min-w-48 flex-[2] py-1.5 text-sm`}
-            placeholder="https://..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <input
-            className={`${inputClass} min-w-48 flex-1 py-1.5 text-sm`}
-            placeholder="Nota: para qué compras aquí (opcional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          {isEditing && (
-            <Button type="button" size="sm" variant="ghost" onClick={resetForm} className="shrink-0">
-              Cancelar
-            </Button>
+                  <div className="flex items-start justify-between gap-2">
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold text-[var(--amber)] hover:underline"
+                    >
+                      {link.label}
+                      <span aria-hidden="true"> ↗</span>
+                    </a>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <IconButton onClick={() => handleEdit(i)} label={`Editar ${link.label}`}>
+                        <PencilIcon className="size-4" />
+                      </IconButton>
+                      <IconButton
+                        tone="danger"
+                        onClick={() => handleRemove(i)}
+                        label={`Quitar ${link.label} de las páginas de compra`}
+                      >
+                        ×
+                      </IconButton>
+                    </div>
+                  </div>
+                  {link.note && <p className="text-xs leading-snug text-[var(--text-secondary)]">{link.note}</p>}
+                </li>
+              ))}
+            </ul>
           )}
-          <Button type="submit" size="sm" variant="ghost" disabled={saving || !label.trim() || !url.trim()} className="shrink-0">
-            {isEditing ? "Guardar cambios" : "+ Añadir página"}
-          </Button>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2 border-t border-[var(--gridline)] pt-3">
+            <div className="flex flex-wrap gap-2">
+              <input
+                className={`${inputClass} w-auto min-w-32 flex-1 py-1.5 text-sm`}
+                placeholder="Nombre, p. ej. Cardmarket"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+              />
+              <input
+                className={`${inputClass} w-auto min-w-48 flex-[2] py-1.5 text-sm`}
+                placeholder="https://..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                className={`${inputClass} min-w-48 flex-1 py-1.5 text-sm`}
+                placeholder="Nota: para qué compras aquí (opcional)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              {isEditing && (
+                <Button type="button" size="sm" variant="ghost" onClick={resetForm} className="shrink-0">
+                  Cancelar
+                </Button>
+              )}
+              <Button type="submit" size="sm" variant="ghost" disabled={saving || !label.trim() || !url.trim()} className="shrink-0">
+                {isEditing ? "Guardar cambios" : "+ Añadir página"}
+              </Button>
+            </div>
+          </form>
         </div>
-      </form>
+      </details>
     </Card>
   );
 }
@@ -170,7 +179,7 @@ function ItemDescription({ item }: { item: PlanItem }) {
     <span className={baseClass}>
       {item.description}
       {item.referencePrice !== null && (
-        <span className={item.done ? "font-bold" : "font-bold text-[var(--amber)]"}> (ref. {formatMoney(item.referencePrice)})</span>
+        <span className={item.done ? "font-semibold" : "font-semibold text-[var(--amber)]"}> (ref. {formatMoney(item.referencePrice)})</span>
       )}
       {item.searchTerm && <span className="text-[var(--text-muted)] italic"> 🔍 {item.searchTerm}</span>}
     </span>
@@ -320,30 +329,15 @@ function PlanItemRow({
       <span className="flex-1 py-1 text-left text-sm leading-snug break-words whitespace-normal">
         <ItemDescription item={item} />
       </span>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label={`Editar "${item.description}"`}
-        className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
-      >
-        ✏️
-      </button>
-      <button
-        type="button"
-        onClick={handleCopy}
-        aria-label={`Copiar "${copyText}"`}
-        className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--beacon)]"
-      >
-        {copied ? "✓" : "📋"}
-      </button>
-      <button
-        type="button"
-        onClick={handleRemove}
-        aria-label={`Quitar ${item.description} del plan`}
-        className="mt-1 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--status-critical)]"
-      >
+      <IconButton className="mt-1" onClick={() => setEditing(true)} label={`Editar "${item.description}"`}>
+        <PencilIcon className="size-4" />
+      </IconButton>
+      <IconButton className="mt-1" onClick={handleCopy} label={`Copiar "${copyText}"`}>
+        {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+      </IconButton>
+      <IconButton className="mt-1" tone="danger" onClick={handleRemove} label={`Quitar ${item.description} del plan`}>
         ×
-      </button>
+      </IconButton>
       {editing && (
         <PlanItemEditForm
           item={item}
@@ -404,9 +398,7 @@ function EmptyCategorySlot({
   if (open) {
     return (
       <div className="min-w-64 flex-1 rounded-2xl border border-dashed border-[var(--gridline)] p-3">
-        <p className="px-2 pb-1 text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase">
-          {PLAN_CATEGORY_LABELS[category]}
-        </p>
+        <SectionLabel className="px-2 pb-1">{PLAN_CATEGORY_LABELS[category]}</SectionLabel>
         <AddPlanItemRow autoFocus onAdd={onAdd} />
       </div>
     );
@@ -502,9 +494,7 @@ function MonthSection({
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {nonEmptyCategories.map((category) => (
               <Card key={category} className="flex min-w-64 flex-1 basis-64 flex-col gap-1.5 p-3 sm:p-4">
-                <p className="px-2 text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase">
-                  {PLAN_CATEGORY_LABELS[category]}
-                </p>
+                <SectionLabel className="px-2">{PLAN_CATEGORY_LABELS[category]}</SectionLabel>
                 <ul className="flex flex-col">
                   {byCategory[category].map((item) => (
                     <PlanItemRow key={item.id} item={item} onToggleDone={onToggleDone} onUpdate={onUpdate} onRemove={onRemove} />
@@ -557,44 +547,39 @@ export function PlanScreen({
     <div className="flex flex-col gap-6">
       <ScreenHeader title="Plan" subtitle="Tu objetivo de compra mes a mes." />
 
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-[var(--text-secondary)]">
-          "Hecho" es solo una casilla de seguimiento: no registra la compra en tu colección ni cuenta en el valor
-          total — para eso, usa "Ya la tengo" desde Añadir o Wishlist.
-        </p>
-        <Button variant="tint" onClick={() => setShowSettings(true)} className="shrink-0">
-          Ajustes del plan
-        </Button>
-      </div>
-
       {settings && <ShoppingLinksCard settings={settings} onUpdateSettings={onUpdateSettings} />}
 
       {settings && (
         <Card className="flex flex-col gap-3">
-          <div>
-            <p className="text-xs text-[var(--text-muted)]">Presupuesto mensual</p>
-            <p className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--amber)]">
-              {formatMoney(settings.monthlyBudget)}
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <SectionLabel>Presupuesto mensual</SectionLabel>
+              <p className="mt-1 font-[family-name:var(--font-display)] text-lg font-bold text-[var(--amber)]">
+                {formatMoney(settings.monthlyBudget)}
+              </p>
+            </div>
+            <Button variant="tint" size="sm" onClick={() => setShowSettings(true)} className="shrink-0">
+              Ajustes del plan
+            </Button>
           </div>
           {(settings.yearRules || settings.yearGoal) && (
             <details className="group">
-              <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-bold tracking-wide text-[var(--text-muted)] uppercase transition-colors hover:text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
-                <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">
+              <summary className="flex cursor-pointer items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+                <span aria-hidden="true" className="inline-block text-[var(--text-muted)] transition-transform group-open:rotate-90">
                   ›
                 </span>
-                Reglas y objetivo del año
+                <SectionLabel>Reglas y objetivo del año</SectionLabel>
               </summary>
               <div className="mt-2 flex flex-col gap-3 sm:flex-row">
                 {settings.yearRules && (
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-[var(--text-muted)]">Reglas del año</p>
+                    <SectionLabel>Reglas del año</SectionLabel>
                     <p className="text-sm whitespace-pre-line text-[var(--text-secondary)]">{settings.yearRules}</p>
                   </div>
                 )}
                 {settings.yearGoal && (
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-[var(--text-muted)]">Objetivo al terminar</p>
+                    <SectionLabel>Objetivo al terminar</SectionLabel>
                     <p className="text-sm whitespace-pre-line text-[var(--text-secondary)]">{settings.yearGoal}</p>
                   </div>
                 )}
@@ -620,18 +605,24 @@ export function PlanScreen({
           <p className="text-sm text-[var(--text-muted)]">🗓️ Todavía no hay ítems en el plan.</p>
         </Card>
       ) : (
-        groups.map((group) => (
-          <MonthSection
-            key={group.month}
-            month={group.month}
-            byCategory={group.byCategory}
-            monthlyBudget={settings?.monthlyBudget ?? null}
-            onAdd={(category, description) => handleAdd(group.month, category, description)}
-            onToggleDone={onToggleDone}
-            onUpdate={onUpdate}
-            onRemove={onRemove}
-          />
-        ))
+        // Gap propio, más ajustado que el gap-6 del resto de secciones de la pantalla: los
+        // meses son entradas de una misma lista (mismo criterio que cualquier acordeón),
+        // no bloques independientes, así que no necesitan tanto aire entre ellos — el
+        // separador visual real es el borde que pone divide-y, no el espacio en blanco.
+        <div className="flex flex-col gap-3 divide-y divide-[var(--gridline)] [&>*:not(:first-child)]:pt-3">
+          {groups.map((group) => (
+            <MonthSection
+              key={group.month}
+              month={group.month}
+              byCategory={group.byCategory}
+              monthlyBudget={settings?.monthlyBudget ?? null}
+              onAdd={(category, description) => handleAdd(group.month, category, description)}
+              onToggleDone={onToggleDone}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+            />
+          ))}
+        </div>
       )}
     </div>
   );

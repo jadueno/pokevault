@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#fef8ed" />
+    <link rel="icon" type="image/png" href="/icon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Standalone real al añadir a pantalla de inicio en iOS (sin esto, el acceso directo
+         sigue abriendo Safari con su propia barra de navegación encima). status-bar-style
+         "black-translucent" deja la barra de estado transparente sobre el contenido de la
+         página en vez de un color plano aparte — mismo objetivo que ya se resolvió para el
+         modo pestaña normal ajustando el "theme-color" de arriba. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PokéVault" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

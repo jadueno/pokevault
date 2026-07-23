@@ -311,7 +311,7 @@ describe("ColeccionScreen", () => {
     const handlers = renderScreen([item()], []);
 
     await user.click(screen.getByRole("button", { name: "Sellado (0)" }));
-    await user.click(screen.getByRole("button", { name: "+ Añadir compra sellada" }));
+    await user.click(screen.getByRole("button", { name: "+ Compra" }));
     await user.type(screen.getByLabelText("Nombre del producto"), "Caja Escarlata y Púrpura");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
@@ -358,6 +358,7 @@ describe("ColeccionScreen", () => {
     handlers.onSearchSets.mockResolvedValue([searchCandidate()]);
 
     await user.click(screen.getByRole("button", { name: "Sets (0)" }));
+    await user.click(screen.getByRole("button", { name: "+ Set" }));
     await user.type(screen.getByPlaceholderText("Nombre en inglés, p. ej. Pitch Black"), "Pitch Black");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
 
@@ -374,6 +375,7 @@ describe("ColeccionScreen", () => {
     handlers.onSearchSets.mockResolvedValue([searchCandidate()]);
 
     await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "+ Set" }));
     await user.type(screen.getByPlaceholderText("Nombre en inglés, p. ej. Pitch Black"), "Pitch Black");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
 

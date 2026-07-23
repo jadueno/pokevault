@@ -2,6 +2,7 @@ import type { CollectionSummary, PlanItem, SealedPurchase } from "../../domain/t
 import { formatMoney, totalPlanInvested } from "../../domain/calculations";
 import { Card } from "../../components/Card";
 import { ScreenHeader } from "../../components/ScreenHeader";
+import { SectionLabel } from "../../components/SectionLabel";
 
 function sealedValue(items: SealedPurchase[]): { value: number; invested: number; withoutValue: number } {
   let value = 0;
@@ -52,7 +53,7 @@ export function DashboardScreen({
           className="flex flex-col justify-between sm:col-span-2 sm:row-span-2"
           style={{ background: "var(--hero-gradient)" }}
         >
-          <h2 className="text-sm font-semibold text-white/70">Valor total estimado</h2>
+          <SectionLabel onDark>Valor total estimado</SectionLabel>
           <p className="mt-3 font-[family-name:var(--font-display)] text-5xl font-bold tabular-nums text-[var(--on-hero)] sm:text-6xl">
             {formatMoney(totalValue)}
           </p>
@@ -61,13 +62,13 @@ export function DashboardScreen({
           </p>
         </Card>
         <Card className="flex flex-col justify-center">
-          <h2 className="text-sm font-semibold text-[var(--text-muted)]">Invertido</h2>
+          <SectionLabel>Invertido</SectionLabel>
           <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tabular-nums text-[var(--text-primary)]">
             {formatMoney(totalInvested)}
           </p>
         </Card>
         <Card className="flex flex-col justify-center">
-          <h2 className="text-sm font-semibold text-[var(--text-muted)]">Ganancia / pérdida estimada</h2>
+          <SectionLabel>Ganancia / pérdida estimada</SectionLabel>
           <p
             className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold tabular-nums"
             style={{ color: gainLoss >= 0 ? "var(--status-good)" : "var(--status-critical)" }}
@@ -80,13 +81,13 @@ export function DashboardScreen({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)]">Cartas en la colección</h2>
+          <SectionLabel>Cartas en la colección</SectionLabel>
           <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text-primary)]">
             {summary?.totalQuantity ?? 0} <span className="text-sm font-normal text-[var(--text-muted)]">unidades</span>
           </p>
         </Card>
         <Card>
-          <h2 className="text-sm font-semibold text-[var(--text-muted)]">Producto sellado</h2>
+          <SectionLabel>Producto sellado</SectionLabel>
           <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text-primary)]">
             {sealedItems.length} <span className="text-sm font-normal text-[var(--text-muted)]">compras</span>
           </p>

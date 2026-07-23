@@ -39,7 +39,6 @@
 
   --ink: var(--text-primary);
   --on-ink: var(--page);
-  --accent-amber-blob: color-mix(in srgb, var(--amber) 10%, transparent);
 
   /* Degradados vivos para la cabecera hero de cada pantalla y para las tarjetas
      "protagonistas" (carta/producto/deseo) — la energía visual de la referencia, con rojo
@@ -157,25 +156,6 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 .app-shell {
   position: relative;
   isolation: isolate;
-}
-
-.app-shell::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  /* El primer degradado (antes un blob sutil) ahora es un resplandor con los mismos
-     colores que --hero-gradient: ScreenHeader es un elemento
-     normal que se desplaza con el scroll, así que al hacer scroll o rebotar (overscroll
-     elástico de iOS) puede separarse un instante del borde superior — sin esto, lo que
-     queda al descubierto ahí es el --page plano (la "franja" reportada varias veces:
-     comprobado renderizando con Playwright tanto en reposo como con el contenido
-     desplazado). Al vivir en el fondo fijo, nunca se mueve, así que siempre hay
-     continuidad de color detrás de la cabecera pase lo que pase con el scroll. */
-  background:
-    radial-gradient(60rem 20rem at 50% -4%, color-mix(in srgb, var(--amber) 45%, var(--beacon)) 0%, var(--beacon) 35%, transparent 78%),
-    radial-gradient(46rem 26rem at 110% 10%, var(--accent-amber-blob), transparent);
 }
 
 @utility shadow-card {

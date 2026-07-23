@@ -230,7 +230,7 @@ export function CollectionQuickForm({
               </select>
             </Field>
             {projectedCostPerCard !== null && (
-              <p className="text-xs text-[var(--text-muted)] sm:col-span-2">
+              <p className="text-sm text-[var(--text-muted)] sm:col-span-2">
                 Con esta carta serían {projectedLinkedCount} de este sobre →{" "}
                 <span className="font-semibold text-[var(--amber)]">≈{formatMoney(projectedCostPerCard)}/carta</span>
               </p>
@@ -259,7 +259,7 @@ export function CollectionQuickForm({
         </Field>
       </div>
 
-      <p className="text-xs text-[var(--text-muted)]">
+      <p className="text-sm text-[var(--text-muted)]">
         {matchedChecklistCard ? (
           <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}" (set sincronizado).</>
         ) : isEditing ? (

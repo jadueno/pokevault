@@ -1,0 +1,14 @@
+{
+  "name": "PokéVault",
+  "short_name": "PokéVault",
+  "description": "Gestor personal de colección Pokémon TCG",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fef8ed",
+  "theme_color": "#fef8ed",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
