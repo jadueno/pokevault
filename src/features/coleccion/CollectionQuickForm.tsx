@@ -16,6 +16,7 @@ import { costPerCard, countLinkedCollectionItems, findChecklistCardImage, format
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 import { SectionLabel } from "../../components/SectionLabel";
+import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { PhotoCapture } from "./PhotoCapture";
 
 const CONFIDENCE_LABELS: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
@@ -137,6 +138,12 @@ export function CollectionQuickForm({
   const [searchingCards, setSearchingCards] = useState(false);
   const [cardMatches, setCardMatches] = useState<CardSearchMatch[] | null>(null);
   const [appliedMatch, setAppliedMatch] = useState<CardSearchMatch | null>(null);
+  // Foto en grande de un candidato, para poder verlo bien antes de elegir cuál es —
+  // independiente de marcarlo como el correcto (ver applyCardMatch).
+  const [previewMatch, setPreviewMatch] = useState<CardSearchMatch | null>(null);
+  // Mientras haya varias cartas candidatas sin resolver, el formulario entero se oculta:
+  // no tiene sentido enseñar campos a medio rellenar hasta que el usuario elija cuál es.
+  const hasPendingMatches = cardMatches !== null && cardMatches.length > 0;
 
   const cameFromPack = form.acquisitionType === "pulled_from_pack";
   const selectedSealedPurchase = form.sealedPurchaseId ? sealedItems.find((s) => s.id === form.sealedPurchaseId) : undefined;
@@ -248,42 +255,61 @@ export function CollectionQuickForm({
                     : "No se ha podido identificar nada en la foto. Rellena los datos a mano."}
             </p>
           )}
-          {!searchingCards && cardMatches && cardMatches.length > 0 && (
+          {!searchingCards && hasPendingMatches && (
             <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">
               <SectionLabel>Elige la carta correcta</SectionLabel>
               {cardMatches.map((match) => (
-                <button
-                  key={match.externalId}
-                  type="button"
-                  onClick={() => applyCardMatch(match)}
-                  className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2 text-left transition-colors hover:bg-[var(--gridline)]"
-                >
+                <div key={match.externalId} className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2">
                   {match.imageUrl ? (
-                    <img src={match.imageUrl} alt="" className="w-12 shrink-0 rounded-lg border border-[var(--border)]" />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMatch(match)}
+                      aria-label={`Ver ${match.name} en grande`}
+                      className="shrink-0"
+                    >
+                      <img src={match.imageUrl} alt="" className="w-16 rounded-lg border border-[var(--border)]" />
+                    </button>
                   ) : (
                     <div
                       aria-hidden="true"
-                      className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-lg text-[var(--text-muted)]"
+                      className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-lg text-[var(--text-muted)]"
                     >
                       🎴
                     </div>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{match.name}</p>
-                    <p className="truncate text-xs text-[var(--text-muted)]">
-                      {match.setName} · #{match.number}
-                    </p>
-                  </div>
-                  {match.referencePrice !== null && (
-                    <span className="shrink-0 text-xs font-semibold text-[var(--amber)]">≈{formatMoney(match.referencePrice)}</span>
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => applyCardMatch(match)}
+                    aria-label={`Elegir ${match.name} (${match.setName} · #${match.number})`}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left transition-colors hover:bg-[var(--gridline)]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{match.name}</p>
+                      <p className="truncate text-xs text-[var(--text-muted)]">
+                        {match.setName} · #{match.number}
+                      </p>
+                    </div>
+                    {match.referencePrice !== null && (
+                      <span className="shrink-0 text-xs font-semibold text-[var(--amber)]">≈{formatMoney(match.referencePrice)}</span>
+                    )}
+                  </button>
+                </div>
               ))}
             </div>
           )}
         </div>
       )}
 
+      {previewMatch && (
+        <PhotoLightbox
+          src={previewMatch.imageUrlLarge ?? previewMatch.imageUrl ?? ""}
+          alt={previewMatch.name}
+          onClose={() => setPreviewMatch(null)}
+        />
+      )}
+
+      {!hasPendingMatches && (
+      <>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nombre">
           <input
@@ -482,14 +508,18 @@ export function CollectionQuickForm({
       <Field label="Notas">
         <textarea rows={2} className={inputClass} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value || null })} />
       </Field>
+      </>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" tone="beacon" disabled={saving}>
-          {saving ? "Guardando…" : isEditing ? "Guardar cambios" : "Añadir a mi colección"}
-        </Button>
+        {!hasPendingMatches && (
+          <Button type="submit" tone="beacon" disabled={saving}>
+            {saving ? "Guardando…" : isEditing ? "Guardar cambios" : "Añadir a mi colección"}
+          </Button>
+        )}
       </div>
     </form>
   );

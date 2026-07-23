@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ConfirmProvider";
@@ -387,7 +387,19 @@ describe("ColeccionScreen", () => {
     expect(await screen.findByText("Hay varias cartas que coinciden — elige la correcta abajo.")).toBeInTheDocument();
     expect(screen.getByText("Obsidian Flames · #125/197")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Charizard ex/ }));
+    // Mientras hay candidatas sin resolver, el formulario entero queda oculto: solo se ve
+    // el listado, no tiene sentido enseñar campos a medio rellenar.
+    expect(screen.queryByLabelText("Nombre")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Añadir a mi colección" })).not.toBeInTheDocument();
+
+    // Clic en la miniatura: abre la foto en grande para verla bien, sin elegir la carta.
+    await user.click(screen.getByRole("button", { name: "Ver Charizard ex en grande" }));
+    const lightbox = screen.getByRole("dialog", { name: "Charizard ex" });
+    expect(lightbox.querySelector("img")).toHaveAttribute("src", "https://example.com/sv-charizard-large.png");
+    await user.click(within(lightbox).getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByLabelText("Nombre")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Elegir Charizard ex/ }));
 
     expect(await screen.findByDisplayValue("Charizard ex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Obsidian Flames")).toBeInTheDocument();
