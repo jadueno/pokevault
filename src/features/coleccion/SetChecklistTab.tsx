@@ -471,8 +471,14 @@ function SetCard({
   const [resyncing, setResyncing] = useState(false);
   const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
   const ownedCount = completion?.owned.length ?? null;
-  const total = checklist.totalCards;
+  // cards.length, no checklist.totalCards: este último cuenta cartas del set (120), no
+  // filas del checklist — con variantes (normal+reverso), una carta con las dos aporta
+  // dos filas que se pueden marcar como tuyas por separado, así que el total real a
+  // completar es mayor que 120 en cuanto el set tiene alguna carta con más de una
+  // variante. Usar totalCards aquí daba porcentajes por encima de 100%.
+  const total = cards?.length ?? checklist.totalCards;
   const pct = ownedCount !== null && total > 0 ? Math.round((ownedCount / total) * 100) : 0;
+  const syncedLabel = new Date(checklist.syncedAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 
   async function handleResync() {
     setResyncing(true);
@@ -493,7 +499,7 @@ function SetCard({
         <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--on-hero)]">
           {checklist.setNameEs ?? checklist.setName}
         </p>
-        {checklist.setNameEs && <p className="truncate text-xs text-white/70">{checklist.setName}</p>}
+        <p className="truncate text-xs text-white/70">Sincronizado el {syncedLabel}</p>
       </div>
 
       <div>
