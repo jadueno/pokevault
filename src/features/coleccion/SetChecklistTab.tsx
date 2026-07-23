@@ -354,11 +354,21 @@ function SetCardsGrid({
           ))}
         </div>
         <div className="flex gap-2">
-          {selecting && (
-            <Button variant="tint" tone="ink" size="sm" onClick={selectAllVisible}>
-              Seleccionar todas
-            </Button>
-          )}
+          {/* Siempre visible, no solo tras entrar en modo selección: si todavía no se
+           * estaba seleccionando, activa el modo y selecciona todo de golpe en el mismo
+           * clic, en vez de obligar a un primer clic en "Seleccionar varias" que por sí
+           * solo no serviría de nada. */}
+          <Button
+            variant="tint"
+            tone="ink"
+            size="sm"
+            onClick={() => {
+              setSelecting(true);
+              selectAllVisible();
+            }}
+          >
+            Seleccionar todas
+          </Button>
           <Button
             variant={selecting ? "solid" : "tint"}
             tone={selecting ? "critical" : "ink"}
