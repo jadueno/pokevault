@@ -5,7 +5,11 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
 /** Skeleton de carga inicial, mientras se obtienen los datos del backend. */
 export function LoadingState() {
   return (
-    <div role="status" aria-live="polite" className="flex flex-col gap-6">
+    <div
+      role="status"
+      aria-live="polite"
+      className="mt-[calc(env(safe-area-inset-top)+1rem)] flex flex-col gap-6 sm:mt-[calc(env(safe-area-inset-top)+2rem)]"
+    >
       <span className="sr-only">Cargando datos…</span>
 
       <div className="flex flex-col gap-2" aria-hidden="true">

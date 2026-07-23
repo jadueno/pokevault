@@ -111,19 +111,23 @@ export default function App() {
         ))}
       </nav>
 
-      {/* pt- explícito en vez de heredar del p-4/sm:p-8 general: con viewport-fit=cover
-          (index.html) el contenido se extiende debajo de la barra de estado/notch, así
-          que hace falta sumar env(safe-area-inset-top) al hueco de siempre (protege el
-          texto de error/skeleton de carga). ScreenHeader —siempre el primer elemento de
-          cada pantalla— cancela este padding con un margen negativo propio para quedar
-          pegado al borde real de arriba y que su degradado llegue hasta detrás de la
-          barra de estado, sin dejar una franja de --page plano por encima. */}
-      <main className="relative flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-28 sm:px-8 sm:pt-[calc(env(safe-area-inset-top)+2rem)] sm:pb-12">
+      {/* Sin padding-top propio: ScreenHeader (siempre el primer elemento de cada pantalla)
+          queda así pegado al borde real de arriba en móvil y su degradado llega hasta
+          detrás de la barra de estado, sin dejar una franja de --page plano por encima.
+          (Antes se intentó en su lugar cancelar un pt- de <main> con un margen negativo
+          en ScreenHeader — el CSS generado era válido, pero la franja seguía apareciendo
+          igual; esta versión evita la cancelación por completo en vez de depender de
+          que cuadren dos valores en dos sitios distintos, más fácil de verificar y de
+          mantener correcta. Verificado renderizando el marcado real con Playwright,
+          simulando env(safe-area-inset-top) con una constante de prueba.)
+          El error de conexión y el skeleton de carga, que si aparecen lo hacen sin
+          ScreenHeader delante, llevan su propio margen de seguridad más abajo. */}
+      <main className="relative flex-1 px-4 pb-28 sm:px-8 sm:pb-12">
         <div className="mx-auto max-w-6xl">
           {error && (
             <div
               role="alert"
-              className="mb-4 rounded-[1.75rem] border p-4 text-sm shadow-card"
+              className="mt-[calc(env(safe-area-inset-top)+1rem)] mb-4 rounded-[1.75rem] border p-4 text-sm shadow-card sm:mt-[calc(env(safe-area-inset-top)+2rem)]"
               style={{
                 borderColor: "var(--status-critical)",
                 color: "var(--status-critical)",
