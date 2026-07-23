@@ -114,6 +114,7 @@ function renderScreen(
     onMarkOwned: vi.fn().mockResolvedValue(undefined),
     onRemoveItems: vi.fn().mockResolvedValue(undefined),
     onRecognizeCard: vi.fn().mockResolvedValue({ name: null, setName: null, number: null, rarity: null, confidence: null }),
+    onSearchCards: vi.fn().mockResolvedValue([]),
   };
   render(
     <ConfirmProvider>
@@ -295,6 +296,102 @@ describe("ColeccionScreen", () => {
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
 
     expect(await screen.findByText(/No se ha podido identificar nada en la foto/)).toBeInTheDocument();
+  });
+
+  it("tras identificar la foto, si hay una única carta en el catálogo se aplican sus datos oficiales", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+    handlers.onRecognizeCard.mockResolvedValue({
+      name: "Grubbin",
+      setName: "Oscuridad Absoluta",
+      number: "2/120",
+      rarity: "Común",
+      confidence: "high",
+    });
+    handlers.onSearchCards.mockResolvedValue([
+      {
+        externalId: "me05-002",
+        number: "002/120",
+        name: "Grubbin",
+        setName: "Oscuridad Absoluta",
+        rarity: "Común",
+        variant: "normal",
+        imageUrl: "https://example.com/grubbin-small.png",
+        imageUrlLarge: "https://example.com/grubbin-large.png",
+        referencePrice: 0.02,
+      },
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+
+    expect(handlers.onSearchCards).toHaveBeenCalledWith("Grubbin", "Oscuridad Absoluta", "2/120");
+    expect(await screen.findByDisplayValue("002/120")).toBeInTheDocument();
+    expect(screen.getByText(/Coincide con "Grubbin" \(Oscuridad Absoluta, #002\/120\) — datos oficiales aplicados/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+    expect(handlers.onAddItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Grubbin",
+        number: "002/120",
+        estimatedValueOverride: 0.02,
+        photo: "https://example.com/grubbin-large.png",
+      }),
+    );
+  });
+
+  it("tras identificar la foto, si hay varias cartas candidatas se puede elegir cuál es", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+    handlers.onRecognizeCard.mockResolvedValue({
+      name: "Charizard",
+      setName: null,
+      number: null,
+      rarity: null,
+      confidence: "medium",
+    });
+    handlers.onSearchCards.mockResolvedValue([
+      {
+        externalId: "base-4",
+        number: "4/102",
+        name: "Charizard",
+        setName: "Base",
+        rarity: "Rare Holo",
+        variant: "holo",
+        imageUrl: "https://example.com/base-charizard.png",
+        imageUrlLarge: "https://example.com/base-charizard-large.png",
+        referencePrice: 320,
+      },
+      {
+        externalId: "sv-125",
+        number: "125/197",
+        name: "Charizard ex",
+        setName: "Obsidian Flames",
+        rarity: "Double Rare",
+        variant: "holo",
+        imageUrl: "https://example.com/sv-charizard.png",
+        imageUrlLarge: "https://example.com/sv-charizard-large.png",
+        referencePrice: 15,
+      },
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+
+    expect(await screen.findByText("Hay varias cartas que coinciden — elige la correcta abajo.")).toBeInTheDocument();
+    expect(screen.getByText("Obsidian Flames · #125/197")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Charizard ex/ }));
+
+    expect(await screen.findByDisplayValue("Charizard ex")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Obsidian Flames")).toBeInTheDocument();
+    expect(screen.queryByText("Obsidian Flames · #125/197")).not.toBeInTheDocument();
   });
 
   it("al editar una carta ya existente no aparece la opción de hacer foto", async () => {

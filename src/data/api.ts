@@ -1,4 +1,5 @@
 import type {
+  CardSearchMatch,
   CollectionItem,
   MoveToCollectionDetails,
   NewCollectionItem,
@@ -118,4 +119,11 @@ export function resyncSetChecklist<T = SetChecklist>(checklistId: string): Promi
 
 export function recognizeCard<T = RecognizedCardData>(imageDataUrl: string): Promise<T> {
   return request("/card-recognition", { method: "POST", body: JSON.stringify({ imageDataUrl }) });
+}
+
+export function searchCards<T = CardSearchMatch[]>(name: string, setName: string | null, number: string | null): Promise<T> {
+  const params = new URLSearchParams({ name });
+  if (setName) params.set("setName", setName);
+  if (number) params.set("number", number);
+  return request(`/card-search?${params.toString()}`);
 }

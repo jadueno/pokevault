@@ -82,9 +82,40 @@ export interface PokemonTcgSetCards {
   cards: PokemonTcgCardData[];
 }
 
+/** Una carta concreta encontrada al buscar por nombre (across todos los sets del
+ * proveedor, no uno sincronizado) — para el alta manual asistida por foto: el
+ * reconocimiento por IA da pistas (nombre/expansión/número), esto las usa para traer el
+ * dato oficial real en vez de dejar solo el texto libre que sugirió la IA. */
+export interface PokemonTcgCardMatch {
+  externalId: string;
+  /** Formato "N/total" (p. ej. "2/120"), igual que el resto de números de carta de la
+   * app — no solo el número dentro del set. */
+  number: string;
+  name: string;
+  setName: string;
+  rarity: string | null;
+  /** Variante "principal" de la carta (normal si existe, si no la única que haya) — el
+   * usuario puede cambiarla a mano en el formulario tras elegir la carta. */
+  variant: CardVariant;
+  imageUrl: string | null;
+  imageUrlLarge: string | null;
+  referencePrice: number | null;
+}
+
+export interface PokemonTcgCardSearchQuery {
+  name: string;
+  setName?: string | null;
+  number?: string | null;
+}
+
 export interface PokemonTcgProvider {
   searchSets(query: string): Promise<PokemonTcgSetCandidate[]>;
   getSetCards(externalSetId: string): Promise<PokemonTcgSetCards>;
+  /** Busca cartas concretas por nombre (+ pistas opcionales de expansión/número para
+   * acotar) en todo el catálogo del proveedor — no requiere que el set esté sincronizado.
+   * Puede devolver varias si el nombre es ambiguo (mismo Pokémon en varias expansiones):
+   * el usuario elige, nunca se asume la primera. */
+  searchCards(query: PokemonTcgCardSearchQuery): Promise<PokemonTcgCardMatch[]>;
 }
 
 // ---- Proveedor de reconocimiento visual (puerto intercambiable) ----

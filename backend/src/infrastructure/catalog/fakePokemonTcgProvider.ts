@@ -1,4 +1,10 @@
-import type { PokemonTcgProvider, PokemonTcgSetCandidate, PokemonTcgSetCards } from "../../domain/ports.js";
+import type {
+  PokemonTcgCardMatch,
+  PokemonTcgCardSearchQuery,
+  PokemonTcgProvider,
+  PokemonTcgSetCandidate,
+  PokemonTcgSetCards,
+} from "../../domain/ports.js";
 
 /** Fixture determinista para tests: no depende de red ni del proveedor real (TCGdex).
  * Conoce un solo set fijo ("Test Set" / "ts1", 2 cartas, una con precio y otra sin él) —
@@ -39,6 +45,55 @@ export function createFakePokemonTcgProvider(): PokemonTcgProvider {
           },
         ],
       };
+    },
+
+    async searchCards({ name }: PokemonTcgCardSearchQuery): Promise<PokemonTcgCardMatch[]> {
+      const q = name.toLowerCase();
+      // "pikachu": una única coincidencia (caso sin ambigüedad). "charizard": dos
+      // coincidencias en expansiones distintas (mismo Pokémon reeditado) para poder
+      // probar el selector de candidatos. Cualquier otra cosa: sin resultados.
+      if (q.includes("pikachu")) {
+        return [
+          {
+            externalId: "ts1-1",
+            number: "1/2",
+            name: "Fake Pikachu",
+            setName: "Test Set",
+            rarity: "Common",
+            variant: "normal",
+            imageUrl: "https://example.com/ts1-1-small.png",
+            imageUrlLarge: "https://example.com/ts1-1-large.png",
+            referencePrice: 1.5,
+          },
+        ];
+      }
+      if (q.includes("charizard")) {
+        return [
+          {
+            externalId: "ts1-2",
+            number: "2/2",
+            name: "Fake Charizard",
+            setName: "Test Set",
+            rarity: "Rare Holo",
+            variant: "holo",
+            imageUrl: "https://example.com/ts1-2-small.png",
+            imageUrlLarge: "https://example.com/ts1-2-large.png",
+            referencePrice: 12,
+          },
+          {
+            externalId: "ts2-4",
+            number: "4/50",
+            name: "Fake Charizard",
+            setName: "Otro Set de Prueba",
+            rarity: "Rare Holo",
+            variant: "holo",
+            imageUrl: "https://example.com/ts2-4-small.png",
+            imageUrlLarge: "https://example.com/ts2-4-large.png",
+            referencePrice: 40,
+          },
+        ];
+      }
+      return [];
     },
   };
 }

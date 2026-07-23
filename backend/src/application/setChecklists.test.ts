@@ -52,6 +52,30 @@ describe("createSetChecklistUseCases", () => {
     });
   });
 
+  describe("searchCards", () => {
+    it("devuelve la carta que encuentra el proveedor por nombre", async () => {
+      const { useCases } = setup();
+      const results = await useCases.searchCards("pikachu", null, null);
+      expect(results).toEqual([expect.objectContaining({ name: "Fake Pikachu", setName: "Test Set" })]);
+    });
+
+    it("con un nombre ambiguo, devuelve todos los candidatos que encuentra el proveedor", async () => {
+      const { useCases } = setup();
+      const results = await useCases.searchCards("charizard", null, null);
+      expect(results).toHaveLength(2);
+    });
+
+    it("sin coincidencias, devuelve una lista vacía (no un error)", async () => {
+      const { useCases } = setup();
+      expect(await useCases.searchCards("no existe esta carta", null, null)).toEqual([]);
+    });
+
+    it("rechaza un nombre vacío", async () => {
+      const { useCases } = setup();
+      await expect(useCases.searchCards("", null, null)).rejects.toThrow("no puede estar vacío");
+    });
+  });
+
   describe("sync", () => {
     it("sincroniza un set nuevo con sus cartas y precio", async () => {
       const { useCases } = setup();

@@ -1,5 +1,12 @@
 import type { CardVariant } from "../../domain/types.js";
-import type { PokemonTcgCardData, PokemonTcgProvider, PokemonTcgSetCandidate, PokemonTcgSetCards } from "../../domain/ports.js";
+import type {
+  PokemonTcgCardData,
+  PokemonTcgCardMatch,
+  PokemonTcgCardSearchQuery,
+  PokemonTcgProvider,
+  PokemonTcgSetCandidate,
+  PokemonTcgSetCards,
+} from "../../domain/ports.js";
 
 // TCGdex (https://tcgdex.dev) en vez de pokemontcg.io: gratis, sin API key, y busca
 // directamente en español (comprobado en vivo: `?name=oscuridad` encuentra "Oscuridad
@@ -13,6 +20,19 @@ const TIMEOUT_MS = 10_000;
 // cuántas peticiones simultáneas se lanzan, para no bombardear el proveedor de golpe con
 // sets grandes (~250 cartas).
 const CARD_FETCH_BATCH_SIZE = 25;
+// Límite de candidatos a detallar cuando se busca una carta por nombre (sin set
+// sincronizado de por medio): un nombre común (p. ej. un Pokémon muy reeditado) puede
+// devolver decenas de resultados en todo el histórico del proveedor — se acota antes de
+// pedir el detalle de cada uno para no lanzar una ráfaga desproporcionada de peticiones
+// ni un selector inmanejable para el usuario.
+const MAX_CARD_SEARCH_RESULTS = 12;
+
+interface TcgdexCardBrief {
+  id: string;
+  localId: string;
+  name: string;
+  image?: string;
+}
 
 interface TcgdexSetSummary {
   id: string;
@@ -25,10 +45,12 @@ interface TcgdexSetDetail extends TcgdexSetSummary {
 }
 
 interface TcgdexCardDetail {
+  id: string;
   localId: string;
   name: string;
   rarity?: string;
   image?: string;
+  set: { name: string; cardCount: { total: number } };
   // Qué versiones de impresión existen de esta carta — no todas tienen las tres (la
   // inmensa mayoría de comunes/infrecuentes de sets modernos tienen normal+reverse; las
   // raras/full art suelen ser solo holo, sin versión normal aparte).
@@ -87,6 +109,41 @@ async function fetchCardsInBatches(cardIds: string[]): Promise<TcgdexCardDetail[
   return results;
 }
 
+/** Quita ceros a la izquierda de un número tal como lo escribe/reconoce el usuario ("084"
+ * -> "84") — el filtro `localId` de TCGdex espera el número sin relleno. Si no es
+ * puramente numérico (p. ej. "TG04") se deja tal cual. */
+function stripLeadingZeros(number: string): string {
+  return /^\d+$/.test(number) ? String(Number(number)) : number;
+}
+
+/** Intentos de búsqueda en TCGdex de más a menos específico: con expansión+número (si se
+ * conocen ambos) primero, porque acierta a la primera casi siempre; si no da resultados,
+ * los va relajando hasta quedarse solo con el nombre — mejor que lanzar directamente la
+ * búsqueda más amplia y devolver un aluvión de homónimos de todo el histórico. */
+function buildSearchAttempts({ name, setName, number }: PokemonTcgCardSearchQuery): URLSearchParams[] {
+  const attempts: URLSearchParams[] = [];
+  const localId = number ? stripLeadingZeros(number.split("/")[0].trim()) : null;
+
+  if (setName && localId) {
+    const p = new URLSearchParams({ name });
+    p.set("set.name", setName);
+    p.set("localId", localId);
+    attempts.push(p);
+  }
+  if (setName) {
+    const p = new URLSearchParams({ name });
+    p.set("set.name", setName);
+    attempts.push(p);
+  }
+  if (localId) {
+    const p = new URLSearchParams({ name });
+    p.set("localId", localId);
+    attempts.push(p);
+  }
+  attempts.push(new URLSearchParams({ name }));
+  return attempts;
+}
+
 export function createTcgdexApiProvider(): PokemonTcgProvider {
   return {
     async searchSets(query: string): Promise<PokemonTcgSetCandidate[]> {
@@ -123,6 +180,34 @@ export function createTcgdexApiProvider(): PokemonTcgProvider {
           })),
         ),
       };
+    },
+
+    async searchCards(query: PokemonTcgCardSearchQuery): Promise<PokemonTcgCardMatch[]> {
+      let briefs: TcgdexCardBrief[] = [];
+      for (const params of buildSearchAttempts(query)) {
+        briefs = await fetchJson<TcgdexCardBrief[]>(`${API_BASE}/cards?${params.toString()}`);
+        if (briefs.length > 0) break;
+      }
+
+      const candidates = briefs.slice(0, MAX_CARD_SEARCH_RESULTS);
+      const details = await Promise.all(candidates.map((c) => fetchJson<TcgdexCardDetail>(`${API_BASE}/cards/${c.id}`)));
+
+      return details.map((card) => {
+        // Variante "principal" (normal si existe, si no la única que haya) — el usuario
+        // puede cambiarla a mano en el formulario tras elegir la carta.
+        const [primary] = cardVariantPrices(card);
+        return {
+          externalId: card.id,
+          number: `${card.localId}/${card.set.cardCount.total}`,
+          name: card.name,
+          setName: card.set.name,
+          rarity: card.rarity ?? null,
+          variant: primary.variant,
+          imageUrl: imageUrl(card.image, "low"),
+          imageUrlLarge: imageUrl(card.image, "high"),
+          referencePrice: primary.price,
+        };
+      });
     },
   };
 }

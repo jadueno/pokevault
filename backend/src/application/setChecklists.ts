@@ -20,6 +20,18 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
       }
     },
 
+    /** Busca una carta concreta por nombre (+ pistas opcionales de expansión/número) en
+     * todo el catálogo del proveedor, sin depender de que el set esté sincronizado — para
+     * el alta manual asistida por foto (ver application/cardRecognition.ts). */
+    searchCards: async (name: string, setName: string | null, number: string | null) => {
+      assertNonEmpty(name, "El nombre de la carta");
+      try {
+        return await provider.searchCards({ name, setName, number });
+      } catch {
+        return [];
+      }
+    },
+
     /** Sincroniza un set elegido explícitamente por su id — nunca adivinado. Si ya está
      * sincronizado no repite el trabajo (usar `resync` para eso). `setNameEs` es el texto
      * que escribió el usuario para encontrarlo, para que la próxima carta del mismo set

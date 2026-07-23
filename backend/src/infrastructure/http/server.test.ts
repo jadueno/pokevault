@@ -404,6 +404,35 @@ describe("/card-recognition", () => {
   });
 });
 
+describe("/card-search", () => {
+  it("con un nombre sin ambigüedad, devuelve un único candidato", async () => {
+    const res = await app.inject({ method: "GET", url: "/card-search?name=pikachu" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([
+      expect.objectContaining({ name: "Fake Pikachu", setName: "Test Set", number: "1/2", variant: "normal" }),
+    ]);
+  });
+
+  it("con un nombre ambiguo (varias expansiones), devuelve todos los candidatos", async () => {
+    const res = await app.inject({ method: "GET", url: "/card-search?name=charizard" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toHaveLength(2);
+    expect(body.map((c: { setName: string }) => c.setName)).toEqual(["Test Set", "Otro Set de Prueba"]);
+  });
+
+  it("sin coincidencias, devuelve una lista vacía", async () => {
+    const res = await app.inject({ method: "GET", url: "/card-search?name=no-existe-esta-carta" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+
+  it("responde 400 si el nombre viene vacío", async () => {
+    const res = await app.inject({ method: "GET", url: "/card-search?name=" });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
   it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
     const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), createFakeVisionProvider(), {

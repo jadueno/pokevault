@@ -22,6 +22,15 @@ export function registerSetChecklistRoutes(
     }
   });
 
+  app.get("/card-search", async (request, reply) => {
+    try {
+      const { name, setName, number } = request.query as { name?: string; setName?: string; number?: string };
+      return await useCases.searchCards(name ?? "", setName ?? null, number ?? null);
+    } catch (error) {
+      handleError(error, reply);
+    }
+  });
+
   app.post("/set-checklists", async (request, reply) => {
     try {
       const { externalSetId, setNameEs } = request.body as { externalSetId: string; setNameEs: string | null };

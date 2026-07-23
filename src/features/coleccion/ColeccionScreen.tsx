@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type {
   CardCondition,
+  CardSearchMatch,
   CardVariant,
   CollectionItem,
   NewCollectionItem,
@@ -379,6 +380,7 @@ export function ColeccionScreen({
   onMarkOwned,
   onRemoveItems,
   onRecognizeCard,
+  onSearchCards,
 }: {
   items: CollectionItem[];
   onAddItem: (entity: NewCollectionItem) => Promise<void>;
@@ -398,6 +400,7 @@ export function ColeccionScreen({
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
   onRemoveItems: (ids: string[]) => Promise<void>;
   onRecognizeCard: (imageDataUrl: string) => Promise<RecognizedCardData>;
+  onSearchCards: (name: string, setName: string | null, number: string | null) => Promise<CardSearchMatch[]>;
 }) {
   const [query, setQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -511,6 +514,7 @@ export function ColeccionScreen({
             checklists={checklists}
             cardsByChecklist={cardsByChecklist}
             onRecognizeCard={onRecognizeCard}
+            onSearchCards={onSearchCards}
             onSubmit={async (entity) => {
               await onUpdateItem(editingItem.id, entity);
               setEditingItem(null);
@@ -538,6 +542,7 @@ export function ColeccionScreen({
             checklists={checklists}
             cardsByChecklist={cardsByChecklist}
             onRecognizeCard={onRecognizeCard}
+            onSearchCards={onSearchCards}
             onSubmit={async (entity) => {
               await onAddItem(entity);
               setShowAddForm(false);

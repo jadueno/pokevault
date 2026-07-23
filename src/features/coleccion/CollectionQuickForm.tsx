@@ -3,6 +3,7 @@ import type {
   AcquisitionType,
   CardCondition,
   CardLanguage,
+  CardSearchMatch,
   CardVariant,
   CollectionItem,
   NewCollectionItem,
@@ -14,6 +15,7 @@ import type {
 import { costPerCard, countLinkedCollectionItems, findChecklistCardImage, formatMoney } from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
+import { SectionLabel } from "../../components/SectionLabel";
 import { PhotoCapture } from "./PhotoCapture";
 
 const CONFIDENCE_LABELS: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
@@ -63,6 +65,7 @@ export function CollectionQuickForm({
   cardsByChecklist,
   initialItem = null,
   onRecognizeCard,
+  onSearchCards,
   onSubmit,
   onCancel,
 }: {
@@ -85,6 +88,11 @@ export function CollectionQuickForm({
    * editar. El resultado siempre queda en los campos normales del formulario, revisable y
    * editable antes de guardar; nunca se guarda nada automáticamente. */
   onRecognizeCard: (imageDataUrl: string) => Promise<RecognizedCardData>;
+  /** Tras identificar la foto, busca la carta real en el catálogo del proveedor (no hace
+   * falta que el set esté sincronizado) para traer datos oficiales (imagen, precio,
+   * número y rareza exactos) en vez de quedarse solo con el texto libre de la IA — mismo
+   * criterio que ya se usa al marcar una carta desde un set sincronizado. */
+  onSearchCards: (name: string, setName: string | null, number: string | null) => Promise<CardSearchMatch[]>;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -117,11 +125,18 @@ export function CollectionQuickForm({
   });
   const [saving, setSaving] = useState(false);
   // Foto que ha hecho el usuario en este mismo alta (distinta de la oficial del set
-  // sincronizado, que sigue teniendo prioridad si hay coincidencia — ver handleSubmit).
+  // sincronizado o de la carta encontrada en el catálogo, que siguen teniendo prioridad
+  // si hay coincidencia — ver handleSubmit).
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [recognizing, setRecognizing] = useState(false);
   const [recognized, setRecognized] = useState<RecognizedCardData | null>(null);
   const [recognizeError, setRecognizeError] = useState<string | null>(null);
+  // Búsqueda en el catálogo del proveedor a partir de lo reconocido en la foto — no
+  // requiere que el set esté sincronizado. `cardMatches` solo se rellena cuando hay más
+  // de un candidato (ambigüedad real); con uno solo se aplica directamente.
+  const [searchingCards, setSearchingCards] = useState(false);
+  const [cardMatches, setCardMatches] = useState<CardSearchMatch[] | null>(null);
+  const [appliedMatch, setAppliedMatch] = useState<CardSearchMatch | null>(null);
 
   const cameFromPack = form.acquisitionType === "pulled_from_pack";
   const selectedSealedPurchase = form.sealedPurchaseId ? sealedItems.find((s) => s.id === form.sealedPurchaseId) : undefined;
@@ -131,10 +146,34 @@ export function CollectionQuickForm({
   const projectedCostPerCard = selectedSealedPurchase ? costPerCard(selectedSealedPurchase, projectedLinkedCount) : null;
   const matchedChecklistCard = findChecklistCardImage(form.setName, form.number, checklists, cardsByChecklist);
 
+  /** Aplica una carta concreta encontrada en el catálogo del proveedor (elegida por el
+   * usuario entre varios candidatos, o la única que había): datos oficiales, incluido el
+   * precio de referencia como valor estimado — mismo criterio que "Marcar como mías"
+   * desde un set sincronizado (ver SetChecklistTab.tsx), solo que aquí sin necesitar el
+   * set sincronizado de antemano. */
+  function applyCardMatch(match: CardSearchMatch) {
+    setAppliedMatch(match);
+    setCardMatches(null);
+    const now = new Date().toISOString();
+    setForm((prev) => ({
+      ...prev,
+      name: match.name,
+      setName: match.setName,
+      number: match.number,
+      rarity: match.rarity,
+      variant: match.variant,
+      estimatedValueOverride: match.referencePrice,
+      estimatedValueOverrideAt: match.referencePrice !== null ? now : null,
+      estimatedValueOverrideNote: match.referencePrice !== null ? "Precio de referencia de Cardmarket (buscador de cartas)" : null,
+    }));
+  }
+
   async function handleCapture(dataUrl: string) {
     setCapturedPhoto(dataUrl);
     setRecognized(null);
     setRecognizeError(null);
+    setCardMatches(null);
+    setAppliedMatch(null);
     setRecognizing(true);
     try {
       const result = await onRecognizeCard(dataUrl);
@@ -148,6 +187,17 @@ export function CollectionQuickForm({
         number: result.number ?? prev.number,
         rarity: result.rarity ?? prev.rarity,
       }));
+
+      if (result.name) {
+        setSearchingCards(true);
+        try {
+          const matches = await onSearchCards(result.name, result.setName, result.number);
+          if (matches.length === 1) applyCardMatch(matches[0]);
+          else if (matches.length > 1) setCardMatches(matches);
+        } finally {
+          setSearchingCards(false);
+        }
+      }
     } catch (e) {
       setRecognizeError(e instanceof Error ? e.message : "No se ha podido identificar la foto");
     } finally {
@@ -159,9 +209,16 @@ export function CollectionQuickForm({
     e.preventDefault();
     setSaving(true);
     try {
-      // Prioridad de la foto: la oficial del set sincronizado (si hay coincidencia) >
-      // la que acaba de hacer el usuario > la que ya tenía (al editar) > sin foto.
-      const photo = matchedChecklistCard?.imageUrlLarge ?? matchedChecklistCard?.imageUrl ?? capturedPhoto ?? (isEditing ? form.photo : null);
+      // Prioridad de la foto: la oficial del set sincronizado (si hay coincidencia) > la
+      // oficial de la carta encontrada en el catálogo > la que acaba de hacer el usuario >
+      // la que ya tenía (al editar) > sin foto.
+      const photo =
+        matchedChecklistCard?.imageUrlLarge ??
+        matchedChecklistCard?.imageUrl ??
+        appliedMatch?.imageUrlLarge ??
+        appliedMatch?.imageUrl ??
+        capturedPhoto ??
+        (isEditing ? form.photo : null);
       await onSubmit({ ...form, photo });
     } finally {
       setSaving(false);
@@ -174,17 +231,55 @@ export function CollectionQuickForm({
         <div className="flex flex-col gap-2">
           <PhotoCapture onCapture={handleCapture} />
           {recognizing && <p className="text-sm text-[var(--text-secondary)]">Identificando…</p>}
+          {!recognizing && searchingCards && <p className="text-sm text-[var(--text-secondary)]">Buscando la carta oficial…</p>}
           {!recognizing && recognizeError && (
             <p className="text-sm text-[var(--status-critical)]">
               No se ha podido identificar automáticamente ({recognizeError}). Rellena los datos a mano.
             </p>
           )}
-          {!recognizing && recognized && !recognizeError && (
+          {!recognizing && !searchingCards && recognized && !recognizeError && (
             <p className={`text-sm ${recognized.name ? "text-[var(--status-good)]" : "text-[var(--text-muted)]"}`}>
-              {recognized.name
-                ? `Identificado${recognized.confidence ? ` (confianza ${CONFIDENCE_LABELS[recognized.confidence]})` : ""}: revisa los datos de abajo antes de guardar.`
-                : "No se ha podido identificar nada en la foto. Rellena los datos a mano."}
+              {appliedMatch
+                ? `Coincide con "${appliedMatch.name}" (${appliedMatch.setName}, #${appliedMatch.number}) — datos oficiales aplicados, revísalos abajo.`
+                : cardMatches
+                  ? "Hay varias cartas que coinciden — elige la correcta abajo."
+                  : recognized.name
+                    ? `Identificado${recognized.confidence ? ` (confianza ${CONFIDENCE_LABELS[recognized.confidence]})` : ""}, pero no se ha encontrado en el catálogo: revisa los datos de abajo.`
+                    : "No se ha podido identificar nada en la foto. Rellena los datos a mano."}
             </p>
+          )}
+          {!searchingCards && cardMatches && cardMatches.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">
+              <SectionLabel>Elige la carta correcta</SectionLabel>
+              {cardMatches.map((match) => (
+                <button
+                  key={match.externalId}
+                  type="button"
+                  onClick={() => applyCardMatch(match)}
+                  className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2 text-left transition-colors hover:bg-[var(--gridline)]"
+                >
+                  {match.imageUrl ? (
+                    <img src={match.imageUrl} alt="" className="w-12 shrink-0 rounded-lg border border-[var(--border)]" />
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-lg text-[var(--text-muted)]"
+                    >
+                      🎴
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{match.name}</p>
+                    <p className="truncate text-xs text-[var(--text-muted)]">
+                      {match.setName} · #{match.number}
+                    </p>
+                  </div>
+                  {match.referencePrice !== null && (
+                    <span className="shrink-0 text-xs font-semibold text-[var(--amber)]">≈{formatMoney(match.referencePrice)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -337,6 +432,8 @@ export function CollectionQuickForm({
       <p className="text-sm text-[var(--text-muted)]">
         {matchedChecklistCard ? (
           <>🖼️ Se guardará la imagen oficial de "{matchedChecklistCard.name}" (set sincronizado).</>
+        ) : appliedMatch?.imageUrl ? (
+          <>🖼️ Se guardará la imagen oficial de "{appliedMatch.name}" (encontrada en el catálogo).</>
         ) : capturedPhoto ? (
           <>📷 Se guardará la foto que acabas de hacer.</>
         ) : isEditing ? (

@@ -167,6 +167,21 @@ export interface SetSearchCandidate {
   releaseDate: string | null;
 }
 
+/** Una carta concreta encontrada al buscar por nombre en todo el catálogo del proveedor
+ * (no un set sincronizado) — para el alta manual asistida por foto: usa lo que reconoce
+ * la IA (nombre/expansión/número) para traer el dato oficial real. */
+export interface CardSearchMatch {
+  externalId: string;
+  number: string;
+  name: string;
+  setName: string;
+  rarity: string | null;
+  variant: CardVariant;
+  imageUrl: string | null;
+  imageUrlLarge: string | null;
+  referencePrice: number | null;
+}
+
 // ---- Reconocimiento de fotos (carta -> datos sugeridos) ----
 // Ayuda a rellenar el alta manual de una carta que no está en ningún set sincronizado —
 // nunca alta automática: el resultado siempre se revisa/edita a mano antes de guardar.
