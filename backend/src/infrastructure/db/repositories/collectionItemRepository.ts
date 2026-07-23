@@ -3,6 +3,7 @@ import type {
   AcquisitionType,
   CardCondition,
   CardLanguage,
+  CardVariant,
   CollectionItem,
   NewCollectionItem,
 } from "../../../domain/types.js";
@@ -14,6 +15,7 @@ interface CollectionItemRow {
   set_name: string | null;
   number: string | null;
   rarity: string | null;
+  variant: CardVariant;
   language: CardLanguage;
   condition: CardCondition;
   quantity: number;
@@ -32,7 +34,7 @@ interface CollectionItemRow {
   photo: string | null;
 }
 
-const COLUMNS = `id, name, set_name, number, rarity, language, condition, quantity, acquisition_type,
+const COLUMNS = `id, name, set_name, number, rarity, variant, language, condition, quantity, acquisition_type,
   sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded, grading_company, grade,
   estimated_value_override, estimated_value_override_at, estimated_value_override_note, notes, photo`;
 
@@ -43,6 +45,7 @@ function toCollectionItem(row: CollectionItemRow): CollectionItem {
     setName: row.set_name,
     number: row.number,
     rarity: row.rarity,
+    variant: row.variant,
     language: row.language,
     condition: row.condition,
     quantity: row.quantity,
@@ -73,17 +76,18 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
 
     async create(entity: NewCollectionItem) {
       const { rows } = await pool.query<CollectionItemRow>(
-        `insert into collection_items (name, set_name, number, rarity, language, condition, quantity,
+        `insert into collection_items (name, set_name, number, rarity, variant, language, condition, quantity,
            acquisition_type, sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded,
            grading_company, grade, estimated_value_override, estimated_value_override_at,
            estimated_value_override_note, notes, photo)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
          returning ${COLUMNS}`,
         [
           entity.name,
           entity.setName,
           entity.number,
           entity.rarity,
+          entity.variant,
           entity.language,
           entity.condition,
           entity.quantity,
@@ -108,18 +112,19 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
     async update(id: string, entity: NewCollectionItem) {
       const { rows } = await pool.query<CollectionItemRow>(
         `update collection_items
-         set name = $1, set_name = $2, number = $3, rarity = $4, language = $5, condition = $6, quantity = $7,
-             acquisition_type = $8, sealed_purchase_id = $9, purchase_price = $10, purchase_currency = $11,
-             purchase_date = $12, is_graded = $13, grading_company = $14, grade = $15,
-             estimated_value_override = $16, estimated_value_override_at = $17, estimated_value_override_note = $18,
-             notes = $19, photo = $20, updated_at = now()
-         where id = $21
+         set name = $1, set_name = $2, number = $3, rarity = $4, variant = $5, language = $6, condition = $7, quantity = $8,
+             acquisition_type = $9, sealed_purchase_id = $10, purchase_price = $11, purchase_currency = $12,
+             purchase_date = $13, is_graded = $14, grading_company = $15, grade = $16,
+             estimated_value_override = $17, estimated_value_override_at = $18, estimated_value_override_note = $19,
+             notes = $20, photo = $21, updated_at = now()
+         where id = $22
          returning ${COLUMNS}`,
         [
           entity.name,
           entity.setName,
           entity.number,
           entity.rarity,
+          entity.variant,
           entity.language,
           entity.condition,
           entity.quantity,

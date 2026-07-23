@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type {
   CardCondition,
+  CardVariant,
   CollectionItem,
   NewCollectionItem,
   NewSealedPurchase,
@@ -60,6 +61,8 @@ const CONDITION_TONES: Record<CardCondition, BadgeTone> = {
   played: "critical",
   poor: "critical",
 };
+
+const VARIANT_LABELS: Record<Exclude<CardVariant, "normal">, string> = { reverse: "Reverso", holo: "Holo" };
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
   booster_pack: "Sobre",
@@ -152,6 +155,7 @@ function ItemCard({
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge tone="info">{LANGUAGE_LABELS[item.language]}</Badge>
             <Badge tone={CONDITION_TONES[item.condition]}>{CONDITION_LABELS[item.condition]}</Badge>
+            {item.variant !== "normal" && <Badge tone="amber">✨ {VARIANT_LABELS[item.variant]}</Badge>}
             <span className="text-xs font-semibold text-[var(--text-muted)]">x{item.quantity}</span>
             {item.isGraded && (
               <Badge tone="beacon">

@@ -3,6 +3,7 @@ import type {
   AcquisitionType,
   CardCondition,
   CardLanguage,
+  CardVariant,
   CollectionItem,
   NewCollectionItem,
   SealedPurchase,
@@ -26,6 +27,12 @@ const LANGUAGES: { value: CardLanguage; label: string }[] = [
   { value: "zh-tw", label: "Chino tradicional" },
   { value: "id", label: "Indonesio" },
   { value: "th", label: "Tailandés" },
+];
+
+const VARIANTS: { value: CardVariant; label: string }[] = [
+  { value: "normal", label: "Normal" },
+  { value: "reverse", label: "Reverso (foil)" },
+  { value: "holo", label: "Holo" },
 ];
 
 const CONDITIONS: { value: CardCondition; label: string }[] = [
@@ -77,6 +84,7 @@ export function CollectionQuickForm({
     setName: initialItem?.setName ?? null,
     number: initialItem?.number ?? null,
     rarity: initialItem?.rarity ?? null,
+    variant: initialItem?.variant ?? "normal",
     language: initialItem?.language ?? "es",
     condition: initialItem?.condition ?? "near_mint",
     quantity: initialItem?.quantity ?? 1,
@@ -156,6 +164,15 @@ export function CollectionQuickForm({
             value={form.rarity ?? ""}
             onChange={(e) => setForm({ ...form, rarity: e.target.value || null })}
           />
+        </Field>
+        <Field label="Variante">
+          <select className={inputClass} value={form.variant} onChange={(e) => setForm({ ...form, variant: e.target.value as CardVariant })}>
+            {VARIANTS.map((v) => (
+              <option key={v.value} value={v.value}>
+                {v.label}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Idioma">
           <select className={inputClass} value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value as CardLanguage })}>

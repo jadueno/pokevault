@@ -1,4 +1,5 @@
-import type { PokemonTcgProvider, PokemonTcgSetCandidate, PokemonTcgSetCards } from "../../domain/ports.js";
+import type { CardVariant } from "../../domain/types.js";
+import type { PokemonTcgCardData, PokemonTcgProvider, PokemonTcgSetCandidate, PokemonTcgSetCards } from "../../domain/ports.js";
 
 // TCGdex (https://tcgdex.dev) en vez de pokemontcg.io: gratis, sin API key, y busca
 // directamente en español (comprobado en vivo: `?name=oscuridad` encuentra "Oscuridad
@@ -28,7 +29,42 @@ interface TcgdexCardDetail {
   name: string;
   rarity?: string;
   image?: string;
-  pricing?: { cardmarket?: { trend?: number; avg?: number } };
+  // Qué versiones de impresión existen de esta carta — no todas tienen las tres (la
+  // inmensa mayoría de comunes/infrecuentes de sets modernos tienen normal+reverse; las
+  // raras/full art suelen ser solo holo, sin versión normal aparte).
+  variants?: { normal?: boolean; reverse?: boolean; holo?: boolean };
+  pricing?: {
+    cardmarket?: {
+      trend?: number;
+      avg?: number;
+      // TCGdex mete el precio de "la otra versión" (reverso o holo, la que no sea la
+      // base) bajo el sufijo "-holo" de Cardmarket, exista o no una versión "holo" de
+      // verdad — Cardmarket solo tiene dos categorías de precio (normal/holo), TCGdex no
+      // añade una tercera para "reverso".
+      "trend-holo"?: number;
+      "avg-holo"?: number;
+    };
+  };
+}
+
+/** De las variantes que trae el proveedor, a qué precio corresponde cada una: la primera
+ * variante detectada (normalmente "normal") usa el precio base de Cardmarket; el resto
+ * (reverso u holo en solitario) usa el precio "-holo" — ver el comentario de
+ * TcgdexCardDetail.pricing más arriba sobre por qué ese sufijo cubre ambos casos. Sin
+ * variantes declaradas (no debería pasar, pero el proveedor externo no lo garantiza), se
+ * asume "normal" antes que perder la carta entera del checklist. */
+function cardVariantPrices(card: TcgdexCardDetail): { variant: CardVariant; price: number | null }[] {
+  const kinds: CardVariant[] = [];
+  if (card.variants?.normal) kinds.push("normal");
+  if (card.variants?.reverse) kinds.push("reverse");
+  if (card.variants?.holo && !card.variants?.reverse) kinds.push("holo");
+  if (kinds.length === 0) kinds.push("normal");
+
+  const cm = card.pricing?.cardmarket;
+  const basePrice = cm?.trend ?? cm?.avg ?? null;
+  const foilPrice = cm?.["trend-holo"] ?? cm?.["avg-holo"] ?? null;
+
+  return kinds.map((variant, i) => ({ variant, price: i === 0 ? basePrice : foilPrice }));
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -69,17 +105,23 @@ export function createTcgdexApiProvider(): PokemonTcgProvider {
       const set = await fetchJson<TcgdexSetDetail>(`${API_BASE}/sets/${externalSetId}`);
       const cards = await fetchCardsInBatches(set.cards.map((c) => c.id));
 
+      // totalCards cuenta cartas del set (una por número), no filas de variante: una
+      // misma carta con normal+reverso aporta dos entradas a `cards` más abajo, pero
+      // sigue siendo una sola carta del set.
       return {
         setName: set.name,
         totalCards: cards.length,
-        cards: cards.map((card) => ({
-          number: card.localId,
-          name: card.name,
-          rarity: card.rarity ?? null,
-          imageUrl: imageUrl(card.image, "low"),
-          imageUrlLarge: imageUrl(card.image, "high"),
-          referencePrice: card.pricing?.cardmarket?.trend ?? card.pricing?.cardmarket?.avg ?? null,
-        })),
+        cards: cards.flatMap((card): PokemonTcgCardData[] =>
+          cardVariantPrices(card).map(({ variant, price }) => ({
+            number: card.localId,
+            name: card.name,
+            rarity: card.rarity ?? null,
+            variant,
+            imageUrl: imageUrl(card.image, "low"),
+            imageUrlLarge: imageUrl(card.image, "high"),
+            referencePrice: price,
+          })),
+        ),
       };
     },
   };

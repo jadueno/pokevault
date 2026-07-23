@@ -16,6 +16,7 @@ function item(overrides: Partial<CollectionItem> = {}): CollectionItem {
     setName: "Base",
     number: "4",
     rarity: "Rare Holo",
+    variant: "normal",
     language: "es",
     condition: "near_mint",
     quantity: 1,
@@ -74,6 +75,7 @@ function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistC
     number: "1",
     name: "Tropius",
     rarity: "Common",
+    variant: "normal",
     imageUrl: null,
     imageUrlLarge: null,
     referencePrice: null,
@@ -540,6 +542,41 @@ describe("ColeccionScreen", () => {
     await user.click(screen.getByRole("button", { name: "Eliminar" }));
 
     expect(handlers.onRemoveItems).toHaveBeenCalledWith(["i1"]);
+  });
+
+  it("en Sets, una carta con normal y reverso aparece como dos miniaturas independientes", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "2", name: "Grubbin", variant: "normal", referencePrice: 0.02 }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin", variant: "reverse", referencePrice: 0.07 }),
+    ];
+    const ownedItems = [item({ id: "i1", name: "Grubbin", setName: "Oscuridad Absoluta", number: "2/2", variant: "normal" })];
+    renderScreen(ownedItems, [], [setChecklist({ totalCards: 2 })], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+
+    // Dos miniaturas: la normal ya se tiene ("Ver"), la de reverso todavía no ("Marcar").
+    expect(screen.getByRole("button", { name: "Ver Grubbin en grande" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver Grubbin (Reverso) en grande" })).toBeInTheDocument();
+    expect(screen.getByText("0,02 €", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("0,07 €", { exact: false })).toBeInTheDocument();
+  });
+
+  it("en Sets, marcar como mía la variante de reverso no afecta a la normal del mismo número", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "2", name: "Grubbin", variant: "normal" }),
+      checklistCard({ id: "c2", number: "2", name: "Grubbin", variant: "reverse" }),
+    ];
+    const ownedItems = [item({ id: "i1", name: "Grubbin", setName: "Oscuridad Absoluta", number: "2/2", variant: "normal" })];
+    const handlers = renderScreen(ownedItems, [], [setChecklist({ totalCards: 2 })], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Seleccionar varias" }));
+    await user.click(screen.getByRole("button", { name: "Marcar Grubbin (Reverso) como mía" }));
+    await user.click(screen.getByRole("button", { name: "Marcar 1 como mías" }));
+
+    expect(handlers.onMarkOwned).toHaveBeenCalledWith([expect.objectContaining({ name: "Grubbin", variant: "reverse" })]);
   });
 
   it("en Sets, seleccionar una mezcla de tenidas y que faltan muestra los dos botones de acción", async () => {

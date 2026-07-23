@@ -24,6 +24,11 @@ export type NewSealedPurchase = Omit<SealedPurchase, "id">;
 export type CardLanguage = "en" | "es" | "fr" | "de" | "it" | "pt" | "ja" | "ko" | "zh-cn" | "zh-tw" | "id" | "th";
 export type CardCondition = "mint" | "near_mint" | "excellent" | "good" | "light_played" | "played" | "poor";
 export type AcquisitionType = "purchased_single" | "pulled_from_pack" | "trade" | "gift";
+/** Variante de impresión de una misma carta: "reverse" (reverso/foil) es la habitual en
+ * la mayoría de comunes/infrecuentes de sets modernos; "holo" cuando la única versión
+ * que existe ya es holo (raras/full art), sin versión normal aparte. Cada variante es un
+ * objeto físico distinto, igual que ya lo son las cartas graduadas. */
+export type CardVariant = "normal" | "reverse" | "holo";
 
 export interface CollectionItem {
   id: string;
@@ -31,6 +36,9 @@ export interface CollectionItem {
   setName: string | null;
   number: string | null;
   rarity: string | null;
+  /** "normal" para todo lo que no distingue variante (la inmensa mayoría de altas
+   * manuales). */
+  variant: CardVariant;
   language: CardLanguage;
   condition: CardCondition;
   quantity: number;
@@ -137,6 +145,10 @@ export interface SetChecklistCard {
   number: string;
   name: string;
   rarity: string | null;
+  /** Una fila por cada variante que exista de la carta (normal/reverso/holo), cada una
+   * con su propio precio — no una columna "tiene foil" en la misma fila, para que cada
+   * variante se pueda marcar como tuya/te falta de forma independiente. */
+  variant: CardVariant;
   /** Miniatura, para la rejilla. */
   imageUrl: string | null;
   /** Resolución mayor del mismo proveedor, para el visor a pantalla completa. */

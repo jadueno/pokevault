@@ -48,6 +48,7 @@ function collectionItem(overrides: Partial<CollectionItem> = {}): CollectionItem
     setName: "Jungla",
     number: null,
     rarity: null,
+    variant: "normal",
     language: "es",
     condition: "near_mint",
     quantity: 1,
@@ -94,6 +95,7 @@ function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistC
     number: "1",
     name: "Tropius",
     rarity: "Common",
+    variant: "normal",
     imageUrl: null,
     imageUrlLarge: null,
     referencePrice: null,
@@ -206,7 +208,7 @@ describe("findOwnedCollectionItemIds", () => {
       collectionItem({ id: "c2", setName: "Oscuridad Absoluta", number: "2/120" }),
       collectionItem({ id: "c3", setName: "Base Set", number: "1/102" }), // otro set, no cuenta
     ];
-    const ids = findOwnedCollectionItemIds(["1"], items, ["Pitch Black", "Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Pitch Black", "Oscuridad Absoluta"]);
     expect(ids).toEqual(["c1"]);
   });
 
@@ -215,19 +217,52 @@ describe("findOwnedCollectionItemIds", () => {
       collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" }),
       collectionItem({ id: "c2", setName: "Oscuridad Absoluta", number: "1/120" }),
     ];
-    const ids = findOwnedCollectionItemIds(["1"], items, ["Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Oscuridad Absoluta"]);
     expect(ids).toEqual(["c1", "c2"]);
   });
 
   it("normaliza ceros a la izquierda al comparar (checklist con '001', colección con '1')", () => {
     const items = [collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" })];
-    const ids = findOwnedCollectionItemIds(["001"], items, ["Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "001", variant: "normal" }], items, ["Oscuridad Absoluta"]);
     expect(ids).toEqual(["c1"]);
   });
 
   it("sin coincidencias, devuelve una lista vacía", () => {
     const items = [collectionItem({ id: "c1", setName: "Base Set", number: "1/102" })];
-    expect(findOwnedCollectionItemIds(["1"], items, ["Oscuridad Absoluta"])).toEqual([]);
+    expect(findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Oscuridad Absoluta"])).toEqual([]);
+  });
+
+  it("no confunde variantes: pedir la de reverso no devuelve la normal del mismo número", () => {
+    const items = [collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120", variant: "normal" })];
+    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "reverse" }], items, ["Oscuridad Absoluta"]);
+    expect(ids).toEqual([]);
+  });
+});
+
+describe("computeSetChecklistCompletion — variantes", () => {
+  it("una carta con normal y reverso son dos entradas independientes del checklist", () => {
+    const cards = [
+      checklistCard({ id: "n1", number: "2", name: "Grubbin", variant: "normal" }),
+      checklistCard({ id: "r1", number: "2", name: "Grubbin", variant: "reverse" }),
+    ];
+    const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "2/120", variant: "normal" })];
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+
+    expect(owned.map((c) => c.id)).toEqual(["n1"]);
+    expect(missing.map((c) => c.id)).toEqual(["r1"]);
+  });
+
+  it("tener las dos variantes marca las dos entradas como 'owned'", () => {
+    const cards = [
+      checklistCard({ id: "n1", number: "2", variant: "normal" }),
+      checklistCard({ id: "r1", number: "2", variant: "reverse" }),
+    ];
+    const items = [
+      collectionItem({ id: "i1", setName: "Oscuridad Absoluta", number: "2/120", variant: "normal" }),
+      collectionItem({ id: "i2", setName: "Oscuridad Absoluta", number: "2/120", variant: "reverse" }),
+    ];
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    expect(owned.map((c) => c.id).sort()).toEqual(["n1", "r1"]);
   });
 });
 

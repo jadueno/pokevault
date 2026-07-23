@@ -53,6 +53,7 @@ export function createWishlistItemUseCases(repo: WishlistItemRepository, collect
         setName: wishlistItem.setName,
         number: null,
         rarity: null,
+        variant: "normal",
         language: details.language,
         condition: details.condition,
         quantity: details.quantity,

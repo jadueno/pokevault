@@ -1,4 +1,5 @@
 import type {
+  CardVariant,
   CollectionItem,
   NewCollectionItem,
   NewPlanItem,
@@ -66,6 +67,9 @@ export interface PokemonTcgCardData {
   number: string;
   name: string;
   rarity: string | null;
+  /** Una entrada por cada variante de impresión que tenga la carta (ver CardVariant) —
+   * un mismo número puede aparecer más de una vez en `PokemonTcgSetCards.cards`. */
+  variant: CardVariant;
   imageUrl: string | null;
   imageUrlLarge: string | null;
   referencePrice: number | null;

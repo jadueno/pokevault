@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CollectionItem, NewCollectionItem, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
+import type { CardVariant, CollectionItem, NewCollectionItem, SetChecklist, SetChecklistCard, SetSearchCandidate } from "../../domain/types";
 import {
   computeSetChecklistCompletion,
   findOwnedCollectionItemIds,
@@ -154,7 +154,10 @@ function ChecklistCardThumb({
           type="button"
           onClick={canSelect ? onToggleSelect : hasImage ? onZoom : undefined}
           disabled={!canSelect && !hasImage}
-          aria-label={canSelect ? (owned ? `Desmarcar ${card.name}` : `Marcar ${card.name} como mía`) : `Ver ${card.name} en grande`}
+          aria-label={(() => {
+            const displayName = card.variant !== "normal" ? `${card.name} (${VARIANT_LABELS[card.variant]})` : card.name;
+            return canSelect ? `${owned ? "Desmarcar" : "Marcar"} ${displayName}${owned ? "" : " como mía"}` : `Ver ${displayName} en grande`;
+          })()}
           aria-pressed={canSelect ? selected : undefined}
           className={`w-full rounded-xl ${focusRing} disabled:cursor-default`}
         >
@@ -196,6 +199,11 @@ function ChecklistCardThumb({
         )}
       </div>
       <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
+      {card.variant !== "normal" && (
+        <span className="text-[10px] font-bold tracking-wide text-[var(--amber)] uppercase">
+          ✨ {VARIANT_LABELS[card.variant]}
+        </span>
+      )}
       <span className="text-xs tabular-nums text-[var(--text-muted)]">#{card.number}</span>
       {card.referencePrice !== null && (
         <span className="text-xs font-semibold text-[var(--amber)]">≈{formatMoney(card.referencePrice)}</span>
@@ -203,6 +211,8 @@ function ChecklistCardThumb({
     </div>
   );
 }
+
+const VARIANT_LABELS: Record<Exclude<CardVariant, "normal">, string> = { reverse: "Reverso", holo: "Holo" };
 
 type SetCardsFilter = "all" | "owned" | "missing";
 
@@ -285,6 +295,7 @@ function SetCardsGrid({
           setName: checklist.setNameEs ?? checklist.setName,
           number: `${normalizeCardNumber(card.number)}/${checklist.totalCards}`,
           rarity: card.rarity,
+          variant: card.variant,
           language: "es",
           condition: "near_mint",
           quantity: 1,
@@ -312,7 +323,7 @@ function SetCardsGrid({
   async function handleRemoveOwned() {
     if (selectedOwned.length === 0) return;
     const ids = findOwnedCollectionItemIds(
-      selectedOwned.map((c) => c.number),
+      selectedOwned.map((c) => ({ number: c.number, variant: c.variant })),
       collectionItems,
       [checklist.setName, checklist.setNameEs],
     );

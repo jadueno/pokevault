@@ -10,6 +10,7 @@ function validItem(overrides: Partial<NewCollectionItem> = {}): NewCollectionIte
     setName: "Base",
     number: "4",
     rarity: "Rare Holo",
+    variant: "normal",
     language: "es",
     condition: "near_mint",
     quantity: 1,
