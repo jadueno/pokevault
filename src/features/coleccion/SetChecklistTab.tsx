@@ -331,27 +331,13 @@ function SetCardsGrid({
   }
 
   return (
-    <div className="-mx-5 -mb-5 flex flex-col gap-4 rounded-b-[1.75rem] bg-[var(--surface-1)] p-5 sm:-mx-6 sm:-mb-6 sm:p-6">
-      <div className="flex flex-wrap justify-end gap-2">
-        {selecting && (
-          <Button variant="tint" tone="ink" size="sm" onClick={selectAllVisible}>
-            Seleccionar todas
-          </Button>
-        )}
-        <Button
-          variant={selecting ? "solid" : "tint"}
-          tone={selecting ? "critical" : "ink"}
-          size="sm"
-          onClick={() => {
-            setSelecting(!selecting);
-            setSelectedIds(new Set());
-          }}
-        >
-          {selecting ? "Cancelar selección" : "Seleccionar varias"}
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="-mx-5 -mb-5 flex flex-col gap-3 rounded-b-[1.75rem] bg-[var(--surface-1)] p-5 sm:-mx-6 sm:-mb-6 sm:p-6">
+      {/* Filtros y selección en la misma fila (ocupando los dos extremos con
+       * justify-between) en vez de en dos filas separadas — así ninguna de las dos queda
+       * como un único control flotando con un hueco vacío al lado. Si no caben en una
+       * línea, el propio flex-wrap manda "Seleccionar varias" a su línea, pegado al
+       * borde izquierdo (justify-between con un solo elemento no lo separa del inicio). */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
           {FILTERS.map((f) => (
             <button
@@ -367,13 +353,32 @@ function SetCardsGrid({
             </button>
           ))}
         </div>
-        <input
-          className={`${inputClass} max-w-56 py-1.5 text-sm`}
-          placeholder="Buscar por número o nombre…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="flex gap-2">
+          {selecting && (
+            <Button variant="tint" tone="ink" size="sm" onClick={selectAllVisible}>
+              Seleccionar todas
+            </Button>
+          )}
+          <Button
+            variant={selecting ? "solid" : "tint"}
+            tone={selecting ? "critical" : "ink"}
+            size="sm"
+            onClick={() => {
+              setSelecting(!selecting);
+              setSelectedIds(new Set());
+            }}
+          >
+            {selecting ? "Cancelar selección" : "Seleccionar varias"}
+          </Button>
+        </div>
       </div>
+
+      <input
+        className={`${inputClass} w-full py-1.5 text-sm`}
+        placeholder="Buscar por número o nombre…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
 
       {cards === undefined ? (
         <p className="text-sm text-[var(--text-muted)]">Cargando…</p>
