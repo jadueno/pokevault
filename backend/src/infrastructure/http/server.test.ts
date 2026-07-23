@@ -404,6 +404,27 @@ describe("/card-recognition", () => {
   });
 });
 
+describe("/price-screenshot-recognition", () => {
+  it("devuelve los datos que sugiere el proveedor de visión a partir de una captura de Cardmarket (fake en tests)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/price-screenshot-recognition",
+      payload: { imageDataUrl: "data:image/png;base64,AAAA" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ name: "Zarude", setName: "MEP Black Star Promos", rarity: "P", referencePrice: 3.73 });
+  });
+
+  it("responde 400 si la captura no llega como data URL de imagen", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/price-screenshot-recognition",
+      payload: { imageDataUrl: "no-es-una-data-url" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe("/card-search", () => {
   it("con un nombre sin ambigüedad, devuelve un único candidato", async () => {
     const res = await app.inject({ method: "GET", url: "/card-search?name=pikachu" });

@@ -15,4 +15,14 @@ export function registerRecognitionRoutes(
       handleError(error, reply);
     }
   });
+
+  app.post("/price-screenshot-recognition", async (request, reply) => {
+    try {
+      const { imageDataUrl } = request.body as { imageDataUrl: string };
+      const result = await useCases.recognizePriceScreenshot(imageDataUrl);
+      reply.send(result);
+    } catch (error) {
+      handleError(error, reply);
+    }
+  });
 }

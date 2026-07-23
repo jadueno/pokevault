@@ -195,3 +195,14 @@ export interface RecognizedCardData {
   rarity: string | null;
   confidence: RecognitionConfidence | null;
 }
+
+/** Cuando la carta no está en el catálogo del proveedor (p. ej. una promo regional que
+ * TCGdex no indexa), el usuario puede subir en su lugar una captura de la página de esa
+ * carta en Cardmarket: mismo reconocimiento por IA, pero leyendo una interfaz web en vez
+ * de una foto física. Sin número de carta: Cardmarket no lo muestra en esa página. */
+export interface RecognizedPriceData {
+  name: string | null;
+  setName: string | null;
+  rarity: string | null;
+  referencePrice: number | null;
+}

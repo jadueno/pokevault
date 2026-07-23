@@ -8,6 +8,7 @@ import type {
   CollectionItem,
   NewCollectionItem,
   RecognizedCardData,
+  RecognizedPriceData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -18,6 +19,7 @@ import { Field, inputClass } from "../../components/Field";
 import { SectionLabel } from "../../components/SectionLabel";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { PhotoCapture } from "./PhotoCapture";
+import { PriceScreenshotUpload } from "./PriceScreenshotUpload";
 
 const CONFIDENCE_LABELS: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
 
@@ -67,6 +69,7 @@ export function CollectionQuickForm({
   initialItem = null,
   onRecognizeCard,
   onSearchCards,
+  onRecognizePriceScreenshot,
   onSubmit,
   onCancel,
 }: {
@@ -94,6 +97,11 @@ export function CollectionQuickForm({
    * número y rareza exactos) en vez de quedarse solo con el texto libre de la IA — mismo
    * criterio que ya se usa al marcar una carta desde un set sincronizado. */
   onSearchCards: (name: string, setName: string | null, number: string | null) => Promise<CardSearchMatch[]>;
+  /** Red de seguridad para cuando la carta no aparece en el catálogo del proveedor (p. ej.
+   * una promo regional que TCGdex no indexa, ver PriceScreenshotUpload): se lee una
+   * captura de su página en Cardmarket en vez de la carta física. Solo aporta
+   * nombre/expansión/rareza/precio — nunca foto ni número, que esa página no muestra. */
+  onRecognizePriceScreenshot: (imageDataUrl: string) => Promise<RecognizedPriceData>;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -144,6 +152,11 @@ export function CollectionQuickForm({
   // Mientras haya varias cartas candidatas sin resolver, el formulario entero se oculta:
   // no tiene sentido enseñar campos a medio rellenar hasta que el usuario elija cuál es.
   const hasPendingMatches = cardMatches !== null && cardMatches.length > 0;
+  // Alternativa cuando la carta no está en el catálogo del proveedor: subir una captura
+  // de su página en Cardmarket y leerla con el mismo modelo de visión.
+  const [recognizingPriceScreenshot, setRecognizingPriceScreenshot] = useState(false);
+  const [priceScreenshotResult, setPriceScreenshotResult] = useState<RecognizedPriceData | null>(null);
+  const [priceScreenshotError, setPriceScreenshotError] = useState<string | null>(null);
 
   const cameFromPack = form.acquisitionType === "pulled_from_pack";
   const selectedSealedPurchase = form.sealedPurchaseId ? sealedItems.find((s) => s.id === form.sealedPurchaseId) : undefined;
@@ -181,6 +194,8 @@ export function CollectionQuickForm({
     setRecognizeError(null);
     setCardMatches(null);
     setAppliedMatch(null);
+    setPriceScreenshotResult(null);
+    setPriceScreenshotError(null);
     setRecognizing(true);
     try {
       const result = await onRecognizeCard(dataUrl);
@@ -209,6 +224,38 @@ export function CollectionQuickForm({
       setRecognizeError(e instanceof Error ? e.message : "No se ha podido identificar la foto");
     } finally {
       setRecognizing(false);
+    }
+  }
+
+  /** Red de seguridad cuando la carta no está en el catálogo del proveedor: en vez de la
+   * carta física, se lee una captura de su página en Cardmarket. Nunca aporta foto ni
+   * número (esa página no los muestra) — solo nombre/expansión/rareza/precio, con el mismo
+   * criterio de no pisar campos que el usuario ya hubiera rellenado (ver handleCapture). */
+  async function handlePriceScreenshot(dataUrl: string) {
+    // Si había varias cartas candidatas sin resolver, subir una captura significa "ninguna
+    // de esas es" — se cierra ese selector y se pasa a los datos de la captura.
+    setCardMatches(null);
+    setPriceScreenshotResult(null);
+    setPriceScreenshotError(null);
+    setRecognizingPriceScreenshot(true);
+    try {
+      const result = await onRecognizePriceScreenshot(dataUrl);
+      setPriceScreenshotResult(result);
+      const now = new Date().toISOString();
+      setForm((prev) => ({
+        ...prev,
+        name: result.name ?? prev.name,
+        setName: result.setName ?? prev.setName,
+        rarity: result.rarity ?? prev.rarity,
+        estimatedValueOverride: result.referencePrice ?? prev.estimatedValueOverride,
+        estimatedValueOverrideAt: result.referencePrice !== null ? now : prev.estimatedValueOverrideAt,
+        estimatedValueOverrideNote:
+          result.referencePrice !== null ? "Precio de Cardmarket (captura subida a mano)" : prev.estimatedValueOverrideNote,
+      }));
+    } catch (e) {
+      setPriceScreenshotError(e instanceof Error ? e.message : "No se ha podido leer la captura");
+    } finally {
+      setRecognizingPriceScreenshot(false);
     }
   }
 
@@ -295,6 +342,34 @@ export function CollectionQuickForm({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          <PriceScreenshotUpload onCapture={handlePriceScreenshot} disabled={recognizing || searchingCards} />
+          {recognizingPriceScreenshot && <p className="text-sm text-[var(--text-secondary)]">Leyendo la captura de Cardmarket…</p>}
+          {!recognizingPriceScreenshot && priceScreenshotError && (
+            <p className="text-sm text-[var(--status-critical)]">
+              No se ha podido leer la captura ({priceScreenshotError}). Rellena los datos a mano.
+            </p>
+          )}
+          {!recognizingPriceScreenshot && priceScreenshotResult && !priceScreenshotError && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">
+              <p className={`text-sm ${priceScreenshotResult.referencePrice !== null ? "text-[var(--status-good)]" : "text-[var(--text-muted)]"}`}>
+                {priceScreenshotResult.referencePrice !== null
+                  ? `Precio leído de Cardmarket${priceScreenshotResult.name ? ` (${priceScreenshotResult.name})` : ""} — el modelo local a veces confunde la coma decimal, comprueba que sea correcto:`
+                  : "No se ha podido leer el precio en la captura. Rellena los datos a mano."}
+              </p>
+              {priceScreenshotResult.referencePrice !== null && (
+                <Field label="Precio de referencia (€)">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className={inputClass}
+                    value={form.estimatedValueOverride ?? ""}
+                    onChange={(e) => setForm({ ...form, estimatedValueOverride: e.target.value ? Number(e.target.value) : null })}
+                  />
+                </Field>
+              )}
             </div>
           )}
         </div>

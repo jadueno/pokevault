@@ -7,6 +7,7 @@ import type {
   NewCollectionItem,
   NewSealedPurchase,
   RecognizedCardData,
+  RecognizedPriceData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -381,6 +382,7 @@ export function ColeccionScreen({
   onRemoveItems,
   onRecognizeCard,
   onSearchCards,
+  onRecognizePriceScreenshot,
 }: {
   items: CollectionItem[];
   onAddItem: (entity: NewCollectionItem) => Promise<void>;
@@ -401,6 +403,7 @@ export function ColeccionScreen({
   onRemoveItems: (ids: string[]) => Promise<void>;
   onRecognizeCard: (imageDataUrl: string) => Promise<RecognizedCardData>;
   onSearchCards: (name: string, setName: string | null, number: string | null) => Promise<CardSearchMatch[]>;
+  onRecognizePriceScreenshot: (imageDataUrl: string) => Promise<RecognizedPriceData>;
 }) {
   const [query, setQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -515,6 +518,7 @@ export function ColeccionScreen({
             cardsByChecklist={cardsByChecklist}
             onRecognizeCard={onRecognizeCard}
             onSearchCards={onSearchCards}
+            onRecognizePriceScreenshot={onRecognizePriceScreenshot}
             onSubmit={async (entity) => {
               await onUpdateItem(editingItem.id, entity);
               setEditingItem(null);
@@ -543,6 +547,7 @@ export function ColeccionScreen({
             cardsByChecklist={cardsByChecklist}
             onRecognizeCard={onRecognizeCard}
             onSearchCards={onSearchCards}
+            onRecognizePriceScreenshot={onRecognizePriceScreenshot}
             onSubmit={async (entity) => {
               await onAddItem(entity);
               setShowAddForm(false);

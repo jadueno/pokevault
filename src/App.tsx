@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { recognizeCard, searchCards } from "./data/api";
+import { recognizeCard, recognizePriceScreenshot, searchCards } from "./data/api";
 import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
@@ -170,6 +170,7 @@ export default function App() {
                   onRemoveItems={collection.removeItems}
                   onRecognizeCard={recognizeCard}
                   onSearchCards={searchCards}
+                  onRecognizePriceScreenshot={recognizePriceScreenshot}
                 />
               )}
               {section === "wishlist" && (

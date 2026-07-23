@@ -115,6 +115,7 @@ function renderScreen(
     onRemoveItems: vi.fn().mockResolvedValue(undefined),
     onRecognizeCard: vi.fn().mockResolvedValue({ name: null, setName: null, number: null, rarity: null, confidence: null }),
     onSearchCards: vi.fn().mockResolvedValue([]),
+    onRecognizePriceScreenshot: vi.fn().mockResolvedValue({ name: null, setName: null, rarity: null, referencePrice: null }),
   };
   render(
     <ConfirmProvider>
@@ -404,6 +405,59 @@ describe("ColeccionScreen", () => {
     expect(await screen.findByDisplayValue("Charizard ex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Obsidian Flames")).toBeInTheDocument();
     expect(screen.queryByText("Obsidian Flames · #125/197")).not.toBeInTheDocument();
+  });
+
+  it("si la carta no está en el catálogo, subir una captura de Cardmarket rellena nombre/expansión/precio", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+    handlers.onRecognizeCard.mockResolvedValue({
+      name: "Zarude",
+      setName: "Basico Z",
+      number: "130/6",
+      rarity: "Holo Rare",
+      confidence: "high",
+    });
+    handlers.onSearchCards.mockResolvedValue([]);
+    handlers.onRecognizePriceScreenshot.mockResolvedValue({
+      name: "Zarude",
+      setName: "MEP Black Star Promos",
+      rarity: "P",
+      referencePrice: 3.73,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+
+    const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(photoInput, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+
+    expect(await screen.findByText(/no se ha encontrado en el catálogo/)).toBeInTheDocument();
+
+    const screenshotInput = document.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
+    await user.upload(screenshotInput, new File(["captura"], "cardmarket.png", { type: "image/png" }));
+
+    expect(handlers.onRecognizePriceScreenshot).toHaveBeenCalledWith("data:image/jpeg;base64,AAAA");
+    expect(await screen.findByDisplayValue("MEP Black Star Promos")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("P")).toBeInTheDocument();
+    expect(screen.getByText(/Precio leído de Cardmarket \(Zarude\)/)).toBeInTheDocument();
+
+    // El precio queda en un campo editable (el modelo local a veces confunde la coma
+    // decimal) en vez de aplicarse a ciegas sin forma de corregirlo antes de guardar.
+    const priceInput = screen.getByLabelText("Precio de referencia (€)");
+    expect(priceInput).toHaveValue(3.73);
+    await user.clear(priceInput);
+    await user.type(priceInput, "4.5");
+
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+    expect(handlers.onAddItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Zarude",
+        setName: "MEP Black Star Promos",
+        rarity: "P",
+        estimatedValueOverride: 4.5,
+        estimatedValueOverrideNote: "Precio de Cardmarket (captura subida a mano)",
+      }),
+    );
   });
 
   it("al editar una carta ya existente no aparece la opción de hacer foto", async () => {

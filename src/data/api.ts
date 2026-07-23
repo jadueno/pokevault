@@ -9,6 +9,7 @@ import type {
   PlanItem,
   PlanSettings,
   RecognizedCardData,
+  RecognizedPriceData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -119,6 +120,10 @@ export function resyncSetChecklist<T = SetChecklist>(checklistId: string): Promi
 
 export function recognizeCard<T = RecognizedCardData>(imageDataUrl: string): Promise<T> {
   return request("/card-recognition", { method: "POST", body: JSON.stringify({ imageDataUrl }) });
+}
+
+export function recognizePriceScreenshot<T = RecognizedPriceData>(imageDataUrl: string): Promise<T> {
+  return request("/price-screenshot-recognition", { method: "POST", body: JSON.stringify({ imageDataUrl }) });
 }
 
 export function searchCards<T = CardSearchMatch[]>(name: string, setName: string | null, number: string | null): Promise<T> {

@@ -8,6 +8,7 @@ import type {
   PlanItem,
   PlanSettings,
   RecognizedCardData,
+  RecognizedPriceData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -126,4 +127,9 @@ export interface PokemonTcgProvider {
 export interface VisualMatchProvider {
   name: string;
   recognizeCard(imageDataUrl: string): Promise<RecognizedCardData>;
+  /** Lee una captura de la página de una carta en Cardmarket (nombre, expansión, rareza
+   * y precio de tendencia) — red de seguridad para cartas que el proveedor de catálogo no
+   * tiene indexadas (p. ej. promos regionales), ver recognizePriceScreenshot en
+   * application/cardRecognition.ts. */
+  recognizePriceScreenshot(imageDataUrl: string): Promise<RecognizedPriceData>;
 }
