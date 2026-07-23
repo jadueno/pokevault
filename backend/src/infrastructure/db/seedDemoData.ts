@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../loadEnv.js";
 import { pool } from "./pool.js";
 import { createCollectionItemRepository } from "./repositories/collectionItemRepository.js";
 import { createSealedPurchaseRepository } from "./repositories/sealedPurchaseRepository.js";

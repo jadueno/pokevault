@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../infrastructure/loadEnv.js";
 import { Pool } from "pg";
 
 // "plan_settings" no está aquí a propósito: es una tabla singleton (mismo patrón que

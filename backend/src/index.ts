@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./infrastructure/loadEnv.js";
 import { pool } from "./infrastructure/db/pool.js";
 import { buildServer } from "./infrastructure/http/server.js";
 import { createTcgdexApiProvider } from "./infrastructure/catalog/tcgdexApiProvider.js";
