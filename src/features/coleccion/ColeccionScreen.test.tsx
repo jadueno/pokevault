@@ -430,17 +430,17 @@ describe("ColeccionScreen", () => {
     expect(await screen.findByText("Hay varias cartas que coinciden — elige la correcta abajo.")).toBeInTheDocument();
     expect(screen.getByText("Obsidian Flames · #125/197")).toBeInTheDocument();
 
-    // Mientras hay candidatas sin resolver, el formulario entero queda oculto: solo se ve
-    // el listado, no tiene sentido enseñar campos a medio rellenar.
-    expect(screen.queryByLabelText("Nombre")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Añadir a mi colección" })).not.toBeInTheDocument();
+    // El formulario sigue visible con lo que reconoció Ollama, aunque haya varias
+    // candidatas sin resolver: si ninguna es la correcta, queda esto para completar a mano.
+    expect(screen.getByLabelText("Nombre")).toHaveValue("Charizard");
+    expect(screen.getByRole("button", { name: "Añadir a mi colección" })).toBeInTheDocument();
 
     // Clic en la miniatura: abre la foto en grande para verla bien, sin elegir la carta.
     await user.click(screen.getByRole("button", { name: "Ver Charizard ex en grande" }));
     const lightbox = screen.getByRole("dialog", { name: "Charizard ex" });
     expect(lightbox.querySelector("img")).toHaveAttribute("src", "https://example.com/sv-charizard-large.png");
     await user.click(within(lightbox).getByRole("button", { name: "Cerrar" }));
-    expect(screen.queryByLabelText("Nombre")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre")).toHaveValue("Charizard");
 
     await user.click(screen.getByRole("button", { name: /^Elegir Charizard ex/ }));
 

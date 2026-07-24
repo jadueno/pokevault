@@ -150,8 +150,9 @@ export function CollectionQuickForm({
   // Foto en grande de un candidato, para poder verlo bien antes de elegir cuál es —
   // independiente de marcarlo como el correcto (ver applyCardMatch).
   const [previewMatch, setPreviewMatch] = useState<CardSearchMatch | null>(null);
-  // Mientras haya varias cartas candidatas sin resolver, el formulario entero se oculta:
-  // no tiene sentido enseñar campos a medio rellenar hasta que el usuario elija cuál es.
+  // El formulario sigue visible aunque haya candidatas sin resolver: si ninguna es la
+  // correcta (p. ej. una promo que el proveedor no indexa), el usuario ya tiene ahí la
+  // lectura de Ollama para completar a mano en vez de quedarse sin nada.
   const hasPendingMatches = cardMatches !== null && cardMatches.length > 0;
   // Alternativa cuando la carta no está en el catálogo del proveedor: subir una captura
   // de su página en Cardmarket y leerla con el mismo modelo de visión.
@@ -386,8 +387,6 @@ export function CollectionQuickForm({
         />
       )}
 
-      {!hasPendingMatches && (
-      <>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nombre">
           <input
@@ -586,18 +585,14 @@ export function CollectionQuickForm({
       <Field label="Notas">
         <textarea rows={2} className={inputClass} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value || null })} />
       </Field>
-      </>
-      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancelar
         </Button>
-        {!hasPendingMatches && (
-          <Button type="submit" tone="beacon" disabled={saving}>
-            {saving ? "Guardando…" : isEditing ? "Guardar cambios" : "Añadir a mi colección"}
-          </Button>
-        )}
+        <Button type="submit" tone="beacon" disabled={saving}>
+          {saving ? "Guardando…" : isEditing ? "Guardar cambios" : "Añadir a mi colección"}
+        </Button>
       </div>
     </form>
   );
