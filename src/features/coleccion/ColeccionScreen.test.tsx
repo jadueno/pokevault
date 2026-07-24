@@ -113,7 +113,15 @@ function renderScreen(
     onResyncSet: vi.fn().mockResolvedValue(undefined),
     onMarkOwned: vi.fn().mockResolvedValue(undefined),
     onRemoveItems: vi.fn().mockResolvedValue(undefined),
-    onRecognizeCard: vi.fn().mockResolvedValue({ name: null, setName: null, number: null, rarity: null, confidence: null }),
+    onRecognizeCard: vi.fn().mockResolvedValue({
+      name: null,
+      setName: null,
+      number: null,
+      rarity: null,
+      variant: null,
+      language: null,
+      confidence: null,
+    }),
     onSearchCards: vi.fn().mockResolvedValue([]),
     onRecognizePriceScreenshot: vi.fn().mockResolvedValue({ name: null, setName: null, rarity: null, referencePrice: null }),
   };
@@ -268,6 +276,8 @@ describe("ColeccionScreen", () => {
       setName: "Oscuridad Absoluta",
       number: "2/120",
       rarity: "Común",
+      variant: null,
+      language: null,
       confidence: "high",
     });
 
@@ -285,10 +295,42 @@ describe("ColeccionScreen", () => {
     expect(screen.getByText(/Identificado \(confianza alta\)/)).toBeInTheDocument();
   });
 
+  it("si la foto deja ver el acabado y el idioma impreso, también rellena Variante e Idioma", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
+    handlers.onRecognizeCard.mockResolvedValue({
+      name: "Grubbin",
+      setName: "Oscuridad Absoluta",
+      number: "2/120",
+      rarity: "Común",
+      variant: "reverse",
+      language: "en",
+      confidence: "high",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
+    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+
+    expect(await screen.findByDisplayValue("Grubbin")).toBeInTheDocument();
+    expect(screen.getByLabelText("Variante")).toHaveValue("reverse");
+    expect(screen.getByLabelText("Idioma")).toHaveValue("en");
+  });
+
   it("si la foto no se identifica, avisa y deja rellenar a mano", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({ name: null, setName: null, number: null, rarity: null, confidence: null });
+    handlers.onRecognizeCard.mockResolvedValue({
+      name: null,
+      setName: null,
+      number: null,
+      rarity: null,
+      variant: null,
+      language: null,
+      confidence: null,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cartas (0)" }));
     await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));

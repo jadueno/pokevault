@@ -4,7 +4,15 @@ import type { RecognizedCardData, RecognizedPriceData } from "../domain/types.js
 import { callAsync } from "../test/callAsync.js";
 import { createCardRecognitionUseCases } from "./cardRecognition.js";
 
-const FIXTURE: RecognizedCardData = { name: "Charizard", setName: "Base", number: "4/102", rarity: "Rare Holo", confidence: "high" };
+const FIXTURE: RecognizedCardData = {
+  name: "Charizard",
+  setName: "Base",
+  number: "4/102",
+  rarity: "Rare Holo",
+  variant: "holo",
+  language: "en",
+  confidence: "high",
+};
 const PRICE_FIXTURE: RecognizedPriceData = { name: "Zarude", setName: "MEP Black Star Promos", rarity: "P", referencePrice: 3.73 };
 
 function fakeProvider(): VisualMatchProvider {

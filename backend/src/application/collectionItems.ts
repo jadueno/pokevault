@@ -4,7 +4,7 @@ import { assertNonEmpty, ValidationError } from "./errors.js";
 
 const LANGUAGES = ["en", "es", "fr", "de", "it", "pt", "ja", "ko", "zh-cn", "zh-tw", "id", "th"];
 const CONDITIONS = ["mint", "near_mint", "excellent", "good", "light_played", "played", "poor"];
-const ACQUISITION_TYPES = ["purchased_single", "pulled_from_pack", "trade", "gift"];
+const ACQUISITION_TYPES = ["purchased_single", "pulled_from_pack", "trade", "gift", "promotional"];
 
 function validate(entity: NewCollectionItem): void {
   assertNonEmpty(entity.name, "El nombre");

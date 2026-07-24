@@ -59,6 +59,7 @@ const ACQUISITION_TYPES: { value: AcquisitionType; label: string }[] = [
   { value: "pulled_from_pack", label: "Salió de un sobre" },
   { value: "trade", label: "Intercambio" },
   { value: "gift", label: "Regalo" },
+  { value: "promotional", label: "Carta promocional" },
 ];
 
 export function CollectionQuickForm({
@@ -208,6 +209,8 @@ export function CollectionQuickForm({
         setName: result.setName ?? prev.setName,
         number: result.number ?? prev.number,
         rarity: result.rarity ?? prev.rarity,
+        variant: result.variant ?? prev.variant,
+        language: result.language ?? prev.language,
       }));
 
       if (result.name) {

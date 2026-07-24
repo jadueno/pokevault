@@ -395,7 +395,15 @@ describe("/card-recognition", () => {
       payload: { imageDataUrl: "data:image/png;base64,AAAA" },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ name: "Charizard", setName: "Base", number: "4/102", rarity: "Rare Holo", confidence: "high" });
+    expect(res.json()).toEqual({
+      name: "Charizard",
+      setName: "Base",
+      number: "4/102",
+      rarity: "Rare Holo",
+      variant: "holo",
+      language: "en",
+      confidence: "high",
+    });
   });
 
   it("responde 400 si la foto no llega como data URL de imagen", async () => {
