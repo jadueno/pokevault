@@ -12,6 +12,7 @@ import type {
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
+  SetChecklistKind,
   WishlistItem,
 } from "./types.js";
 
@@ -39,6 +40,9 @@ export interface UpsertChecklistInput {
   setName: string;
   setNameEs: string | null;
   cards: PokemonTcgCardData[];
+  kind: SetChecklistKind;
+  /** Solo si `kind` es "binder" — ver SetChecklist.pokemonNames. */
+  pokemonNames: string[] | null;
 }
 
 export interface SetChecklistRepository {
@@ -75,6 +79,13 @@ export interface PokemonTcgCardData {
   imageUrl: string | null;
   imageUrlLarge: string | null;
   referencePrice: number | null;
+  /** Expansión real de origen de esta carta — en `getSetCards` coincide siempre con el
+   * propio set pedido; en `getCardsByPokemonNames` (un binder mezcla expansiones) es la
+   * única forma de saber de cuál viene cada carta. */
+  setName: string;
+  /** Total de cartas de esa expansión de origen — hace falta para el "número/total" real
+   * de la carta, que en un binder es distinto del total del binder entero. */
+  setTotalCards: number;
 }
 
 export interface PokemonTcgSetCards {
@@ -117,6 +128,11 @@ export interface PokemonTcgProvider {
    * Puede devolver varias si el nombre es ambiguo (mismo Pokémon en varias expansiones):
    * el usuario elige, nunca se asume la primera. */
   searchCards(query: PokemonTcgCardSearchQuery): Promise<PokemonTcgCardMatch[]>;
+  /** Todas las cartas de uno o varios Pokémon concretos, de cualquier expansión donde
+   * hayan salido — para construir un "binder" personalizado (ver SetChecklist.kind).
+   * A diferencia de `getSetCards`, las cartas devueltas pueden venir de expansiones
+   * distintas entre sí (por eso cada una lleva su propio setName/setTotalCards). */
+  getCardsByPokemonNames(names: string[]): Promise<PokemonTcgCardData[]>;
 }
 
 // ---- Proveedor de reconocimiento visual (puerto intercambiable) ----

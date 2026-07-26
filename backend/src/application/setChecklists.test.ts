@@ -22,8 +22,10 @@ function createFakeSetChecklistRepository(): SetChecklistRepository {
         externalSetId: input.externalSetId,
         setName: input.setName,
         setNameEs: input.setNameEs,
-        totalCards: input.cards.length,
+        totalCards: new Set(input.cards.map((c) => `${c.setName}::${c.number}`)).size,
         syncedAt: new Date().toISOString(),
+        kind: input.kind,
+        pokemonNames: input.pokemonNames,
       };
       if (index === -1) checklists.push(checklist);
       else checklists[index] = checklist;
@@ -110,6 +112,52 @@ describe("createSetChecklistUseCases", () => {
     it("si el checklist no existe, devuelve null", async () => {
       const { useCases } = setup();
       expect(await useCases.resync("no-existe")).toBeNull();
+    });
+
+    it("de un binder, repite la búsqueda por los mismos nombres de Pokémon (no un set)", async () => {
+      const { useCases } = setup();
+      const created = await useCases.createBinder("Slowpoke y Slowbro", ["Slowpoke", "Slowbro"]);
+      const resynced = await useCases.resync(created!.id);
+      expect(resynced?.id).toBe(created!.id);
+      expect(resynced?.kind).toBe("binder");
+      expect(resynced?.setNameEs).toBe("Slowpoke y Slowbro");
+      expect(resynced?.totalCards).toBe(3);
+    });
+  });
+
+  describe("createBinder", () => {
+    it("crea un binder con todas las cartas de los Pokémon indicados, de expansiones distintas", async () => {
+      const { useCases } = setup();
+      const result = await useCases.createBinder("Slowpoke y Slowbro", ["Slowpoke", "Slowbro"]);
+      expect(result?.kind).toBe("binder");
+      expect(result?.setNameEs).toBe("Slowpoke y Slowbro");
+      expect(result?.pokemonNames).toEqual(["Slowpoke", "Slowbro"]);
+      // 2 Slowpoke (expansiones distintas, mismo número local "1") + 1 Slowbro: se cuentan
+      // por separado aunque compartan número, porque no son la misma carta.
+      expect(result?.totalCards).toBe(3);
+    });
+
+    it("si ya existe un binder con exactamente estos Pokémon, no repite el trabajo (devuelve null)", async () => {
+      const { useCases } = setup();
+      await useCases.createBinder("Slowpoke y Slowbro", ["Slowpoke", "Slowbro"]);
+      const second = await useCases.createBinder("Otro título", ["Slowbro", "Slowpoke"]);
+      expect(second).toBeNull();
+    });
+
+    it("rechaza un título vacío", async () => {
+      const { useCases } = setup();
+      await expect(useCases.createBinder("", ["Slowpoke"])).rejects.toThrow("no puede estar vacío");
+    });
+
+    it("rechaza una lista de Pokémon vacía", async () => {
+      const { useCases } = setup();
+      await expect(useCases.createBinder("Binder vacío", [])).rejects.toThrow("al menos un nombre");
+    });
+
+    it("si el proveedor no encuentra ninguna carta, crea igualmente el binder vacío", async () => {
+      const { useCases } = setup();
+      const result = await useCases.createBinder("Nada", ["no-existe-este-pokemon"]);
+      expect(result?.totalCards).toBe(0);
     });
   });
 });

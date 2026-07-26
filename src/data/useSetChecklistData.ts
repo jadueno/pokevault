@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SetChecklist, SetChecklistCard, SetSearchCandidate } from "../domain/types";
-import { createSetChecklist, getSetChecklistCards, getSetChecklists, resyncSetChecklist, searchSets } from "./api";
+import { createPokemonBinder, createSetChecklist, getSetChecklistCards, getSetChecklists, resyncSetChecklist, searchSets } from "./api";
 
 export function useSetChecklistData() {
   const [checklists, setChecklists] = useState<SetChecklist[]>([]);
@@ -42,6 +42,11 @@ export function useSetChecklistData() {
     search: (query: string): Promise<SetSearchCandidate[]> => searchSets(query),
     sync: async (externalSetId: string, setNameEs: string | null) => {
       const result = await createSetChecklist(externalSetId, setNameEs);
+      await reload();
+      return result;
+    },
+    createBinder: async (title: string, pokemonNames: string[]) => {
+      const result = await createPokemonBinder(title, pokemonNames);
       await reload();
       return result;
     },

@@ -99,6 +99,8 @@ function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistC
     imageUrl: null,
     imageUrlLarge: null,
     referencePrice: null,
+    setName: null,
+    setTotalCards: null,
     ...overrides,
   };
 }
@@ -165,6 +167,8 @@ function setChecklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
     setNameEs: "Oscuridad Absoluta",
     totalCards: 2,
     syncedAt: "2026-07-18T00:00:00.000Z",
+    kind: "official",
+    pokemonNames: null,
     ...overrides,
   };
 }
@@ -197,6 +201,13 @@ describe("findChecklistCardImage", () => {
   it("encuentra la carta aunque el checklist tenga el número con ceros a la izquierda", () => {
     const card = checklistCard({ number: "048", name: "Mega Darkrai ex" });
     const result = findChecklistCardImage("Oscuridad Absoluta", "48/120", [setChecklist()], { cl1: [card] });
+    expect(result).toEqual(card);
+  });
+
+  it("en un binder, encuentra la carta por su propia expansión aunque el título del checklist no se parezca a ningún set real", () => {
+    const binder = setChecklist({ id: "binder1", setName: "Slowpoke y Slowbro", setNameEs: "Slowpoke y Slowbro", kind: "binder" });
+    const card = checklistCard({ number: "1", name: "Slowpoke", setName: "Base Set" });
+    const result = findChecklistCardImage("Base Set", "1/102", [binder], { binder1: [card] });
     expect(result).toEqual(card);
   });
 });
@@ -237,6 +248,19 @@ describe("findOwnedCollectionItemIds", () => {
     const ids = findOwnedCollectionItemIds([{ number: "1", variant: "reverse" }], items, ["Oscuridad Absoluta"]);
     expect(ids).toEqual([]);
   });
+
+  it("con la expansión propia de cada carta (binder), no confunde dos cartas con el mismo número de expansiones distintas", () => {
+    const items = [
+      collectionItem({ id: "c1", setName: "Base Set", number: "1/102" }),
+      collectionItem({ id: "c2", setName: "Jungla", number: "1/64" }),
+    ];
+    const ids = findOwnedCollectionItemIds(
+      [{ number: "1", variant: "normal", setName: "Base Set" }],
+      items,
+      ["Slowpoke y Slowbro"],
+    );
+    expect(ids).toEqual(["c1"]);
+  });
 });
 
 describe("computeSetChecklistCompletion — variantes", () => {
@@ -263,6 +287,23 @@ describe("computeSetChecklistCompletion — variantes", () => {
     ];
     const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
     expect(owned.map((c) => c.id).sort()).toEqual(["n1", "r1"]);
+  });
+});
+
+describe("computeSetChecklistCompletion — binder (cartas de varias expansiones)", () => {
+  it("compara cada carta con la expansión propia, no con las pistas del checklist entero (que en un binder es solo un título)", () => {
+    // Dos cartas del binder comparten número local "1" pero son de expansiones
+    // distintas — no deben confundirse entre sí aunque el checklist en sí ("Slowpoke y
+    // Slowbro") no se parezca a ningún nombre de set real.
+    const cards = [
+      checklistCard({ id: "base-1", number: "1", name: "Slowpoke", setName: "Base Set" }),
+      checklistCard({ id: "jungla-1", number: "1", name: "Slowpoke", setName: "Jungla" }),
+    ];
+    const items = [collectionItem({ setName: "Base Set", number: "1/102" })];
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Slowpoke y Slowbro"]);
+
+    expect(owned.map((c) => c.id)).toEqual(["base-1"]);
+    expect(missing.map((c) => c.id)).toEqual(["jungla-1"]);
   });
 });
 

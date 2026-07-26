@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import type { CardVariant, SetChecklist, SetChecklistCard } from "../../../domain/types.js";
+import type { CardVariant, SetChecklist, SetChecklistCard, SetChecklistKind } from "../../../domain/types.js";
 import type { SetChecklistRepository, UpsertChecklistInput } from "../../../domain/ports.js";
 
 interface SetChecklistRow {
@@ -9,6 +9,8 @@ interface SetChecklistRow {
   set_name_es: string | null;
   total_cards: number;
   synced_at: string;
+  kind: string;
+  pokemon_names: string[] | null;
 }
 
 interface SetChecklistCardRow {
@@ -21,6 +23,8 @@ interface SetChecklistCardRow {
   image_url: string | null;
   image_url_large: string | null;
   reference_price: string | null;
+  set_name: string | null;
+  set_total_cards: number | null;
 }
 
 function toSetChecklist(row: SetChecklistRow): SetChecklist {
@@ -31,6 +35,8 @@ function toSetChecklist(row: SetChecklistRow): SetChecklist {
     setNameEs: row.set_name_es,
     totalCards: row.total_cards,
     syncedAt: new Date(row.synced_at).toISOString(),
+    kind: row.kind as SetChecklistKind,
+    pokemonNames: row.pokemon_names,
   };
 }
 
@@ -45,6 +51,8 @@ function toSetChecklistCard(row: SetChecklistCardRow): SetChecklistCard {
     imageUrl: row.image_url,
     imageUrlLarge: row.image_url_large,
     referencePrice: row.reference_price !== null ? Number(row.reference_price) : null,
+    setName: row.set_name,
+    setTotalCards: row.set_total_cards,
   };
 }
 
@@ -52,7 +60,7 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
   return {
     async list() {
       const { rows } = await pool.query<SetChecklistRow>(
-        `select id, external_set_id, set_name, set_name_es, total_cards, synced_at
+        `select id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names
          from set_checklists order by synced_at desc`,
       );
       return rows.map(toSetChecklist);
@@ -60,7 +68,8 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
 
     async getCards(checklistId: string) {
       const { rows } = await pool.query<SetChecklistCardRow>(
-        `select id, checklist_id, number, name, rarity, variant, image_url, image_url_large, reference_price
+        `select id, checklist_id, number, name, rarity, variant, image_url, image_url_large, reference_price,
+                set_name, set_total_cards
          from set_checklist_cards where checklist_id = $1
          -- Los números puramente numéricos se ordenan como número (con padding para que
          -- el orden alfabético de texto no ponga "10" antes que "2"); los que llevan
@@ -80,23 +89,27 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
         // ya existente (cascade se lleva las cartas viejas por delante).
         await client.query("delete from set_checklists where external_set_id = $1", [input.externalSetId]);
 
-        // Cartas del set (una por número), no filas de variante: una misma carta con
-        // normal+reverso aporta dos filas a set_checklist_cards pero sigue siendo una
-        // sola carta a efectos de "cuántas cartas tiene este set".
-        const totalCards = new Set(input.cards.map((c) => c.number)).size;
+        // Cartas distintas (una por expansión+número), no filas de variante: una misma
+        // carta con normal+reverso aporta dos filas a set_checklist_cards pero sigue
+        // siendo una sola carta a efectos de "cuántas cartas tiene esto". Se cuenta por
+        // expansión+número (no solo número) porque un binder mezcla cartas de expansiones
+        // distintas que pueden compartir el mismo número local sin ser la misma carta.
+        const totalCards = new Set(input.cards.map((c) => `${c.setName}::${c.number}`)).size;
 
         const { rows } = await client.query<SetChecklistRow>(
-          `insert into set_checklists (external_set_id, set_name, set_name_es, total_cards)
-           values ($1, $2, $3, $4) returning id, external_set_id, set_name, set_name_es, total_cards, synced_at`,
-          [input.externalSetId, input.setName, input.setNameEs, totalCards],
+          `insert into set_checklists (external_set_id, set_name, set_name_es, total_cards, kind, pokemon_names)
+           values ($1, $2, $3, $4, $5, $6)
+           returning id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names`,
+          [input.externalSetId, input.setName, input.setNameEs, totalCards, input.kind, input.pokemonNames],
         );
         const checklist = rows[0];
 
         for (const card of input.cards) {
           await client.query(
             `insert into set_checklist_cards
-             (checklist_id, number, name, rarity, variant, image_url, image_url_large, reference_price)
-             values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+             (checklist_id, number, name, rarity, variant, image_url, image_url_large, reference_price,
+              set_name, set_total_cards)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
               checklist.id,
               card.number,
@@ -106,6 +119,8 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
               card.imageUrl,
               card.imageUrlLarge,
               card.referencePrice,
+              card.setName,
+              card.setTotalCards,
             ],
           );
         }

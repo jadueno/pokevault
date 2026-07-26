@@ -114,6 +114,13 @@ export function createSetChecklist<T = SetChecklist>(externalSetId: string, setN
   return request("/set-checklists", { method: "POST", body: JSON.stringify({ externalSetId, setNameEs }) });
 }
 
+/** Crea un "binder" personalizado con todas las cartas de uno o varios Pokémon, de
+ * cualquier expansión donde hayan salido — alternativa a sincronizar un set oficial
+ * completo (ver SetChecklist.kind). */
+export function createPokemonBinder<T = SetChecklist>(title: string, pokemonNames: string[]): Promise<T> {
+  return request("/set-checklists/binder", { method: "POST", body: JSON.stringify({ title, pokemonNames }) });
+}
+
 export function resyncSetChecklist<T = SetChecklist>(checklistId: string): Promise<T> {
   return request(`/set-checklists/${checklistId}/resync`, { method: "POST" });
 }

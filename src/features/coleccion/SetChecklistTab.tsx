@@ -126,6 +126,68 @@ export function SetSearchPanel({
   );
 }
 
+/** "Slowpoke" / "Slowpoke y Slowbro" / "Slowpoke, Slowbro y Slowking" — título legible del
+ * binder a partir de los nombres tal cual los escribió el usuario. */
+function joinPokemonNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} y ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+}
+
+/** Crear un "binder" personalizado: todas las cartas de uno o varios Pokémon, de
+ * cualquier expansión donde hayan salido, reunidas en un único checklist — alternativa a
+ * sincronizar un set oficial completo (ver SetChecklist.kind). Sin campo de título propio:
+ * se genera a partir de los nombres, más simple que pedir dos cosas para el mismo binder.
+ *
+ * Sin tarjeta ni título propios, igual que `SetSearchPanel`: vive dentro de un <Modal> que
+ * ya pone su propia cabecera. */
+export function PokemonBinderForm({ onCreate }: { onCreate: (title: string, pokemonNames: string[]) => Promise<void> }) {
+  const [namesInput, setNamesInput] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const names = namesInput
+      .split(",")
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0);
+    if (names.length === 0) return;
+    setCreating(true);
+    setError(null);
+    try {
+      await onCreate(joinPokemonNames(names), names);
+      setNamesInput("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se ha podido crear el binder");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="binder-pokemon-names" className="text-sm font-medium text-[var(--text-secondary)]">
+          Pokémon (separados por comas)
+        </label>
+        <input
+          id="binder-pokemon-names"
+          autoFocus
+          className={inputClass}
+          placeholder="Slowpoke, Slowbro"
+          value={namesInput}
+          onChange={(e) => setNamesInput(e.target.value)}
+        />
+      </div>
+      {error && <p className="text-sm text-[var(--status-critical)]">{error}</p>}
+      <Button type="submit" tone="beacon" disabled={creating || !namesInput.trim()} className="w-full">
+        {creating ? "Creando…" : "Crear binder"}
+      </Button>
+    </form>
+  );
+}
+
 function ChecklistCardThumb({
   card,
   owned,
@@ -133,6 +195,7 @@ function ChecklistCardThumb({
   selecting,
   selected,
   onToggleSelect,
+  showSetOrigin,
 }: {
   card: SetChecklistCard;
   owned: boolean;
@@ -140,6 +203,9 @@ function ChecklistCardThumb({
   selecting: boolean;
   selected: boolean;
   onToggleSelect: () => void;
+  /** Un binder mezcla cartas de expansiones distintas — aquí sí conviene ver de cuál es
+   * cada una. En un set oficial es siempre la misma, así que no aporta nada repetirla. */
+  showSetOrigin: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const hasImage = !!card.imageUrl && !failed;
@@ -199,6 +265,9 @@ function ChecklistCardThumb({
         )}
       </div>
       <p className="w-full truncate text-center text-xs font-semibold text-[var(--text-primary)]">{card.name}</p>
+      {showSetOrigin && card.setName && (
+        <p className="w-full truncate text-center text-[10px] text-[var(--text-muted)]">{card.setName}</p>
+      )}
       {card.variant !== "normal" && (
         <span className="text-[10px] font-bold tracking-wide text-[var(--amber)] uppercase">
           ✨ {VARIANT_LABELS[card.variant]}
@@ -292,8 +361,11 @@ function SetCardsGrid({
       await onMarkOwned(
         selectedMissing.map((card) => ({
           name: card.name,
-          setName: checklist.setNameEs ?? checklist.setName,
-          number: `${normalizeCardNumber(card.number)}/${checklist.totalCards}`,
+          // La expansión propia de la carta si la tiene (siempre en un binder, que
+          // mezcla varias) — si no, la del checklist entero, como antes de que las
+          // cartas guardasen su propia expansión.
+          setName: card.setName ?? checklist.setNameEs ?? checklist.setName,
+          number: `${normalizeCardNumber(card.number)}/${card.setTotalCards ?? checklist.totalCards}`,
           rarity: card.rarity,
           variant: card.variant,
           language: "es",
@@ -323,7 +395,7 @@ function SetCardsGrid({
   async function handleRemoveOwned() {
     if (selectedOwned.length === 0) return;
     const ids = findOwnedCollectionItemIds(
-      selectedOwned.map((c) => ({ number: c.number, variant: c.variant })),
+      selectedOwned.map((c) => ({ number: c.number, variant: c.variant, setName: c.setName })),
       collectionItems,
       [checklist.setName, checklist.setNameEs],
     );
@@ -416,6 +488,7 @@ function SetCardsGrid({
               selecting={selecting}
               selected={selectedIds.has(card.id)}
               onToggleSelect={() => toggleSelected(card.id)}
+              showSetOrigin={checklist.kind === "binder"}
             />
           ))}
         </div>
@@ -496,9 +569,16 @@ function SetCard({
       style={{ background: "var(--hero-gradient)" }}
     >
       <div>
-        <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--on-hero)]">
-          {checklist.setNameEs ?? checklist.setName}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--on-hero)]">
+            {checklist.setNameEs ?? checklist.setName}
+          </p>
+          {checklist.kind === "binder" && (
+            <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[var(--on-hero)] uppercase">
+              Binder
+            </span>
+          )}
+        </div>
         <p className="truncate text-xs text-white/70">Sincronizado el {syncedLabel}</p>
       </div>
 
@@ -606,7 +686,8 @@ export function SetChecklistTab({
       {checklists.length === 0 ? (
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
-            📋 Todavía no has sincronizado ningún set. Usa el botón "+ Buscar set" para añadir el primero y ver qué cartas tiene.
+            📋 Todavía no tienes ningún set ni binder. Usa "+ Set" para sincronizar una expansión completa, o "+ Binder" para
+            reunir todas las cartas de un Pokémon en concreto (de cualquier expansión donde haya salido).
           </p>
         </Card>
       ) : (

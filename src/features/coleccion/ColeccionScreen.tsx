@@ -25,7 +25,7 @@ import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { CollectionQuickForm } from "./CollectionQuickForm";
 import { SealedPurchaseForm } from "../sellado/SealedPurchaseForm";
-import { SetChecklistTab, SetSearchPanel } from "./SetChecklistTab";
+import { PokemonBinderForm, SetChecklistTab, SetSearchPanel } from "./SetChecklistTab";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   es: "ES",
@@ -377,6 +377,7 @@ export function ColeccionScreen({
   cardsByChecklist,
   onSearchSets,
   onSyncSet,
+  onCreateBinder,
   onResyncSet,
   onMarkOwned,
   onRemoveItems,
@@ -398,6 +399,10 @@ export function ColeccionScreen({
   cardsByChecklist: Record<string, SetChecklistCard[]>;
   onSearchSets: (query: string) => Promise<SetSearchCandidate[]>;
   onSyncSet: (externalSetId: string, setNameEs: string | null) => Promise<void>;
+  /** Crea un "binder" personalizado con todas las cartas de uno o varios Pokémon, de
+   * cualquier expansión donde hayan salido — alternativa a sincronizar un set oficial
+   * completo (ver SetChecklist.kind). */
+  onCreateBinder: (title: string, pokemonNames: string[]) => Promise<void>;
   onResyncSet: (checklistId: string) => Promise<void>;
   onMarkOwned: (entities: NewCollectionItem[]) => Promise<void>;
   onRemoveItems: (ids: string[]) => Promise<void>;
@@ -409,6 +414,7 @@ export function ColeccionScreen({
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSealedForm, setShowSealedForm] = useState(false);
   const [showSetSearch, setShowSetSearch] = useState(false);
+  const [showBinderForm, setShowBinderForm] = useState(false);
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
   const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("sets");
@@ -467,9 +473,14 @@ export function ColeccionScreen({
           </Button>
         )}
         {tab === "sets" && (
-          <Button tone="beacon" size="sm" onClick={() => setShowSetSearch(true)} className="shrink-0">
-            + Set
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button tone="beacon" size="sm" onClick={() => setShowSetSearch(true)}>
+              + Set
+            </Button>
+            <Button variant="tint" tone="ink" size="sm" onClick={() => setShowBinderForm(true)}>
+              + Binder
+            </Button>
+          </div>
         )}
       </div>
 
@@ -535,6 +546,16 @@ export function ColeccionScreen({
           onClose={() => setShowSetSearch(false)}
         >
           <SetSearchPanel checklists={checklists} onSearch={onSearchSets} onSync={onSyncSet} />
+        </Modal>
+      )}
+
+      {showBinderForm && (
+        <Modal
+          title="Crear un binder personalizado"
+          description="Reúne todas las cartas de uno o varios Pokémon, de cualquier expansión donde hayan salido, en un único checklist (p. ej. un binder de Slowpoke y Slowbro)."
+          onClose={() => setShowBinderForm(false)}
+        >
+          <PokemonBinderForm onCreate={onCreateBinder} />
         </Modal>
       )}
 

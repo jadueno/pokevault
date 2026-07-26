@@ -385,6 +385,41 @@ describe("/set-checklists", () => {
     const res = await app.inject({ method: "POST", url: "/set-checklists/00000000-0000-0000-0000-000000000000/resync" });
     expect(res.statusCode).toBe(404);
   });
+
+  it("POST /set-checklists/binder crea un binder con las cartas de los Pokémon indicados, de expansiones distintas", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/set-checklists/binder",
+      payload: { title: "Slowpoke y Slowbro", pokemonNames: ["Slowpoke", "Slowbro"] },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      setNameEs: "Slowpoke y Slowbro",
+      kind: "binder",
+      pokemonNames: ["Slowpoke", "Slowbro"],
+      totalCards: 3,
+    });
+
+    const cards = await app.inject({ method: "GET", url: `/set-checklists/${res.json().id}/cards` });
+    expect(cards.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "Fake Slowpoke", setName: "Test Set" }),
+        expect.objectContaining({ name: "Fake Slowpoke", setName: "Otro Set de Prueba" }),
+        expect.objectContaining({ name: "Fake Slowbro", setName: "Test Set" }),
+      ]),
+    );
+  });
+
+  it("POST /set-checklists/binder responde 404 si ya existe un binder con esos mismos Pokémon", async () => {
+    await app.inject({ method: "POST", url: "/set-checklists/binder", payload: { title: "A", pokemonNames: ["Slowpoke"] } });
+    const res = await app.inject({ method: "POST", url: "/set-checklists/binder", payload: { title: "B", pokemonNames: ["Slowpoke"] } });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("POST /set-checklists/binder responde 400 si no se indica ningún Pokémon", async () => {
+    const res = await app.inject({ method: "POST", url: "/set-checklists/binder", payload: { title: "Vacío", pokemonNames: [] } });
+    expect(res.statusCode).toBe(400);
+  });
 });
 
 describe("/card-recognition", () => {

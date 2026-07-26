@@ -178,65 +178,77 @@ function ownedKey(number: string, variant: CardVariant): string {
   return `${normalizeCardNumber(number)}::${variant}`;
 }
 
+/** Con qué nombres de set comparar una carta concreta del checklist: los suyos propios si
+ * los tiene (siempre en un binder, que mezcla expansiones; también en un set oficial
+ * sincronizado después de que existiera este campo), o si no los del checklist entero
+ * como venía haciéndose antes de que las cartas guardasen su propia expansión — así un set
+ * oficial sincronizado antes de este campo se sigue comparando igual que siempre. */
+function cardSetHints(cardSetName: string | null, checklistHints: string[]): string[] {
+  return cardSetName ? [normalizeSetText(cardSetName)] : checklistHints;
+}
+
 /** Compara el checklist de un set (sincronizado una vez desde el proveedor externo) con
  * la colección, para saber qué cartas ya tienes y cuáles te faltan. `collection_items` es
  * freeform (el nombre del set puede estar en cualquier idioma o forma, según lo que haya
  * reconocido la IA o escrito el usuario a mano), así que no hay relación por id — se
  * compara por número de carta (universal, no depende del idioma) + variante dentro de los
- * ejemplares cuyo `setName` se parece al nombre del set en inglés o en español
- * (`setNameHints`); "se parece" es contención de texto en cualquiera de los dos sentidos,
+ * ejemplares cuyo `setName` se parece a la expansión de origen de cada carta del checklist
+ * (la suya propia si la tiene, si no las pistas a nivel de checklist entero — ver
+ * `cardSetHints`); "se parece" es contención de texto en cualquiera de los dos sentidos,
  * no coincidencia exacta, porque es un checklist de referencia, no un vínculo estructural. */
 export function computeSetChecklistCompletion(
   checklistCards: SetChecklistCard[],
   collectionItems: CollectionItem[],
   setNameHints: (string | null)[],
 ): SetChecklistCompletion {
-  const hints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
-  const ownedKeys = new Set(
-    collectionItems
-      .filter((item) => item.setName && setTextMatches(item.setName, hints))
-      .map((item) => {
-        const number = item.number?.split("/")[0].trim();
-        return number ? ownedKey(number, item.variant) : null;
-      })
-      .filter((key): key is string => !!key),
-  );
+  const checklistHints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
 
   const owned: SetChecklistCard[] = [];
   const missing: SetChecklistCard[] = [];
   for (const card of checklistCards) {
-    (ownedKeys.has(ownedKey(card.number, card.variant)) ? owned : missing).push(card);
+    const hints = cardSetHints(card.setName, checklistHints);
+    const key = ownedKey(card.number, card.variant);
+    const isOwned = collectionItems.some((item) => {
+      if (!item.setName || !setTextMatches(item.setName, hints)) return false;
+      const number = item.number?.split("/")[0].trim();
+      return !!number && ownedKey(number, item.variant) === key;
+    });
+    (isOwned ? owned : missing).push(card);
   }
   return { owned, missing };
 }
 
 /** Ids de todos los ejemplares de la colección que corresponden a alguna de estas cartas
  * del checklist (mismo criterio de coincidencia que `computeSetChecklistCompletion`: por
- * número + variante, dentro de los ejemplares cuyo `setName` se parece). Puede haber más
- * de un id por carta si hay filas duplicadas — se devuelven todas, para poder "desmarcar"
- * (borrar de la colección real) una carta de golpe desde el checklist, no solo la primera
- * fila que coincida. */
+ * número + variante, dentro de los ejemplares cuyo `setName` se parece a la expansión de
+ * origen de cada carta). Puede haber más de un id por carta si hay filas duplicadas — se
+ * devuelven todas, para poder "desmarcar" (borrar de la colección real) una carta de golpe
+ * desde el checklist, no solo la primera fila que coincida. */
 export function findOwnedCollectionItemIds(
-  cards: { number: string; variant: CardVariant }[],
+  cards: { number: string; variant: CardVariant; setName?: string | null }[],
   collectionItems: CollectionItem[],
   setNameHints: (string | null)[],
 ): string[] {
-  const hints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
-  const wanted = new Set(cards.map((c) => ownedKey(c.number, c.variant)));
-  return collectionItems
-    .filter((item) => {
-      if (!item.setName || !setTextMatches(item.setName, hints)) return false;
+  const checklistHints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
+  const ids: string[] = [];
+  for (const card of cards) {
+    const hints = cardSetHints(card.setName ?? null, checklistHints);
+    const key = ownedKey(card.number, card.variant);
+    for (const item of collectionItems) {
+      if (!item.setName || !setTextMatches(item.setName, hints)) continue;
       const number = item.number?.split("/")[0].trim();
-      return !!number && wanted.has(ownedKey(number, item.variant));
-    })
-    .map((item) => item.id);
+      if (number && ownedKey(number, item.variant) === key) ids.push(item.id);
+    }
+  }
+  return ids;
 }
 
-/** Busca, entre los checklists ya sincronizados, la carta que coincide por nombre de
- * expansión (parecido, no exacto — mismo criterio que `computeSetChecklistCompletion`) y
- * número, para poder usar la imagen oficial del proveedor al dar de alta una carta en vez
- * de guardar la foto que hizo el usuario. `null` si no hay ningún checklist sincronizado
- * para ese set, o si el número no está relleno (no hay con qué cruzar). */
+/** Busca, entre los checklists ya sincronizados, la carta que coincide por expansión
+ * (parecido, no exacto — mismo criterio que `computeSetChecklistCompletion`, usando la
+ * expansión propia de cada carta si la tiene) y número, para poder usar la imagen oficial
+ * del proveedor al dar de alta una carta en vez de guardar la foto que hizo el usuario.
+ * `null` si no hay ninguna coincidencia, o si el número no está relleno (no hay con qué
+ * cruzar). */
 export function findChecklistCardImage(
   setName: string | null,
   number: string | null,
@@ -248,10 +260,11 @@ export function findChecklistCardImage(
   if (!numberPrefix) return null;
 
   for (const checklist of checklists) {
-    const hints = [checklist.setName, checklist.setNameEs].filter((hint): hint is string => !!hint).map(normalizeSetText);
-    if (!setTextMatches(setName, hints)) continue;
-    const match = (cardsByChecklist[checklist.id] ?? []).find((card) => normalizeCardNumber(card.number) === numberPrefix);
-    if (match) return match;
+    const checklistHints = [checklist.setName, checklist.setNameEs].filter((hint): hint is string => !!hint).map(normalizeSetText);
+    for (const card of cardsByChecklist[checklist.id] ?? []) {
+      if (normalizeCardNumber(card.number) !== numberPrefix) continue;
+      if (setTextMatches(setName, cardSetHints(card.setName, checklistHints))) return card;
+    }
   }
   return null;
 }

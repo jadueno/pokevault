@@ -163,6 +163,9 @@ export default function App() {
                   onSyncSet={async (externalSetId, setNameEs) => {
                     await setChecklists.sync(externalSetId, setNameEs);
                   }}
+                  onCreateBinder={async (title, pokemonNames) => {
+                    await setChecklists.createBinder(title, pokemonNames);
+                  }}
                   onResyncSet={async (checklistId) => {
                     await setChecklists.resync(checklistId);
                   }}

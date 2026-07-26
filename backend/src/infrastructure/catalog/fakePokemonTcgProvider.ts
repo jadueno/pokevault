@@ -1,4 +1,5 @@
 import type {
+  PokemonTcgCardData,
   PokemonTcgCardMatch,
   PokemonTcgCardSearchQuery,
   PokemonTcgProvider,
@@ -33,6 +34,8 @@ export function createFakePokemonTcgProvider(): PokemonTcgProvider {
             imageUrl: "https://example.com/ts1-1-small.png",
             imageUrlLarge: "https://example.com/ts1-1-large.png",
             referencePrice: 1.5,
+            setName: "Test Set",
+            setTotalCards: 2,
           },
           {
             number: "2",
@@ -42,6 +45,8 @@ export function createFakePokemonTcgProvider(): PokemonTcgProvider {
             imageUrl: "https://example.com/ts1-2-small.png",
             imageUrlLarge: "https://example.com/ts1-2-large.png",
             referencePrice: null,
+            setName: "Test Set",
+            setTotalCards: 2,
           },
         ],
       };
@@ -94,6 +99,55 @@ export function createFakePokemonTcgProvider(): PokemonTcgProvider {
         ];
       }
       return [];
+    },
+
+    async getCardsByPokemonNames(names: string[]): Promise<PokemonTcgCardData[]> {
+      const wanted = names.map((n) => n.toLowerCase());
+      const cards: PokemonTcgCardData[] = [];
+      // Dos cartas de "Fake Slowpoke" en expansiones distintas que comparten el mismo
+      // número local ("1") a propósito — para probar que un binder no las confunde entre
+      // sí (ver setName/setTotalCards) igual que no confundiría un Slowpoke real de Base
+      // Set con uno de otra expansión que también fuese el número 1 de su set.
+      if (wanted.some((n) => n.includes("slowpoke"))) {
+        cards.push(
+          {
+            number: "1",
+            name: "Fake Slowpoke",
+            rarity: "Common",
+            variant: "normal",
+            imageUrl: "https://example.com/ts1-slowpoke-small.png",
+            imageUrlLarge: "https://example.com/ts1-slowpoke-large.png",
+            referencePrice: 0.1,
+            setName: "Test Set",
+            setTotalCards: 2,
+          },
+          {
+            number: "1",
+            name: "Fake Slowpoke",
+            rarity: "Common",
+            variant: "normal",
+            imageUrl: "https://example.com/ts2-slowpoke-small.png",
+            imageUrlLarge: "https://example.com/ts2-slowpoke-large.png",
+            referencePrice: 0.2,
+            setName: "Otro Set de Prueba",
+            setTotalCards: 50,
+          },
+        );
+      }
+      if (wanted.some((n) => n.includes("slowbro"))) {
+        cards.push({
+          number: "2",
+          name: "Fake Slowbro",
+          rarity: "Uncommon",
+          variant: "holo",
+          imageUrl: "https://example.com/ts1-slowbro-small.png",
+          imageUrlLarge: "https://example.com/ts1-slowbro-large.png",
+          referencePrice: 3,
+          setName: "Test Set",
+          setTotalCards: 2,
+        });
+      }
+      return cards;
     },
   };
 }

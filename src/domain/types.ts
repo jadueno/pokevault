@@ -130,6 +130,8 @@ export interface PlanSettings {
 // pestaña "Sets" de Mi colección), nunca en segundo plano. "¿qué me falta de este set?" se
 // calcula aquí comparando esto con la colección (freeform) por número de carta.
 
+export type SetChecklistKind = "official" | "binder";
+
 export interface SetChecklist {
   id: string;
   externalSetId: string;
@@ -137,6 +139,13 @@ export interface SetChecklist {
   setNameEs: string | null;
   totalCards: number;
   syncedAt: string;
+  /** "official": una expansión real sincronizada tal cual. "binder": una colección
+   * personalizada con todas las cartas de uno o varios Pokémon, de cualquier expansión
+   * donde hayan salido (ver pokemonNames). */
+  kind: SetChecklistKind;
+  /** Solo si `kind` es "binder": los nombres de Pokémon usados para construirlo, para
+   * poder repetir la misma búsqueda al actualizar. `null` en sets oficiales. */
+  pokemonNames: string[] | null;
 }
 
 export interface SetChecklistCard {
@@ -156,6 +165,14 @@ export interface SetChecklistCard {
   /** Precio de referencia de Cardmarket en euros, del momento de la sincronización.
    * `null` si el proveedor no tenía precio para esa carta. */
   referencePrice: number | null;
+  /** Expansión real de origen de esta carta — en un set oficial coincide con el propio
+   * set del checklist; en un binder (que mezcla expansiones) es la única forma de saber
+   * de cuál viene cada carta. `null` en checklists sincronizados antes de que existiera
+   * este campo (se sigue comparando por el nombre del set a nivel de checklist entero). */
+  setName: string | null;
+  /** Total de cartas de esa expansión de origen (no del checklist entero) — hace falta
+   * para el "número/total" real de la carta al marcarla como propia. */
+  setTotalCards: number | null;
 }
 
 /** Un set encontrado al buscar en el proveedor, todavía sin sincronizar — solo para

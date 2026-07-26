@@ -177,9 +177,35 @@ export function createTcgdexApiProvider(): PokemonTcgProvider {
             imageUrl: imageUrl(card.image, "low"),
             imageUrlLarge: imageUrl(card.image, "high"),
             referencePrice: price,
+            setName: card.set.name,
+            setTotalCards: card.set.cardCount.total,
           })),
         ),
       };
+    },
+
+    async getCardsByPokemonNames(names: string[]): Promise<PokemonTcgCardData[]> {
+      // Una búsqueda por nombre por Pokémon (no hay filtro "nombre en {lista}" en TCGdex),
+      // fusionando resultados y sin duplicar si dos nombres devuelven la misma carta.
+      const briefsByName = await Promise.all(
+        names.map((name) => fetchJson<TcgdexCardBrief[]>(`${API_BASE}/cards?name=${encodeURIComponent(name)}`)),
+      );
+      const uniqueIds = [...new Set(briefsByName.flat().map((b) => b.id))];
+      const cards = await fetchCardsInBatches(uniqueIds);
+
+      return cards.flatMap((card): PokemonTcgCardData[] =>
+        cardVariantPrices(card).map(({ variant, price }) => ({
+          number: card.localId,
+          name: card.name,
+          rarity: card.rarity ?? null,
+          variant,
+          imageUrl: imageUrl(card.image, "low"),
+          imageUrlLarge: imageUrl(card.image, "high"),
+          referencePrice: price,
+          setName: card.set.name,
+          setTotalCards: card.set.cardCount.total,
+        })),
+      );
     },
 
     async searchCards(query: PokemonTcgCardSearchQuery): Promise<PokemonTcgCardMatch[]> {

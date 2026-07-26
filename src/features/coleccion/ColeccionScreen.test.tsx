@@ -64,6 +64,8 @@ function setChecklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
     setNameEs: "Oscuridad Absoluta",
     totalCards: 3,
     syncedAt: "2026-07-18T00:00:00.000Z",
+    kind: "official",
+    pokemonNames: null,
     ...overrides,
   };
 }
@@ -79,6 +81,8 @@ function checklistCard(overrides: Partial<SetChecklistCard> = {}): SetChecklistC
     imageUrl: null,
     imageUrlLarge: null,
     referencePrice: null,
+    setName: null,
+    setTotalCards: null,
     ...overrides,
   };
 }
@@ -110,6 +114,7 @@ function renderScreen(
     onOverrideSealedValue: vi.fn().mockResolvedValue(undefined),
     onSearchSets: vi.fn().mockResolvedValue([]),
     onSyncSet: vi.fn().mockResolvedValue(undefined),
+    onCreateBinder: vi.fn().mockResolvedValue(undefined),
     onResyncSet: vi.fn().mockResolvedValue(undefined),
     onMarkOwned: vi.fn().mockResolvedValue(undefined),
     onRemoveItems: vi.fn().mockResolvedValue(undefined),
@@ -142,7 +147,7 @@ function renderScreen(
 describe("ColeccionScreen", () => {
   it("sin nada, la pestaña Sets (por defecto) explica cómo empezar", () => {
     renderScreen([], []);
-    expect(screen.getByText(/Todavía no has sincronizado ningún set/)).toBeInTheDocument();
+    expect(screen.getByText(/Todavía no tienes ningún set ni binder/)).toBeInTheDocument();
   });
 
   it("lista los ejemplares con precio de compra y valor estimado", async () => {
@@ -606,7 +611,7 @@ describe("ColeccionScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Sets (0)" }));
 
-    expect(screen.getByText(/Todavía no has sincronizado ningún set/)).toBeInTheDocument();
+    expect(screen.getByText(/Todavía no tienes ningún set ni binder/)).toBeInTheDocument();
   });
 
   it("en Sets, busca un set nuevo y lo añade al elegirlo de la lista", async () => {
@@ -624,6 +629,18 @@ describe("ColeccionScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Añadir este set" }));
     expect(handlers.onSyncSet).toHaveBeenCalledWith("me5", "Pitch Black");
+  });
+
+  it("en Sets, crea un binder personalizado con los Pokémon indicados", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()], [], []);
+
+    await user.click(screen.getByRole("button", { name: "Sets (0)" }));
+    await user.click(screen.getByRole("button", { name: "+ Binder" }));
+    await user.type(screen.getByPlaceholderText("Slowpoke, Slowbro"), "Slowpoke, Slowbro");
+    await user.click(screen.getByRole("button", { name: "Crear binder" }));
+
+    expect(handlers.onCreateBinder).toHaveBeenCalledWith("Slowpoke y Slowbro", ["Slowpoke", "Slowbro"]);
   });
 
   it("en Sets, un candidato ya sincronizado se marca como 'Ya lo tienes' en vez de poder añadirlo de nuevo", async () => {
@@ -777,6 +794,26 @@ describe("ColeccionScreen", () => {
         condition: "near_mint",
         estimatedValueOverride: 1.5,
       }),
+    ]);
+  });
+
+  it("en un binder, marcar una carta como mía usa la expansión y el total propios de esa carta, no el título del binder", async () => {
+    const user = userEvent.setup();
+    const cards: SetChecklistCard[] = [
+      checklistCard({ id: "c1", number: "1", name: "Slowpoke", setName: "Base Set", setTotalCards: 102, referencePrice: 0.5 }),
+      checklistCard({ id: "c2", number: "1", name: "Slowpoke", setName: "Jungla", setTotalCards: 64, referencePrice: 0.3 }),
+    ];
+    const binder = setChecklist({ setName: "Slowpoke y Slowbro", setNameEs: "Slowpoke y Slowbro", kind: "binder", totalCards: 2 });
+    const handlers = renderScreen([], [], [binder], { cl1: cards });
+
+    await user.click(screen.getByRole("button", { name: "Sets (1)" }));
+    await user.click(screen.getByRole("button", { name: "Seleccionar varias" }));
+    const [markBaseSetSlowpoke] = screen.getAllByRole("button", { name: "Marcar Slowpoke como mía" });
+    await user.click(markBaseSetSlowpoke);
+    await user.click(screen.getByRole("button", { name: "Marcar 1 como mías" }));
+
+    expect(handlers.onMarkOwned).toHaveBeenCalledWith([
+      expect.objectContaining({ name: "Slowpoke", setName: "Base Set", number: "1/102" }),
     ]);
   });
 

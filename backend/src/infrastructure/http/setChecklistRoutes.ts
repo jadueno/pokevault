@@ -45,6 +45,20 @@ export function registerSetChecklistRoutes(
     }
   });
 
+  app.post("/set-checklists/binder", async (request, reply) => {
+    try {
+      const { title, pokemonNames } = request.body as { title: string; pokemonNames: string[] };
+      const result = await useCases.createBinder(title, pokemonNames ?? []);
+      if (!result) {
+        reply.code(404).send({ error: "No se ha encontrado ninguna carta o ya existía este binder" });
+        return;
+      }
+      reply.code(201).send(result);
+    } catch (error) {
+      handleError(error, reply);
+    }
+  });
+
   app.post("/set-checklists/:id/resync", async (request, reply) => {
     const { id } = request.params as { id: string };
     const result = await useCases.resync(id);
