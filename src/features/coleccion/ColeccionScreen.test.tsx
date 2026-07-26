@@ -280,7 +280,7 @@ describe("ColeccionScreen", () => {
     const handlers = renderScreen([item()]);
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
     await user.type(screen.getByPlaceholderText("Charizard"), "Mew");
     await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
 
@@ -301,7 +301,7 @@ describe("ColeccionScreen", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["foto"], "carta.jpg", { type: "image/jpeg" });
@@ -328,7 +328,7 @@ describe("ColeccionScreen", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
@@ -352,7 +352,7 @@ describe("ColeccionScreen", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
@@ -385,7 +385,7 @@ describe("ColeccionScreen", () => {
     ]);
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
@@ -441,7 +441,7 @@ describe("ColeccionScreen", () => {
     ]);
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
@@ -487,7 +487,7 @@ describe("ColeccionScreen", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "Añadir carta suelta" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
 
     const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(photoInput, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));

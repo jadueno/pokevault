@@ -467,6 +467,11 @@ export function ColeccionScreen({
               </button>
             ))}
           </div>
+        {tab === "cartas" && (
+          <Button tone="beacon" size="sm" onClick={() => setShowAddForm(true)} className="shrink-0">
+            + Carta
+          </Button>
+        )}
         {tab === "sellado" && (
           <Button tone="beacon" size="sm" onClick={() => setShowSealedForm(true)} className="shrink-0">
             + Compra
@@ -591,7 +596,7 @@ export function ColeccionScreen({
         <Card>
           <p className="text-sm text-[var(--text-muted)]">
             🎴 Todavía no has añadido nada a tu colección. Busca un set en la pestaña "Sets" para marcar tus cartas, o usa el botón
-            "+" para una carta suelta.
+            "+ Carta" para una carta suelta.
           </p>
         </Card>
       ) : tab === "cartas" ? (
@@ -647,18 +652,6 @@ export function ColeccionScreen({
           onMarkOwned={onMarkOwned}
           onRemoveItems={onRemoveItems}
         />
-      )}
-
-      {tab === "cartas" && (
-        <button
-          type="button"
-          onClick={() => setShowAddForm(true)}
-          aria-label="Añadir carta suelta"
-          className="fixed right-4 bottom-[var(--nav-clearance)] z-20 flex size-14 items-center justify-center rounded-full text-2xl font-bold text-[var(--on-hero)] shadow-float transition-transform hover:scale-105 active:scale-95 sm:right-8 sm:bottom-8"
-          style={{ background: "var(--hero-gradient)" }}
-        >
-          +
-        </button>
       )}
     </div>
   );
