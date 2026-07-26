@@ -446,9 +446,9 @@ export function ColeccionScreen({
           <div className="flex min-w-0 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface-1)] p-1">
             {(
               [
-                { id: "sets", label: `Sets (${checklists.length})` },
-                { id: "cartas", label: `Cartas (${items.length})` },
-                { id: "sellado", label: `Sellado (${sealedItems.length})` },
+                { id: "sets", label: "Sets" },
+                { id: "cartas", label: "Cartas" },
+                { id: "sellado", label: "Sellado" },
               ] as const
             ).map((t) => (
               <button
@@ -483,6 +483,15 @@ export function ColeccionScreen({
           </div>
         )}
       </div>
+
+      {/* El total ya no va en la propia pestaña (poco sitio desde que "+ Binder" comparte
+          fila con "+ Set"/"+ Compra") — se muestra aquí, dentro del contenido de la
+          pestaña activa, en su lugar. */}
+      <p className="text-sm text-[var(--text-muted)]">
+        {tab === "sets" && `${checklists.length} sets y binders`}
+        {tab === "cartas" && `${items.length} carta${items.length === 1 ? "" : "s"}`}
+        {tab === "sellado" && `${sealedItems.length} compra${sealedItems.length === 1 ? "" : "s"}`}
+      </p>
 
       {!isEmpty && tab !== "sets" && (
         <div className="relative max-w-sm">
