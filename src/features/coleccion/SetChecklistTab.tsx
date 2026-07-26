@@ -478,19 +478,24 @@ function SetCardsGrid({
       ) : visibleCards.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">Sin resultados para ese filtro/búsqueda.</p>
       ) : (
-        <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-          {visibleCards.map((card) => (
-            <ChecklistCardThumb
-              key={card.id}
-              card={card}
-              owned={ownedIds.has(card.id)}
-              onZoom={() => onZoom(card)}
-              selecting={selecting}
-              selected={selectedIds.has(card.id)}
-              onToggleSelect={() => toggleSelected(card.id)}
-              showSetOrigin={checklist.kind === "binder"}
-            />
-          ))}
+        // Alto máximo + scroll propio: en un set/binder grande, la rejilla puede tener
+        // cientos de cartas — sin esto, llegar de vuelta a los filtros o al botón
+        // "Ocultar" de la cabecera exigía deshacer todo ese scroll de la página entera.
+        <div className="max-h-[60vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            {visibleCards.map((card) => (
+              <ChecklistCardThumb
+                key={card.id}
+                card={card}
+                owned={ownedIds.has(card.id)}
+                onZoom={() => onZoom(card)}
+                selecting={selecting}
+                selected={selectedIds.has(card.id)}
+                onToggleSelect={() => toggleSelected(card.id)}
+                showSetOrigin={checklist.kind === "binder"}
+              />
+            ))}
+          </div>
         </div>
       )}
 
