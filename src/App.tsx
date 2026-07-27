@@ -1,5 +1,6 @@
-import { useState, type ReactElement } from "react";
-import { searchCards } from "./data/api";
+import { useEffect, useState, type ReactElement } from "react";
+import { getAuthConfig, login, logout, searchCards } from "./data/api";
+import { getStoredToken, onUnauthorized } from "./data/auth";
 import { useCollectionData } from "./data/useCollectionData";
 import { useWishlistData } from "./data/useWishlistData";
 import { useSealedData } from "./data/useSealedData";
@@ -9,7 +10,9 @@ import { ColeccionScreen } from "./features/coleccion/ColeccionScreen";
 import { WishlistScreen } from "./features/wishlist/WishlistScreen";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { PlanScreen } from "./features/plan/PlanScreen";
+import { LoginScreen } from "./features/auth/LoginScreen";
 import { LoadingState } from "./components/LoadingState";
+import { LogoutIcon } from "./components/icons";
 
 type Section = "dashboard" | "coleccion" | "wishlist" | "plan";
 
@@ -65,14 +68,51 @@ const sections: { id: Section; label: string; Icon: (props: { className?: string
 
 export default function App() {
   const [section, setSection] = useState<Section>("coleccion");
-  const collection = useCollectionData();
-  const wishlist = useWishlistData();
-  const sealed = useSealedData();
-  const plan = usePlanData();
-  const setChecklists = useSetChecklistData();
+  // null = todavía no se sabe si el backend exige login (ver /auth-config). Si no lo
+  // exige (uso personal local, sin LOGIN_USERNAME/LOGIN_PASSWORD_HASH/SESSION_SECRET en
+  // el backend), la app entera sigue sin fricción, exactamente igual que antes de esto.
+  const [loginRequired, setLoginRequired] = useState<boolean | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
+  // Ninguna fuente de datos dispara su petición hasta saber que no hace falta login, o
+  // que ya hay sesión — evita una ráfaga de 401 de sobra en cada carga sin sesión.
+  const dataEnabled = loginRequired !== null && (!loginRequired || authenticated);
+  const collection = useCollectionData(dataEnabled);
+  const wishlist = useWishlistData(dataEnabled);
+  const sealed = useSealedData(dataEnabled);
+  const plan = usePlanData(dataEnabled);
+  const setChecklists = useSetChecklistData(dataEnabled);
+
+  useEffect(() => {
+    onUnauthorized(() => setAuthenticated(false));
+    getAuthConfig()
+      .then(({ loginRequired }) => {
+        setLoginRequired(loginRequired);
+        setAuthenticated(loginRequired ? !!getStoredToken() : true);
+      })
+      // Si /auth-config falla (backend caído, no un problema de login), no bloquear en
+      // un login infinito — el resto de la app ya muestra su propio aviso de conexión.
+      .catch(() => {
+        setLoginRequired(false);
+        setAuthenticated(true);
+      });
+    return () => onUnauthorized(null);
+  }, []);
 
   const loading = collection.loading && !collection.summary;
   const error = collection.error ?? wishlist.error ?? sealed.error ?? plan.error;
+
+  if (loginRequired === null) return <LoadingState />;
+
+  if (loginRequired && !authenticated) {
+    return (
+      <LoginScreen
+        onLogin={async (username, password) => {
+          await login(username, password);
+          setAuthenticated(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app-shell flex min-h-screen flex-col sm:flex-row">
@@ -110,6 +150,19 @@ export default function App() {
             {s.label}
           </button>
         ))}
+        {loginRequired && (
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              setAuthenticated(false);
+            }}
+            className={`mt-auto flex items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-sm font-bold whitespace-nowrap text-[var(--text-secondary)] transition-all duration-150 hover:bg-[var(--gridline)] hover:text-[var(--status-critical)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)]`}
+          >
+            <LogoutIcon className="size-5 shrink-0" />
+            Cerrar sesión
+          </button>
+        )}
       </nav>
 
       {/* Sin padding-top propio: ScreenHeader (siempre el primer elemento de cada pantalla)
@@ -222,6 +275,19 @@ export default function App() {
               <s.Icon className="size-6" />
             </button>
           ))}
+          {loginRequired && (
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                setAuthenticated(false);
+              }}
+              aria-label="Cerrar sesión"
+              className="flex items-center justify-center rounded-full p-2.5 text-[var(--text-muted)] transition-all duration-150 hover:text-[var(--status-critical)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--beacon)]"
+            >
+              <LogoutIcon className="size-6" />
+            </button>
+          )}
         </div>
       </nav>
     </div>

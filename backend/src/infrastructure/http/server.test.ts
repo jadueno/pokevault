@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPool, resetDatabase } from "../../test/testPool.js";
 import { createFakePokemonTcgProvider } from "../catalog/fakePokemonTcgProvider.js";
+import { hashPassword } from "./passwordHash.js";
 import { buildServer } from "./server.js";
 
 let pool: Pool;
@@ -451,9 +452,30 @@ describe("/card-search", () => {
   });
 });
 
-describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servidor real", () => {
-  it("con apiToken configurado, exige el token también en las rutas ya montadas", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false, apiToken: "demo-token" });
+describe("/auth-config", () => {
+  it("sin login configurado, indica que no hace falta", async () => {
+    const res = await app.inject({ method: "GET", url: "/auth-config" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ loginRequired: false });
+  });
+
+  it("con login configurado, indica que hace falta", async () => {
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
+    });
+    const res = await authedApp.inject({ method: "GET", url: "/auth-config" });
+    expect(res.json()).toEqual({ loginRequired: true });
+    await authedApp.close();
+  });
+});
+
+describe("login opcional, de extremo a extremo con el servidor real", () => {
+  it("con login configurado, exige el token de sesión también en las rutas ya montadas", async () => {
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
+    });
 
     const withoutToken = await authedApp.inject({ method: "GET", url: "/collection-items" });
     expect(withoutToken.statusCode).toBe(401);
@@ -461,13 +483,62 @@ describe("autenticación opcional (API_TOKEN), de extremo a extremo con el servi
     const health = await authedApp.inject({ method: "GET", url: "/health" });
     expect(health.statusCode).toBe(200);
 
+    const login = await authedApp.inject({
+      method: "POST",
+      url: "/login",
+      payload: { username: "demo", password: "demo-pass" },
+    });
+    expect(login.statusCode).toBe(200);
+    const { token } = login.json();
+    expect(typeof token).toBe("string");
+
     const withToken = await authedApp.inject({
       method: "GET",
       url: "/collection-items",
-      headers: { authorization: "Bearer demo-token" },
+      headers: { authorization: `Bearer ${token}` },
     });
     expect(withToken.statusCode).toBe(200);
 
     await authedApp.close();
+  });
+
+  it("POST /login responde 401 con la contraseña incorrecta", async () => {
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
+    });
+    const res = await authedApp.inject({ method: "POST", url: "/login", payload: { username: "demo", password: "mal" } });
+    expect(res.statusCode).toBe(401);
+    await authedApp.close();
+  });
+
+  it("POST /login responde 401 con el usuario incorrecto", async () => {
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
+    });
+    const res = await authedApp.inject({ method: "POST", url: "/login", payload: { username: "otro", password: "demo-pass" } });
+    expect(res.statusCode).toBe(401);
+    await authedApp.close();
+  });
+
+  it("un token de sesión de otra instancia (firmado con otro secreto) no sirve", async () => {
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
+    });
+    const otherApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "otro-secreto-distinto" },
+    });
+
+    const login = await otherApp.inject({ method: "POST", url: "/login", payload: { username: "demo", password: "demo-pass" } });
+    const { token } = login.json();
+
+    const res = await authedApp.inject({ method: "GET", url: "/collection-items", headers: { authorization: `Bearer ${token}` } });
+    expect(res.statusCode).toBe(401);
+
+    await authedApp.close();
+    await otherApp.close();
   });
 });

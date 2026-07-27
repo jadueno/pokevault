@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { NewSealedPurchase, SealedPurchase } from "../domain/types";
 import { overrideSealedPurchaseValue, sealedPurchaseClient } from "./api";
 
-export function useSealedData() {
+/** `enabled`: en false no dispara ninguna petición — ver useCollectionData. */
+export function useSealedData(enabled = true) {
   const [items, setItems] = useState<SealedPurchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,8 +21,8 @@ export function useSealedData() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (enabled) reload();
+  }, [enabled, reload]);
 
   return {
     items,

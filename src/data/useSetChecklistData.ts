@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { SetChecklist, SetChecklistCard, SetSearchCandidate } from "../domain/types";
 import { createPokemonBinder, createSetChecklist, getSetChecklistCards, getSetChecklists, resyncSetChecklist, searchSets } from "./api";
 
-export function useSetChecklistData() {
+/** `enabled`: en false no dispara ninguna petición — ver useCollectionData. */
+export function useSetChecklistData(enabled = true) {
   const [checklists, setChecklists] = useState<SetChecklist[]>([]);
   const [cardsByChecklist, setCardsByChecklist] = useState<Record<string, SetChecklistCard[]>>({});
   const [loading, setLoading] = useState(true);
@@ -30,8 +31,8 @@ export function useSetChecklistData() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (enabled) reload();
+  }, [enabled, reload]);
 
   return {
     checklists,

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { MoveToCollectionDetails, NewWishlistItem, WishlistItem } from "../domain/types";
 import { moveWishlistItemToCollection, wishlistItemClient } from "./api";
 
-export function useWishlistData() {
+/** `enabled`: en false no dispara ninguna petición — ver useCollectionData. */
+export function useWishlistData(enabled = true) {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,8 +21,8 @@ export function useWishlistData() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (enabled) reload();
+  }, [enabled, reload]);
 
   return {
     items,

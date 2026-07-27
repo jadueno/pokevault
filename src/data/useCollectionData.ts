@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { CollectionItem, CollectionSummary, NewCollectionItem } from "../domain/types";
 import { collectionItemClient, getCollectionSummary, overrideCollectionItemValue } from "./api";
 
-export function useCollectionData() {
+/** `enabled`: en false no dispara ninguna petición — para no llamar al backend antes de
+ * saber si hace falta login (ver App.tsx), lo que solo generaría 401 de sobra en la
+ * consola en cada carga mientras no haya sesión. */
+export function useCollectionData(enabled = true) {
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [summary, setSummary] = useState<CollectionSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,8 +26,8 @@ export function useCollectionData() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (enabled) reload();
+  }, [enabled, reload]);
 
   return {
     items,

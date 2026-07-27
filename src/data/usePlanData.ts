@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { NewPlanItem, PlanItem, PlanSettings } from "../domain/types";
 import { getPlanSettings, planItemClient, togglePlanItemDone, updatePlanSettings } from "./api";
 
-export function usePlanData() {
+/** `enabled`: en false no dispara ninguna petición — ver useCollectionData. */
+export function usePlanData(enabled = true) {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [settings, setSettings] = useState<PlanSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +27,8 @@ export function usePlanData() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (enabled) reload();
+  }, [enabled, reload]);
 
   return {
     items,

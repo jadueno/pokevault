@@ -4,7 +4,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { Pool } from "pg";
 import type { PokemonTcgProvider } from "../../domain/ports.js";
-import { registerAuth } from "./auth.js";
+import { registerAuth, type LoginConfig } from "./auth.js";
 import { registerCollectionRoutes } from "./collectionRoutes.js";
 import { registerWishlistRoutes } from "./wishlistRoutes.js";
 import { registerSealedPurchaseRoutes } from "./sealedPurchaseRoutes.js";
@@ -25,7 +25,7 @@ import { createSetChecklistUseCases } from "../../application/setChecklists.js";
 
 export interface BuildServerOptions {
   logger?: boolean;
-  apiToken?: string;
+  loginConfig?: LoginConfig;
 }
 
 export async function buildServer(pool: Pool, pokemonTcgProvider: PokemonTcgProvider, options: BuildServerOptions = {}) {
@@ -46,7 +46,7 @@ export async function buildServer(pool: Pool, pokemonTcgProvider: PokemonTcgProv
 
   app.get("/health", async () => ({ status: "ok" }));
 
-  registerAuth(app, options.apiToken);
+  registerAuth(app, options.loginConfig);
 
   const collectionItemRepository = createCollectionItemRepository(pool);
   const wishlistItemRepository = createWishlistItemRepository(pool);

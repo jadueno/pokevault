@@ -85,8 +85,8 @@ Desde la pestaña "Sets" de "Mi colección" puedes buscar un set (en español o 
 - `backend/src/infrastructure/catalog/` — `tcgdexApiProvider.ts` (real) + `fakePokemonTcgProvider.ts` (tests/E2E).
 - `e2e/` — Playwright, contra el proveedor de sets fake (determinista, forzado en `playwright.config.ts` con `POKEMON_TCG_PROVIDER=fake`).
 
-Más detalle de las decisiones técnicas (por qué no hay catálogo externo en vivo, cómo funciona la búsqueda/sincronización de sets, por qué no hay auth todavía) en [ARCHITECTURE.md](ARCHITECTURE.md).
+Más detalle de las decisiones técnicas (por qué no hay catálogo externo en vivo, cómo funciona la búsqueda/sincronización de sets, cómo funciona el login) en [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Privacidad
 
-Herramienta de uso personal: no hay despliegue público. Los datos viven en tu propia base de datos local (Docker), igual que rumbo/nous/faro.
+Herramienta de uso personal. En local, los datos viven en tu propia base de datos (Docker), igual que rumbo/nous/faro. También se puede desplegar en un servidor propio (ver ARCHITECTURE.md) — en ese caso, protégela con login (`LOGIN_USERNAME`/`LOGIN_PASSWORD_HASH`/`SESSION_SECRET` en `backend/.env`, ver `.env.example`) para que solo tú puedas entrar.
