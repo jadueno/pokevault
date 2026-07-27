@@ -29,7 +29,7 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
 
     /** Busca una carta concreta por nombre (+ pistas opcionales de expansión/número) en
      * todo el catálogo del proveedor, sin depender de que el set esté sincronizado — para
-     * el alta manual asistida por foto (ver application/cardRecognition.ts). */
+     * el alta manual de una carta suelta que no está en ningún set sincronizado. */
     searchCards: async (name: string, setName: string | null, number: string | null) => {
       assertNonEmpty(name, "El nombre de la carta");
       try {

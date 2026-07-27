@@ -118,17 +118,7 @@ function renderScreen(
     onResyncSet: vi.fn().mockResolvedValue(undefined),
     onMarkOwned: vi.fn().mockResolvedValue(undefined),
     onRemoveItems: vi.fn().mockResolvedValue(undefined),
-    onRecognizeCard: vi.fn().mockResolvedValue({
-      name: null,
-      setName: null,
-      number: null,
-      rarity: null,
-      variant: null,
-      language: null,
-      confidence: null,
-    }),
     onSearchCards: vi.fn().mockResolvedValue([]),
-    onRecognizePriceScreenshot: vi.fn().mockResolvedValue({ name: null, setName: null, rarity: null, referencePrice: null }),
   };
   render(
     <ConfirmProvider>
@@ -287,45 +277,9 @@ describe("ColeccionScreen", () => {
     expect(handlers.onAddItem).toHaveBeenCalledWith(expect.objectContaining({ name: "Mew" }));
   });
 
-  it("hacer una foto en el alta manual identifica la carta y rellena el formulario", async () => {
+  it("hacer una foto en el alta manual solo la adjunta, sin identificar nada", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({
-      name: "Grubbin",
-      setName: "Oscuridad Absoluta",
-      number: "2/120",
-      rarity: "Común",
-      variant: null,
-      language: null,
-      confidence: "high",
-    });
-
-    await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "+ Carta" }));
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = new File(["foto"], "carta.jpg", { type: "image/jpeg" });
-    await user.upload(input, file);
-
-    expect(handlers.onRecognizeCard).toHaveBeenCalledWith("data:image/jpeg;base64,AAAA");
-    expect(await screen.findByDisplayValue("Grubbin")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Oscuridad Absoluta")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("2/120")).toBeInTheDocument();
-    expect(screen.getByText(/Identificado \(confianza alta\)/)).toBeInTheDocument();
-  });
-
-  it("si la foto deja ver el acabado y el idioma impreso, también rellena Variante e Idioma", async () => {
-    const user = userEvent.setup();
-    const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({
-      name: "Grubbin",
-      setName: "Oscuridad Absoluta",
-      number: "2/120",
-      rarity: "Común",
-      variant: "reverse",
-      language: "en",
-      confidence: "high",
-    });
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
     await user.click(screen.getByRole("button", { name: "+ Carta" }));
@@ -333,43 +287,17 @@ describe("ColeccionScreen", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
 
-    expect(await screen.findByDisplayValue("Grubbin")).toBeInTheDocument();
-    expect(screen.getByLabelText("Variante")).toHaveValue("reverse");
-    expect(screen.getByLabelText("Idioma")).toHaveValue("en");
+    expect(await screen.findByText(/Se guardará la foto que acabas de hacer/)).toBeInTheDocument();
+    expect(handlers.onSearchCards).not.toHaveBeenCalled();
+
+    await user.type(screen.getByPlaceholderText("Charizard"), "Mew");
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+    expect(handlers.onAddItem).toHaveBeenCalledWith(expect.objectContaining({ name: "Mew", photo: "data:image/jpeg;base64,AAAA" }));
   });
 
-  it("si la foto no se identifica, avisa y deja rellenar a mano", async () => {
+  it("el botón 'Buscar en el catálogo' aplica los datos oficiales si hay una única coincidencia", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({
-      name: null,
-      setName: null,
-      number: null,
-      rarity: null,
-      variant: null,
-      language: null,
-      confidence: null,
-    });
-
-    await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "+ Carta" }));
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
-
-    expect(await screen.findByText(/No se ha podido identificar nada en la foto/)).toBeInTheDocument();
-  });
-
-  it("tras identificar la foto, si hay una única carta en el catálogo se aplican sus datos oficiales", async () => {
-    const user = userEvent.setup();
-    const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({
-      name: "Grubbin",
-      setName: "Oscuridad Absoluta",
-      number: "2/120",
-      rarity: "Común",
-      confidence: "high",
-    });
     handlers.onSearchCards.mockResolvedValue([
       {
         externalId: "me05-002",
@@ -386,9 +314,10 @@ describe("ColeccionScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
     await user.click(screen.getByRole("button", { name: "+ Carta" }));
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+    await user.type(screen.getByPlaceholderText("Charizard"), "Grubbin");
+    await user.type(screen.getByPlaceholderText("Base Set"), "Oscuridad Absoluta");
+    await user.type(screen.getByPlaceholderText("4/102"), "2/120");
+    await user.click(screen.getByRole("button", { name: "Buscar en el catálogo" }));
 
     expect(handlers.onSearchCards).toHaveBeenCalledWith("Grubbin", "Oscuridad Absoluta", "2/120");
     expect(await screen.findByDisplayValue("002/120")).toBeInTheDocument();
@@ -405,16 +334,22 @@ describe("ColeccionScreen", () => {
     );
   });
 
-  it("tras identificar la foto, si hay varias cartas candidatas se puede elegir cuál es", async () => {
+  it("si no hay ninguna coincidencia en el catálogo, avisa y deja rellenar a mano", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({
-      name: "Charizard",
-      setName: null,
-      number: null,
-      rarity: null,
-      confidence: "medium",
-    });
+    handlers.onSearchCards.mockResolvedValue([]);
+
+    await user.click(screen.getByRole("button", { name: "Cartas" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
+    await user.type(screen.getByPlaceholderText("Charizard"), "No existe esta carta");
+    await user.click(screen.getByRole("button", { name: "Buscar en el catálogo" }));
+
+    expect(await screen.findByText(/No se ha encontrado ninguna coincidencia en el catálogo/)).toBeInTheDocument();
+  });
+
+  it("el botón 'Buscar en el catálogo', si hay varias cartas candidatas, permite elegir cuál es", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([]);
     handlers.onSearchCards.mockResolvedValue([
       {
         externalId: "base-4",
@@ -442,15 +377,13 @@ describe("ColeccionScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Cartas" }));
     await user.click(screen.getByRole("button", { name: "+ Carta" }));
+    await user.type(screen.getByPlaceholderText("Charizard"), "Charizard");
+    await user.click(screen.getByRole("button", { name: "Buscar en el catálogo" }));
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
+    expect(await screen.findByText("Obsidian Flames · #125/197")).toBeInTheDocument();
 
-    expect(await screen.findByText("Hay varias cartas que coinciden — elige la correcta abajo.")).toBeInTheDocument();
-    expect(screen.getByText("Obsidian Flames · #125/197")).toBeInTheDocument();
-
-    // El formulario sigue visible con lo que reconoció Ollama, aunque haya varias
-    // candidatas sin resolver: si ninguna es la correcta, queda esto para completar a mano.
+    // El formulario sigue visible con lo escrito a mano, aunque haya varias candidatas
+    // sin resolver: si ninguna es la correcta, queda esto para completar a mano.
     expect(screen.getByLabelText("Nombre")).toHaveValue("Charizard");
     expect(screen.getByRole("button", { name: "Añadir a mi colección" })).toBeInTheDocument();
 
@@ -466,59 +399,6 @@ describe("ColeccionScreen", () => {
     expect(await screen.findByDisplayValue("Charizard ex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Obsidian Flames")).toBeInTheDocument();
     expect(screen.queryByText("Obsidian Flames · #125/197")).not.toBeInTheDocument();
-  });
-
-  it("si la carta no está en el catálogo, subir una captura de Cardmarket rellena nombre/expansión/precio", async () => {
-    const user = userEvent.setup();
-    const handlers = renderScreen([]);
-    handlers.onRecognizeCard.mockResolvedValue({
-      name: "Zarude",
-      setName: "Basico Z",
-      number: "130/6",
-      rarity: "Holo Rare",
-      confidence: "high",
-    });
-    handlers.onSearchCards.mockResolvedValue([]);
-    handlers.onRecognizePriceScreenshot.mockResolvedValue({
-      name: "Zarude",
-      setName: "MEP Black Star Promos",
-      rarity: "P",
-      referencePrice: 3.73,
-    });
-
-    await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.click(screen.getByRole("button", { name: "+ Carta" }));
-
-    const photoInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(photoInput, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
-
-    expect(await screen.findByText(/no se ha encontrado en el catálogo/)).toBeInTheDocument();
-
-    const screenshotInput = document.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
-    await user.upload(screenshotInput, new File(["captura"], "cardmarket.png", { type: "image/png" }));
-
-    expect(handlers.onRecognizePriceScreenshot).toHaveBeenCalledWith("data:image/jpeg;base64,AAAA");
-    expect(await screen.findByDisplayValue("MEP Black Star Promos")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("P")).toBeInTheDocument();
-    expect(screen.getByText(/Precio leído de Cardmarket \(Zarude\)/)).toBeInTheDocument();
-
-    // El precio queda en un campo editable (el modelo local a veces confunde la coma
-    // decimal) en vez de aplicarse a ciegas sin forma de corregirlo antes de guardar.
-    const priceInput = screen.getByLabelText("Precio de referencia (€)");
-    expect(priceInput).toHaveValue(3.73);
-    await user.clear(priceInput);
-    await user.type(priceInput, "4.5");
-
-    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
-    expect(handlers.onAddItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "Zarude",
-        setName: "MEP Black Star Promos",
-        rarity: "P",
-        estimatedValueOverride: 4.5,
-        estimatedValueOverrideNote: "Precio de Cardmarket (captura subida a mano)",
-      }),
-    );
   });
 
   it("al editar una carta ya existente no aparece la opción de hacer foto", async () => {

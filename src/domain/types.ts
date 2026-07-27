@@ -185,8 +185,8 @@ export interface SetSearchCandidate {
 }
 
 /** Una carta concreta encontrada al buscar por nombre en todo el catálogo del proveedor
- * (no un set sincronizado) — para el alta manual asistida por foto: usa lo que reconoce
- * la IA (nombre/expansión/número) para traer el dato oficial real. */
+ * (no un set sincronizado) — para el alta manual: usa lo que ha escrito el usuario
+ * (nombre/expansión/número) para traer el dato oficial real. */
 export interface CardSearchMatch {
   externalId: string;
   number: string;
@@ -196,35 +196,5 @@ export interface CardSearchMatch {
   variant: CardVariant;
   imageUrl: string | null;
   imageUrlLarge: string | null;
-  referencePrice: number | null;
-}
-
-// ---- Reconocimiento de fotos (carta -> datos sugeridos) ----
-// Ayuda a rellenar el alta manual de una carta que no está en ningún set sincronizado —
-// nunca alta automática: el resultado siempre se revisa/edita a mano antes de guardar.
-
-export type RecognitionConfidence = "high" | "medium" | "low";
-
-export interface RecognizedCardData {
-  name: string | null;
-  setName: string | null;
-  number: string | null;
-  rarity: string | null;
-  /** Si la foto deja ver claramente el brillo holográfico/reverso del acabado, o si es un
-   * impreso liso — null si no se puede distinguir por la foto. */
-  variant: CardVariant | null;
-  /** Idioma del texto impreso en la carta, deducido de la foto — null si no es legible. */
-  language: CardLanguage | null;
-  confidence: RecognitionConfidence | null;
-}
-
-/** Cuando la carta no está en el catálogo del proveedor (p. ej. una promo regional que
- * TCGdex no indexa), se puede subir en su lugar una captura de su página en Cardmarket:
- * mismo reconocimiento por IA, pero leyendo una interfaz web en vez de una foto física.
- * Sin número de carta: Cardmarket no lo muestra en esa página. */
-export interface RecognizedPriceData {
-  name: string | null;
-  setName: string | null;
-  rarity: string | null;
   referencePrice: number | null;
 }

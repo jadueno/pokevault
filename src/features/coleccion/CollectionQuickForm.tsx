@@ -7,8 +7,6 @@ import type {
   CardVariant,
   CollectionItem,
   NewCollectionItem,
-  RecognizedCardData,
-  RecognizedPriceData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -19,9 +17,6 @@ import { Field, inputClass } from "../../components/Field";
 import { SectionLabel } from "../../components/SectionLabel";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 import { PhotoCapture } from "./PhotoCapture";
-import { PriceScreenshotUpload } from "./PriceScreenshotUpload";
-
-const CONFIDENCE_LABELS: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
 
 const LANGUAGES: { value: CardLanguage; label: string }[] = [
   { value: "es", label: "Español" },
@@ -68,9 +63,7 @@ export function CollectionQuickForm({
   checklists,
   cardsByChecklist,
   initialItem = null,
-  onRecognizeCard,
   onSearchCards,
-  onRecognizePriceScreenshot,
   onSubmit,
   onCancel,
 }: {
@@ -88,21 +81,12 @@ export function CollectionQuickForm({
   /** Editar un ejemplar ya existente en vez de dar uno de alta: siembra el formulario
    * entero con sus datos y cambia el texto de guardado. */
   initialItem?: CollectionItem | null;
-  /** Sugiere nombre/expansión/número/rareza a partir de una foto (modelo de visión local,
-   * o un proveedor simulado si no hay Ollama configurado) — solo al dar de alta, nunca al
-   * editar. El resultado siempre queda en los campos normales del formulario, revisable y
-   * editable antes de guardar; nunca se guarda nada automáticamente. */
-  onRecognizeCard: (imageDataUrl: string) => Promise<RecognizedCardData>;
-  /** Tras identificar la foto, busca la carta real en el catálogo del proveedor (no hace
-   * falta que el set esté sincronizado) para traer datos oficiales (imagen, precio,
-   * número y rareza exactos) en vez de quedarse solo con el texto libre de la IA — mismo
-   * criterio que ya se usa al marcar una carta desde un set sincronizado. */
+  /** Busca en el catálogo del proveedor por lo que se haya escrito a mano en Nombre/
+   * Expansión/Número (no hace falta que el set esté sincronizado) para traer datos
+   * oficiales (imagen, precio, número y rareza exactos) en vez de quedarse solo con el
+   * texto libre — mismo criterio que ya se usa al marcar una carta desde un set
+   * sincronizado. Solo al dar de alta, nunca al editar. */
   onSearchCards: (name: string, setName: string | null, number: string | null) => Promise<CardSearchMatch[]>;
-  /** Red de seguridad para cuando la carta no aparece en el catálogo del proveedor (p. ej.
-   * una promo regional que TCGdex no indexa, ver PriceScreenshotUpload): se lee una
-   * captura de su página en Cardmarket en vez de la carta física. Solo aporta
-   * nombre/expansión/rareza/precio — nunca foto ni número, que esa página no muestra. */
-  onRecognizePriceScreenshot: (imageDataUrl: string) => Promise<RecognizedPriceData>;
   onSubmit: (entity: NewCollectionItem) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -136,29 +120,20 @@ export function CollectionQuickForm({
   const [saving, setSaving] = useState(false);
   // Foto que ha hecho el usuario en este mismo alta (distinta de la oficial del set
   // sincronizado o de la carta encontrada en el catálogo, que siguen teniendo prioridad
-  // si hay coincidencia — ver handleSubmit).
+  // si hay coincidencia — ver handleSubmit). Solo se guarda como imagen, sin analizarla.
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [recognizing, setRecognizing] = useState(false);
-  const [recognized, setRecognized] = useState<RecognizedCardData | null>(null);
-  const [recognizeError, setRecognizeError] = useState<string | null>(null);
-  // Búsqueda en el catálogo del proveedor a partir de lo reconocido en la foto — no
-  // requiere que el set esté sincronizado. `cardMatches` solo se rellena cuando hay más
-  // de un candidato (ambigüedad real); con uno solo se aplica directamente.
+  // Búsqueda manual en el catálogo del proveedor a partir de lo escrito a mano en
+  // Nombre/Expansión/Número — no requiere que el set esté sincronizado. `cardMatches`
+  // solo se rellena cuando hay más de un candidato (ambigüedad real); con uno solo se
+  // aplica directamente.
   const [searchingCards, setSearchingCards] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [cardMatches, setCardMatches] = useState<CardSearchMatch[] | null>(null);
   const [appliedMatch, setAppliedMatch] = useState<CardSearchMatch | null>(null);
   // Foto en grande de un candidato, para poder verlo bien antes de elegir cuál es —
   // independiente de marcarlo como el correcto (ver applyCardMatch).
   const [previewMatch, setPreviewMatch] = useState<CardSearchMatch | null>(null);
-  // El formulario sigue visible aunque haya candidatas sin resolver: si ninguna es la
-  // correcta (p. ej. una promo que el proveedor no indexa), el usuario ya tiene ahí la
-  // lectura de Ollama para completar a mano en vez de quedarse sin nada.
   const hasPendingMatches = cardMatches !== null && cardMatches.length > 0;
-  // Alternativa cuando la carta no está en el catálogo del proveedor: subir una captura
-  // de su página en Cardmarket y leerla con el mismo modelo de visión.
-  const [recognizingPriceScreenshot, setRecognizingPriceScreenshot] = useState(false);
-  const [priceScreenshotResult, setPriceScreenshotResult] = useState<RecognizedPriceData | null>(null);
-  const [priceScreenshotError, setPriceScreenshotError] = useState<string | null>(null);
 
   const cameFromPack = form.acquisitionType === "pulled_from_pack";
   const selectedSealedPurchase = form.sealedPurchaseId ? sealedItems.find((s) => s.id === form.sealedPurchaseId) : undefined;
@@ -190,76 +165,24 @@ export function CollectionQuickForm({
     }));
   }
 
-  async function handleCapture(dataUrl: string) {
-    setCapturedPhoto(dataUrl);
-    setRecognized(null);
-    setRecognizeError(null);
+  /** Busca en el catálogo del proveedor lo que haya escrito el usuario a mano en
+   * Nombre/Expansión/Número, para traer los datos oficiales en vez de quedarse solo con
+   * el texto libre. */
+  async function handleSearchCatalog() {
+    if (!form.name.trim()) return;
+    setSearchingCards(true);
+    setSearchError(null);
     setCardMatches(null);
     setAppliedMatch(null);
-    setPriceScreenshotResult(null);
-    setPriceScreenshotError(null);
-    setRecognizing(true);
     try {
-      const result = await onRecognizeCard(dataUrl);
-      setRecognized(result);
-      // Solo se rellenan los campos que la foto sí ha identificado — nunca se borra algo
-      // que el usuario ya hubiera escrito a mano con un null del reconocimiento.
-      setForm((prev) => ({
-        ...prev,
-        name: result.name ?? prev.name,
-        setName: result.setName ?? prev.setName,
-        number: result.number ?? prev.number,
-        rarity: result.rarity ?? prev.rarity,
-        variant: result.variant ?? prev.variant,
-        language: result.language ?? prev.language,
-      }));
-
-      if (result.name) {
-        setSearchingCards(true);
-        try {
-          const matches = await onSearchCards(result.name, result.setName, result.number);
-          if (matches.length === 1) applyCardMatch(matches[0]);
-          else if (matches.length > 1) setCardMatches(matches);
-        } finally {
-          setSearchingCards(false);
-        }
-      }
+      const matches = await onSearchCards(form.name, form.setName, form.number);
+      if (matches.length === 1) applyCardMatch(matches[0]);
+      else if (matches.length > 1) setCardMatches(matches);
+      else setSearchError("No se ha encontrado ninguna coincidencia en el catálogo. Puedes rellenar los datos a mano.");
     } catch (e) {
-      setRecognizeError(e instanceof Error ? e.message : "No se ha podido identificar la foto");
+      setSearchError(e instanceof Error ? e.message : "No se ha podido buscar en el catálogo");
     } finally {
-      setRecognizing(false);
-    }
-  }
-
-  /** Red de seguridad cuando la carta no está en el catálogo del proveedor: en vez de la
-   * carta física, se lee una captura de su página en Cardmarket. Nunca aporta foto ni
-   * número (esa página no los muestra) — solo nombre/expansión/rareza/precio, con el mismo
-   * criterio de no pisar campos que el usuario ya hubiera rellenado (ver handleCapture). */
-  async function handlePriceScreenshot(dataUrl: string) {
-    // Si había varias cartas candidatas sin resolver, subir una captura significa "ninguna
-    // de esas es" — se cierra ese selector y se pasa a los datos de la captura.
-    setCardMatches(null);
-    setPriceScreenshotResult(null);
-    setPriceScreenshotError(null);
-    setRecognizingPriceScreenshot(true);
-    try {
-      const result = await onRecognizePriceScreenshot(dataUrl);
-      setPriceScreenshotResult(result);
-      const now = new Date().toISOString();
-      setForm((prev) => ({
-        ...prev,
-        name: result.name ?? prev.name,
-        setName: result.setName ?? prev.setName,
-        rarity: result.rarity ?? prev.rarity,
-        estimatedValueOverride: result.referencePrice ?? prev.estimatedValueOverride,
-        estimatedValueOverrideAt: result.referencePrice !== null ? now : prev.estimatedValueOverrideAt,
-        estimatedValueOverrideNote:
-          result.referencePrice !== null ? "Precio de Cardmarket (captura subida a mano)" : prev.estimatedValueOverrideNote,
-      }));
-    } catch (e) {
-      setPriceScreenshotError(e instanceof Error ? e.message : "No se ha podido leer la captura");
-    } finally {
-      setRecognizingPriceScreenshot(false);
+      setSearchingCards(false);
     }
   }
 
@@ -285,99 +208,7 @@ export function CollectionQuickForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {!isEditing && (
-        <div className="flex flex-col gap-2">
-          <PhotoCapture onCapture={handleCapture} />
-          {recognizing && <p className="text-sm text-[var(--text-secondary)]">Identificando…</p>}
-          {!recognizing && searchingCards && <p className="text-sm text-[var(--text-secondary)]">Buscando la carta oficial…</p>}
-          {!recognizing && recognizeError && (
-            <p className="text-sm text-[var(--status-critical)]">
-              No se ha podido identificar automáticamente ({recognizeError}). Rellena los datos a mano.
-            </p>
-          )}
-          {!recognizing && !searchingCards && recognized && !recognizeError && (
-            <p className={`text-sm ${recognized.name ? "text-[var(--status-good)]" : "text-[var(--text-muted)]"}`}>
-              {appliedMatch
-                ? `Coincide con "${appliedMatch.name}" (${appliedMatch.setName}, #${appliedMatch.number}) — datos oficiales aplicados, revísalos abajo.`
-                : cardMatches
-                  ? "Hay varias cartas que coinciden — elige la correcta abajo."
-                  : recognized.name
-                    ? `Identificado${recognized.confidence ? ` (confianza ${CONFIDENCE_LABELS[recognized.confidence]})` : ""}, pero no se ha encontrado en el catálogo: revisa los datos de abajo.`
-                    : "No se ha podido identificar nada en la foto. Rellena los datos a mano."}
-            </p>
-          )}
-          {!searchingCards && hasPendingMatches && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">
-              <SectionLabel>Elige la carta correcta</SectionLabel>
-              {cardMatches.map((match) => (
-                <div key={match.externalId} className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2">
-                  {match.imageUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMatch(match)}
-                      aria-label={`Ver ${match.name} en grande`}
-                      className="shrink-0"
-                    >
-                      <img src={match.imageUrl} alt="" className="w-16 rounded-lg border border-[var(--border)]" />
-                    </button>
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-lg text-[var(--text-muted)]"
-                    >
-                      🎴
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => applyCardMatch(match)}
-                    aria-label={`Elegir ${match.name} (${match.setName} · #${match.number})`}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left transition-colors hover:bg-[var(--gridline)]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{match.name}</p>
-                      <p className="truncate text-xs text-[var(--text-muted)]">
-                        {match.setName} · #{match.number}
-                      </p>
-                    </div>
-                    {match.referencePrice !== null && (
-                      <span className="shrink-0 text-xs font-semibold text-[var(--amber)]">≈{formatMoney(match.referencePrice)}</span>
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <PriceScreenshotUpload onCapture={handlePriceScreenshot} disabled={recognizing || searchingCards} />
-          {recognizingPriceScreenshot && <p className="text-sm text-[var(--text-secondary)]">Leyendo la captura de Cardmarket…</p>}
-          {!recognizingPriceScreenshot && priceScreenshotError && (
-            <p className="text-sm text-[var(--status-critical)]">
-              No se ha podido leer la captura ({priceScreenshotError}). Rellena los datos a mano.
-            </p>
-          )}
-          {!recognizingPriceScreenshot && priceScreenshotResult && !priceScreenshotError && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">
-              <p className={`text-sm ${priceScreenshotResult.referencePrice !== null ? "text-[var(--status-good)]" : "text-[var(--text-muted)]"}`}>
-                {priceScreenshotResult.referencePrice !== null
-                  ? `Precio leído de Cardmarket${priceScreenshotResult.name ? ` (${priceScreenshotResult.name})` : ""} — el modelo local a veces confunde la coma decimal, comprueba que sea correcto:`
-                  : "No se ha podido leer el precio en la captura. Rellena los datos a mano."}
-              </p>
-              {priceScreenshotResult.referencePrice !== null && (
-                <Field label="Precio de referencia (€)">
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className={inputClass}
-                    value={form.estimatedValueOverride ?? ""}
-                    onChange={(e) => setForm({ ...form, estimatedValueOverride: e.target.value ? Number(e.target.value) : null })}
-                  />
-                </Field>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {!isEditing && <PhotoCapture onCapture={setCapturedPhoto} />}
 
       {previewMatch && (
         <PhotoLightbox
@@ -531,6 +362,70 @@ export function CollectionQuickForm({
           />
         </Field>
       </div>
+
+      {!isEditing && (
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="tint"
+            tone="ink"
+            onClick={handleSearchCatalog}
+            disabled={searchingCards || !form.name.trim()}
+            className="self-start"
+          >
+            {searchingCards ? "Buscando…" : "Buscar en el catálogo"}
+          </Button>
+          {!searchingCards && searchError && <p className="text-sm text-[var(--status-critical)]">{searchError}</p>}
+          {!searchingCards && appliedMatch && (
+            <p className="text-sm text-[var(--status-good)]">
+              Coincide con "{appliedMatch.name}" ({appliedMatch.setName}, #{appliedMatch.number}) — datos oficiales aplicados,
+              revísalos arriba.
+            </p>
+          )}
+          {!searchingCards && hasPendingMatches && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">
+              <SectionLabel>Elige la carta correcta</SectionLabel>
+              {cardMatches.map((match) => (
+                <div key={match.externalId} className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2">
+                  {match.imageUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMatch(match)}
+                      aria-label={`Ver ${match.name} en grande`}
+                      className="shrink-0"
+                    >
+                      <img src={match.imageUrl} alt="" className="w-16 rounded-lg border border-[var(--border)]" />
+                    </button>
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-lg text-[var(--text-muted)]"
+                    >
+                      🎴
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => applyCardMatch(match)}
+                    aria-label={`Elegir ${match.name} (${match.setName} · #${match.number})`}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left transition-colors hover:bg-[var(--gridline)]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{match.name}</p>
+                      <p className="truncate text-xs text-[var(--text-muted)]">
+                        {match.setName} · #{match.number}
+                      </p>
+                    </div>
+                    {match.referencePrice !== null && (
+                      <span className="shrink-0 text-xs font-semibold text-[var(--amber)]">≈{formatMoney(match.referencePrice)}</span>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="text-sm text-[var(--text-muted)]">
         {matchedChecklistCard ? (

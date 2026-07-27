@@ -3,14 +3,13 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { Pool } from "pg";
-import type { PokemonTcgProvider, VisualMatchProvider } from "../../domain/ports.js";
+import type { PokemonTcgProvider } from "../../domain/ports.js";
 import { registerAuth } from "./auth.js";
 import { registerCollectionRoutes } from "./collectionRoutes.js";
 import { registerWishlistRoutes } from "./wishlistRoutes.js";
 import { registerSealedPurchaseRoutes } from "./sealedPurchaseRoutes.js";
 import { registerPlanRoutes } from "./planRoutes.js";
 import { registerSetChecklistRoutes } from "./setChecklistRoutes.js";
-import { registerRecognitionRoutes } from "./recognitionRoutes.js";
 import { createCollectionItemRepository } from "../db/repositories/collectionItemRepository.js";
 import { createWishlistItemRepository } from "../db/repositories/wishlistItemRepository.js";
 import { createSealedPurchaseRepository } from "../db/repositories/sealedPurchaseRepository.js";
@@ -23,19 +22,13 @@ import { createSealedPurchaseUseCases } from "../../application/sealedPurchases.
 import { createPlanItemUseCases } from "../../application/planItems.js";
 import { createPlanSettingsUseCases } from "../../application/planSettings.js";
 import { createSetChecklistUseCases } from "../../application/setChecklists.js";
-import { createCardRecognitionUseCases } from "../../application/cardRecognition.js";
 
 export interface BuildServerOptions {
   logger?: boolean;
   apiToken?: string;
 }
 
-export async function buildServer(
-  pool: Pool,
-  pokemonTcgProvider: PokemonTcgProvider,
-  visionProvider: VisualMatchProvider,
-  options: BuildServerOptions = {},
-) {
+export async function buildServer(pool: Pool, pokemonTcgProvider: PokemonTcgProvider, options: BuildServerOptions = {}) {
   const app = Fastify({
     logger: options.logger ?? true,
     // Fotos como data URL en el body de cartas/producto sellado: el límite por defecto
@@ -68,14 +61,12 @@ export async function buildServer(
   const planItemUseCases = createPlanItemUseCases(planItemRepository);
   const planSettingsUseCases = createPlanSettingsUseCases(planSettingsRepository);
   const setChecklistUseCases = createSetChecklistUseCases(setChecklistRepository, pokemonTcgProvider);
-  const cardRecognitionUseCases = createCardRecognitionUseCases(visionProvider);
 
   registerCollectionRoutes(app, collectionItemUseCases);
   registerWishlistRoutes(app, wishlistItemUseCases);
   registerSealedPurchaseRoutes(app, sealedPurchaseUseCases);
   registerPlanRoutes(app, planItemUseCases, planSettingsUseCases);
   registerSetChecklistRoutes(app, setChecklistUseCases);
-  registerRecognitionRoutes(app, cardRecognitionUseCases);
 
   return app;
 }

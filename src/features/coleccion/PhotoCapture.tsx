@@ -37,9 +37,7 @@ export function PhotoCapture({ onCapture }: { onCapture: (dataUrl: string) => vo
       >
         📷
       </button>
-      <p className="text-sm text-[var(--text-secondary)]">
-        {processing ? "Procesando foto…" : "Haz una foto para rellenar los datos automáticamente"}
-      </p>
+      <p className="text-sm text-[var(--text-secondary)]">{processing ? "Procesando foto…" : "Haz una foto para guardarla con la carta"}</p>
       {error && (
         <p role="alert" className="text-sm text-[var(--status-critical)]">
           {error}

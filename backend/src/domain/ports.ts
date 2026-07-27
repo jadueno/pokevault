@@ -7,8 +7,6 @@ import type {
   NewWishlistItem,
   PlanItem,
   PlanSettings,
-  RecognizedCardData,
-  RecognizedPriceData,
   SealedPurchase,
   SetChecklist,
   SetChecklistCard,
@@ -95,9 +93,9 @@ export interface PokemonTcgSetCards {
 }
 
 /** Una carta concreta encontrada al buscar por nombre (across todos los sets del
- * proveedor, no uno sincronizado) — para el alta manual asistida por foto: el
- * reconocimiento por IA da pistas (nombre/expansión/número), esto las usa para traer el
- * dato oficial real en vez de dejar solo el texto libre que sugirió la IA. */
+ * proveedor, no uno sincronizado) — para el alta manual: el usuario escribe
+ * nombre/expansión/número a mano y esto trae el dato oficial real en vez de quedarse solo
+ * con el texto libre que haya escrito. */
 export interface PokemonTcgCardMatch {
   externalId: string;
   /** Formato "N/total" (p. ej. "2/120"), igual que el resto de números de carta de la
@@ -133,19 +131,4 @@ export interface PokemonTcgProvider {
    * A diferencia de `getSetCards`, las cartas devueltas pueden venir de expansiones
    * distintas entre sí (por eso cada una lleva su propio setName/setTotalCards). */
   getCardsByPokemonNames(names: string[]): Promise<PokemonTcgCardData[]>;
-}
-
-// ---- Proveedor de reconocimiento visual (puerto intercambiable) ----
-// Igual criterio que PokemonTcgProvider: el dominio/aplicación nunca depende
-// directamente de Ollama, solo de esta forma — adaptador real
-// (infrastructure/vision/ollamaVisionProvider.ts) + fake determinista para tests.
-
-export interface VisualMatchProvider {
-  name: string;
-  recognizeCard(imageDataUrl: string): Promise<RecognizedCardData>;
-  /** Lee una captura de la página de una carta en Cardmarket (nombre, expansión, rareza
-   * y precio de tendencia) — red de seguridad para cartas que el proveedor de catálogo no
-   * tiene indexadas (p. ej. promos regionales), ver recognizePriceScreenshot en
-   * application/cardRecognition.ts. */
-  recognizePriceScreenshot(imageDataUrl: string): Promise<RecognizedPriceData>;
 }

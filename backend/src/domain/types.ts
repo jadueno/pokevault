@@ -199,33 +199,3 @@ export interface SetChecklistCard {
    * total del checklist daría un denominador incorrecto en un binder. */
   setTotalCards: number | null;
 }
-
-// ---- Reconocimiento de fotos (carta/caja -> datos sugeridos) ----
-// Ayuda a rellenar el alta manual de una carta que no está en ningún set sincronizado —
-// nunca alta automática: el resultado siempre se revisa/edita a mano antes de guardar.
-
-export type RecognitionConfidence = "high" | "medium" | "low";
-
-export interface RecognizedCardData {
-  name: string | null;
-  setName: string | null;
-  number: string | null;
-  rarity: string | null;
-  /** Si la foto deja ver claramente el brillo holográfico/reverso del acabado, o si es un
-   * impreso liso — null si no se puede distinguir por la foto. */
-  variant: CardVariant | null;
-  /** Idioma del texto impreso en la carta, deducido de la foto — null si no es legible. */
-  language: CardLanguage | null;
-  confidence: RecognitionConfidence | null;
-}
-
-/** Cuando la carta no está en el catálogo del proveedor (p. ej. una promo regional que
- * TCGdex no indexa), el usuario puede subir en su lugar una captura de la página de esa
- * carta en Cardmarket: mismo reconocimiento por IA, pero leyendo una interfaz web en vez
- * de una foto física. Sin número de carta: Cardmarket no lo muestra en esa página. */
-export interface RecognizedPriceData {
-  name: string | null;
-  setName: string | null;
-  rarity: string | null;
-  referencePrice: number | null;
-}
