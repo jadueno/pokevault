@@ -1,5 +1,7 @@
 # PokéVault
 
+[![CI](https://github.com/jadueno/pokevault/actions/workflows/ci.yml/badge.svg)](https://github.com/jadueno/pokevault/actions/workflows/ci.yml)
+
 Gestor personal de colecciones de cartas Pokémon TCG: buscas y sincronizas el set que te interesa, marcas de golpe las cartas que ya tienes (con precio de referencia y foto oficial), y queda registrado con precio de compra, valor estimado y plan de compra mensual.
 
 Es una herramienta de uso personal (como sus hermanos [rumbo](../rumbo), [nous](../nous) y [faro](../faro)) construida con calidad de producto real: base de datos real, arquitectura hexagonal, tests de verdad. Multi-usuario real (login, colecciones compartidas) queda para más adelante — ver [ARCHITECTURE.md](ARCHITECTURE.md).
