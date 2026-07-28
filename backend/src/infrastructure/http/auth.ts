@@ -33,7 +33,10 @@ export function registerAuth(app: FastifyInstance, loginConfig: LoginConfig | un
 
   if (!loginConfig) return;
 
-  app.post("/login", async (request, reply) => {
+  // Límite propio, mucho más estricto que el general de la API (pensado para uso normal
+  // de CRUD): /login es lo único que un atacante externo puede intentar sin sesión, así
+  // que merece frenar la fuerza bruta por separado en vez de heredar el límite genérico.
+  app.post("/login", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {
     const { username, password } = (request.body ?? {}) as { username?: string; password?: string };
     const validUsername = timingSafeStringEqual(username ?? "", loginConfig.username);
     const validPassword = !!password && verifyPassword(password, loginConfig.passwordHash);

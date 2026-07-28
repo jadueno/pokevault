@@ -46,7 +46,7 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
      * local sin otra llamada de red. */
     sync: async (externalSetId: string, setNameEs: string | null): Promise<SetChecklist | null> => {
       assertNonEmpty(externalSetId, "El id del set");
-      const existing = (await repo.list()).find((c) => c.externalSetId === externalSetId);
+      const existing = await repo.findByExternalId(externalSetId);
       if (existing) return null;
       try {
         const { setName, cards } = await provider.getSetCards(externalSetId);
@@ -69,7 +69,7 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
         throw new ValidationError("Indica al menos un nombre de Pokémon");
       }
       const externalSetId = binderExternalId(names);
-      const existing = (await repo.list()).find((c) => c.externalSetId === externalSetId);
+      const existing = await repo.findByExternalId(externalSetId);
       if (existing) return null;
       try {
         const cards = await provider.getCardsByPokemonNames(names);
@@ -91,7 +91,7 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
      * existiera ese campo, sin tener que borrarlo y volver a añadirlo a mano. En un binder
      * repite la búsqueda por los mismos nombres de Pokémon en vez de pedir un set. */
     resync: async (checklistId: string): Promise<SetChecklist | null> => {
-      const checklist = (await repo.list()).find((c) => c.id === checklistId);
+      const checklist = await repo.findById(checklistId);
       if (!checklist) return null;
       try {
         // En un binder, "setName" es el título que puso el usuario (no viene del
