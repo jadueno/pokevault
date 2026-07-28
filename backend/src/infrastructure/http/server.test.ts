@@ -541,4 +541,57 @@ describe("login opcional, de extremo a extremo con el servidor real", () => {
     await authedApp.close();
     await otherApp.close();
   });
+
+  it("/login tiene su propio límite de peticiones, más estricto que el general de la API", async () => {
+    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
+      logger: false,
+      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
+    });
+
+    const attempts = await Promise.all(
+      Array.from({ length: 11 }, () =>
+        authedApp.inject({ method: "POST", url: "/login", payload: { username: "demo", password: "mal" } }),
+      ),
+    );
+    expect(attempts.some((res) => res.statusCode === 429)).toBe(true);
+
+    await authedApp.close();
+  });
+});
+
+describe("manejador de errores global", () => {
+  it("un error no controlado (500) no filtra el mensaje interno al cliente", async () => {
+    // Payload válido (pasa la validación de la aplicación) con un id que no es un UUID:
+    // Postgres lanza un error de sintaxis real al llegar a la query — justo el caso que
+    // antes habría devuelto el mensaje del driver de Postgres tal cual al cliente.
+    const res = await app.inject({
+      method: "PUT",
+      url: "/collection-items/no-es-un-uuid",
+      payload: {
+        name: "Charizard",
+        setName: "Base",
+        number: "4",
+        rarity: "Rare Holo",
+        variant: "normal",
+        language: "es",
+        condition: "near_mint",
+        quantity: 1,
+        acquisitionType: "purchased_single",
+        sealedPurchaseId: null,
+        purchasePrice: 25,
+        purchaseCurrency: "EUR",
+        purchaseDate: "2026-07-01",
+        isGraded: false,
+        gradingCompany: null,
+        grade: null,
+        estimatedValueOverride: null,
+        estimatedValueOverrideAt: null,
+        estimatedValueOverrideNote: null,
+        notes: null,
+        photo: null,
+      },
+    });
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: "Error interno del servidor" });
+  });
 });
