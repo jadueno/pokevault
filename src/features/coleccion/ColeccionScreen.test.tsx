@@ -477,30 +477,6 @@ describe("ColeccionScreen", () => {
     expect(names).toEqual(["Caro", "Barato"]);
   });
 
-  it("en Cartas, agrupar por expansión añade una cabecera por grupo con el recuento", async () => {
-    const user = userEvent.setup();
-    renderScreen([
-      item({ id: "i1", name: "Charizard", setName: "Base" }),
-      item({ id: "i2", name: "Pikachu", setName: "Jungla" }),
-      item({ id: "i3", name: "Blastoise", setName: "Base" }),
-    ]);
-
-    await user.click(screen.getByRole("button", { name: "Cartas" }));
-    await user.selectOptions(screen.getByLabelText("Agrupar por"), "set");
-
-    expect(screen.getByRole("heading", { name: "Base (2)" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Jungla (1)" })).toBeInTheDocument();
-  });
-
-  it("sin agrupar (por defecto), no muestra ninguna cabecera de grupo", async () => {
-    const user = userEvent.setup();
-    renderScreen([item({ id: "i1", name: "Charizard", setName: "Base" }), item({ id: "i2", name: "Pikachu", setName: "Jungla" })]);
-
-    await user.click(screen.getByRole("button", { name: "Cartas" }));
-
-    expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
-  });
-
   it("abre el formulario de nueva compra sellada y lo envía", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([item()], []);

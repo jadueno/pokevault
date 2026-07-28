@@ -161,9 +161,9 @@ Pedido explícito del usuario tras preguntar "¿algo más que podamos añadir?" 
 - **`summarizeChecklistCompletion`**: reutiliza `computeSetChecklistCompletion` (por eso hereda gratis el aislamiento entre checklists de la corrección de "cartas compartidas") para dar, por cada set/binder sincronizado, el % completado y cuánto costaría (suma de `referencePrice` de las que faltan, con precio conocido) terminarlo. Vive en `SetsSummaryCard` dentro de "Resumen", ordenado por % de completitud descendente — responde "¿en cuál merece más la pena centrarme ahora?".
 - Ninguna de las dos tarjetas nuevas (`CollectionStatsCard`, `SetsSummaryCard`) llama a nada por su cuenta: reciben los mismos `items`/`checklists`/`cardsByChecklist` que ya cargaba `App.tsx` para el resto de pantallas.
 
-## Ordenar/agrupar la colección (2026-07-28)
+## Ordenar la colección (2026-07-28, agrupación quitada 2026-07-28)
 
-`sortCollectionItems`/`groupCollectionItems` (`src/domain/calculations.ts`), aplicados en ese orden (agrupar es aparte de ordenar, no una alternativa) sobre la pestaña "Cartas" de "Mi colección". Los grupos se ordenan alfabéticamente por etiqueta; dentro de cada uno se mantiene el orden ya aplicado. "Sin agrupar" es un único grupo con etiqueta vacía, para no tener que ramificar el JSX de la rejilla en dos casos distintos.
+`sortCollectionItems` (`src/domain/calculations.ts`) sobre la pestaña "Cartas" de "Mi colección" (nombre, valor estimado, fecha de compra). También se construyó una opción de agrupar (por expansión/rareza), pero el usuario la probó y pidió quitarla el mismo día — se eliminó `groupCollectionItems`/`CollectionGroupKey` por completo en vez de dejarla oculta o sin usar.
 
 ## La tabla de alias ES/EN de sets ya no hace falta (revisado 2026-07-28)
 

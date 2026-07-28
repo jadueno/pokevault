@@ -10,7 +10,6 @@ import {
   findChecklistCardImage,
   findOwnedCollectionItemIds,
   formatMoney,
-  groupCollectionItems,
   groupPlanByMonth,
   groupWishlistByMonth,
   mostValuableItem,
@@ -549,35 +548,6 @@ describe("sortCollectionItems", () => {
     const items = [collectionItem({ name: "Zubat" }), collectionItem({ name: "Abra" })];
     sortCollectionItems(items, "name");
     expect(items.map((i) => i.name)).toEqual(["Zubat", "Abra"]);
-  });
-});
-
-describe("groupCollectionItems", () => {
-  it("sin agrupar, un único grupo con etiqueta vacía y todos los ejemplares", () => {
-    const items = [collectionItem({ name: "A" }), collectionItem({ name: "B" })];
-    expect(groupCollectionItems(items, "none")).toEqual([{ label: "", items }]);
-  });
-
-  it("por expansión, alfabético — sin expansión conocida bajo 'Sin expansión'", () => {
-    const items = [
-      collectionItem({ name: "A", setName: "Base" }),
-      collectionItem({ name: "B", setName: null }),
-      collectionItem({ name: "C", setName: "Jungla" }),
-    ];
-    const groups = groupCollectionItems(items, "set");
-    expect(groups.map((g) => g.label)).toEqual(["Base", "Jungla", "Sin expansión"]);
-    expect(groups[0].items.map((i) => i.name)).toEqual(["A"]);
-  });
-
-  it("por rareza, mantiene el orden ya aplicado dentro de cada grupo", () => {
-    const items = [
-      collectionItem({ name: "Segunda", rarity: "Rare", estimatedValueOverride: 1 }),
-      collectionItem({ name: "Primera", rarity: "Rare", estimatedValueOverride: 2 }),
-    ];
-    const sorted = sortCollectionItems(items, "value_desc");
-    const groups = groupCollectionItems(sorted, "rarity");
-    expect(groups).toHaveLength(1);
-    expect(groups[0].items.map((i) => i.name)).toEqual(["Primera", "Segunda"]);
   });
 });
 

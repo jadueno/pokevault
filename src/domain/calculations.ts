@@ -331,7 +331,7 @@ export function collectionLanguageDistribution(items: CollectionItem[]): Collect
   return distributionBy(items, (item) => item.language);
 }
 
-// ---- Orden y agrupación de "Mi colección" > Cartas ----
+// ---- Orden de "Mi colección" > Cartas ----
 
 export type CollectionSortKey = "name" | "value_desc" | "purchase_date_desc";
 
@@ -359,38 +359,6 @@ export function sortCollectionItems(items: CollectionItem[], sortBy: CollectionS
       break;
   }
   return sorted;
-}
-
-export type CollectionGroupKey = "none" | "set" | "rarity";
-
-export const COLLECTION_GROUP_LABELS: Record<CollectionGroupKey, string> = {
-  none: "Sin agrupar",
-  set: "Expansión",
-  rarity: "Rareza",
-};
-
-export interface CollectionGroup {
-  /** "" cuando `groupBy` es "none" — un único grupo con toda la colección, sin cabecera
-   * que mostrar (la pantalla omite la cabecera si el label está vacío). */
-  label: string;
-  items: CollectionItem[];
-}
-
-/** Agrupa manteniendo el orden ya aplicado por `sortCollectionItems` dentro de cada grupo
- * (agrupar es una operación aparte de ordenar, no una alternativa — se aplican las dos a
- * la vez). Los grupos en sí se ordenan alfabéticamente por etiqueta. */
-export function groupCollectionItems(items: CollectionItem[], groupBy: CollectionGroupKey): CollectionGroup[] {
-  if (groupBy === "none") return [{ label: "", items }];
-  const groups = new Map<string, CollectionItem[]>();
-  for (const item of items) {
-    const key = groupBy === "set" ? (item.setName ?? "Sin expansión") : (item.rarity ?? "Sin rareza");
-    const list = groups.get(key) ?? [];
-    list.push(item);
-    groups.set(key, list);
-  }
-  return [...groups.entries()]
-    .map(([label, groupItems]) => ({ label, items: groupItems }))
-    .sort((a, b) => a.label.localeCompare(b.label, "es"));
 }
 
 // ---- Resumen agregado de sets/binders sincronizados ----

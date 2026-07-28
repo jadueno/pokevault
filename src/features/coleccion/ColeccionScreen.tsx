@@ -10,12 +10,9 @@ import type {
   SetSearchCandidate,
 } from "../../domain/types";
 import {
-  COLLECTION_GROUP_LABELS,
   COLLECTION_SORT_LABELS,
   countLinkedCollectionItems,
-  groupCollectionItems,
   sortCollectionItems,
-  type CollectionGroupKey,
   type CollectionSortKey,
 } from "../../domain/calculations";
 import { Button } from "../../components/Button";
@@ -82,14 +79,11 @@ export function ColeccionScreen({
   const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
   const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("sets");
   const [sortBy, setSortBy] = useState<CollectionSortKey>("name");
-  const [groupBy, setGroupBy] = useState<CollectionGroupKey>("none");
 
   const q = query.trim().toLowerCase();
   const filteredItems = q ? items.filter((i) => `${i.name} ${i.setName ?? ""}`.toLowerCase().includes(q)) : items;
   const filteredSealed = q ? sealedItems.filter((i) => i.productName.toLowerCase().includes(q)) : sealedItems;
-  // Agrupar es aparte de ordenar (las dos se aplican a la vez, no una en vez de la otra):
-  // primero se ordena toda la lista filtrada, y ese orden se mantiene dentro de cada grupo.
-  const cardGroups = groupCollectionItems(sortCollectionItems(filteredItems, sortBy), groupBy);
+  const sortedItems = sortCollectionItems(filteredItems, sortBy);
 
   const isEmpty = items.length === 0 && sealedItems.length === 0;
 
@@ -196,21 +190,6 @@ export function ColeccionScreen({
                   </option>
                 ))}
               </select>
-              <label className="sr-only" htmlFor="cartas-group">
-                Agrupar por
-              </label>
-              <select
-                id="cartas-group"
-                className={`${inputClass.replace("w-full", "w-auto")} shrink-0`}
-                value={groupBy}
-                onChange={(e) => setGroupBy(e.target.value as CollectionGroupKey)}
-              >
-                {Object.entries(COLLECTION_GROUP_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
             </>
           )}
         </div>
@@ -307,29 +286,17 @@ export function ColeccionScreen({
             </p>
           </Card>
         ) : (
-          <div className="flex flex-col gap-5">
-            {cardGroups.map((group) => (
-              <div key={group.label} className="flex flex-col gap-3">
-                {/* label vacío = "sin agrupar" (un único grupo): sin cabecera que mostrar. */}
-                {group.label && (
-                  <h2 className="text-sm font-bold text-[var(--text-secondary)]">
-                    {group.label} <span className="font-normal text-[var(--text-muted)]">({group.items.length})</span>
-                  </h2>
-                )}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.items.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      sealedPurchase={item.sealedPurchaseId ? (sealedItems.find((s) => s.id === item.sealedPurchaseId) ?? null) : null}
-                      linkedCardCount={item.sealedPurchaseId ? (linkedCountsBySealedId.get(item.sealedPurchaseId) ?? 0) : 0}
-                      onEdit={setEditingItem}
-                      onRemove={onRemove}
-                      onOverrideValue={onOverrideValue}
-                    />
-                  ))}
-                </div>
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedItems.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                sealedPurchase={item.sealedPurchaseId ? (sealedItems.find((s) => s.id === item.sealedPurchaseId) ?? null) : null}
+                linkedCardCount={item.sealedPurchaseId ? (linkedCountsBySealedId.get(item.sealedPurchaseId) ?? 0) : 0}
+                onEdit={setEditingItem}
+                onRemove={onRemove}
+                onOverrideValue={onOverrideValue}
+              />
             ))}
           </div>
         )
