@@ -59,9 +59,11 @@ export interface SetChecklistRepository {
 // forma. Mismo patrón que el proveedor de LLM/embeddings de "nous": adaptador real
 // (TCGdex, ver infrastructure/catalog/tcgdexApiProvider.ts) + fake determinista para
 // tests. Aunque TCGdex es bastante más fiable que pokemontcg.io (el proveedor anterior,
-// con ~45% de error y ~8s de latencia media documentados en ARCHITECTURE.md), sigue sin
-// llamarse nunca en segundo plano ni en cada carga de la app — solo en acciones
-// explícitas del usuario (buscar/sincronizar un set).
+// con ~45% de error y ~8s de latencia media documentados en ARCHITECTURE.md), no se llama
+// en cada carga de la app ni a petición de un usuario que no lo ha pedido — solo en
+// acciones explícitas (buscar/sincronizar un set) o desde el script de servidor
+// `refreshChecklistPrices.ts` (cron semanal, ver ARCHITECTURE.md "Actualización
+// automática de precio" — única excepción a propósito, decidida por el usuario).
 
 export interface PokemonTcgSetCandidate {
   externalSetId: string;
