@@ -196,7 +196,14 @@ export default function App() {
           {!loading && (
             <>
               {section === "dashboard" && (
-                <DashboardScreen summary={collection.summary} sealedItems={sealed.items} planItems={plan.items} />
+                <DashboardScreen
+                  summary={collection.summary}
+                  items={collection.items}
+                  sealedItems={sealed.items}
+                  planItems={plan.items}
+                  checklists={setChecklists.checklists}
+                  cardsByChecklist={setChecklists.cardsByChecklist}
+                />
               )}
               {section === "coleccion" && (
                 <ColeccionScreen

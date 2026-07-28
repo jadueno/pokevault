@@ -32,7 +32,10 @@ test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y 
   await expect(page.getByText("1,50 €")).toBeVisible();
 
   await page.getByRole("button", { name: "Resumen", exact: true }).click();
-  await expect(page.getByText("1,50 €", { exact: true })).toBeVisible();
+  // Ahora que "Estadísticas de la colección" también muestra el valor de la carta más
+  // valiosa (Fake Pikachu, la única que tienes en este punto), "1,50 €" aparece dos veces
+  // en la pantalla — se acota a la cifra grande de "Valor total estimado".
+  await expect(page.getByText("Valor total estimado").locator("..").getByText("1,50 €", { exact: true })).toBeVisible();
 });
 
 test("da de alta una carta suelta a mano, sin depender de ningún set sincronizado", async ({ page }) => {

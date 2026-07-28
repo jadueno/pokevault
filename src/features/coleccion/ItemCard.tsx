@@ -8,7 +8,9 @@ import { useConfirm } from "../../components/ConfirmProvider";
 import { inputClass, focusRing } from "../../components/Field";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 
-const LANGUAGE_LABELS: Record<string, string> = {
+// Exportado: lo reutiliza también el resumen de "distribución por idioma" en Resumen, para
+// no mantener dos mapas de etiquetas de idioma que puedan desincronizarse entre sí.
+export const LANGUAGE_LABELS: Record<string, string> = {
   es: "ES",
   en: "EN",
   fr: "FR",

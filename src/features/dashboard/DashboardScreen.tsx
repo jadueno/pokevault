@@ -1,8 +1,10 @@
-import type { CollectionSummary, PlanItem, SealedPurchase } from "../../domain/types";
+import type { CollectionItem, CollectionSummary, PlanItem, SealedPurchase, SetChecklist, SetChecklistCard } from "../../domain/types";
 import { formatMoney, totalPlanInvested } from "../../domain/calculations";
 import { Card } from "../../components/Card";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { SectionLabel } from "../../components/SectionLabel";
+import { CollectionStatsCard } from "./CollectionStatsCard";
+import { SetsSummaryCard } from "./SetsSummaryCard";
 
 function sealedValue(items: SealedPurchase[]): { value: number; invested: number; withoutValue: number } {
   let value = 0;
@@ -18,12 +20,18 @@ function sealedValue(items: SealedPurchase[]): { value: number; invested: number
 
 export function DashboardScreen({
   summary,
+  items,
   sealedItems,
   planItems,
+  checklists,
+  cardsByChecklist,
 }: {
   summary: CollectionSummary | null;
+  items: CollectionItem[];
   sealedItems: SealedPurchase[];
   planItems: PlanItem[];
+  checklists: SetChecklist[];
+  cardsByChecklist: Record<string, SetChecklistCard[]>;
 }) {
   const sealed = sealedValue(sealedItems);
   // El plan solo aporta al invertido, nunca al valor: muchos ítems del plan (accesorios,
@@ -103,6 +111,11 @@ export function DashboardScreen({
           </p>
         </Card>
       )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CollectionStatsCard items={items} />
+        <SetsSummaryCard checklists={checklists} cardsByChecklist={cardsByChecklist} collectionItems={items} />
+      </div>
     </div>
   );
 }

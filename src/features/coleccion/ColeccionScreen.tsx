@@ -9,7 +9,15 @@ import type {
   SetChecklistCard,
   SetSearchCandidate,
 } from "../../domain/types";
-import { countLinkedCollectionItems } from "../../domain/calculations";
+import {
+  COLLECTION_GROUP_LABELS,
+  COLLECTION_SORT_LABELS,
+  countLinkedCollectionItems,
+  groupCollectionItems,
+  sortCollectionItems,
+  type CollectionGroupKey,
+  type CollectionSortKey,
+} from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { focusRing, inputClass } from "../../components/Field";
@@ -73,10 +81,15 @@ export function ColeccionScreen({
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [editingSealed, setEditingSealed] = useState<SealedPurchase | null>(null);
   const [tab, setTab] = useState<"cartas" | "sellado" | "sets">("sets");
+  const [sortBy, setSortBy] = useState<CollectionSortKey>("name");
+  const [groupBy, setGroupBy] = useState<CollectionGroupKey>("none");
 
   const q = query.trim().toLowerCase();
   const filteredItems = q ? items.filter((i) => `${i.name} ${i.setName ?? ""}`.toLowerCase().includes(q)) : items;
   const filteredSealed = q ? sealedItems.filter((i) => i.productName.toLowerCase().includes(q)) : sealedItems;
+  // Agrupar es aparte de ordenar (las dos se aplican a la vez, no una en vez de la otra):
+  // primero se ordena toda la lista filtrada, y ese orden se mantiene dentro de cada grupo.
+  const cardGroups = groupCollectionItems(sortCollectionItems(filteredItems, sortBy), groupBy);
 
   const isEmpty = items.length === 0 && sealedItems.length === 0;
 
@@ -154,16 +167,52 @@ export function ColeccionScreen({
       </p>
 
       {!isEmpty && tab !== "sets" && (
-        <div className="relative max-w-sm">
-          <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-muted)]">
-            🔍
-          </span>
-          <input
-            className={`${inputClass} rounded-full py-2.5 pl-9`}
-            placeholder="Buscar en toda tu colección…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative max-w-sm flex-1">
+            <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-muted)]">
+              🔍
+            </span>
+            <input
+              className={`${inputClass} rounded-full py-2.5 pl-9`}
+              placeholder="Buscar en toda tu colección…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          {tab === "cartas" && items.length > 0 && (
+            <>
+              <label className="sr-only" htmlFor="cartas-sort">
+                Ordenar por
+              </label>
+              <select
+                id="cartas-sort"
+                className={`${inputClass.replace("w-full", "w-auto")} shrink-0`}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as CollectionSortKey)}
+              >
+                {Object.entries(COLLECTION_SORT_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor="cartas-group">
+                Agrupar por
+              </label>
+              <select
+                id="cartas-group"
+                className={`${inputClass.replace("w-full", "w-auto")} shrink-0`}
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value as CollectionGroupKey)}
+              >
+                {Object.entries(COLLECTION_GROUP_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
       )}
 
@@ -258,17 +307,29 @@ export function ColeccionScreen({
             </p>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredItems.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                sealedPurchase={item.sealedPurchaseId ? (sealedItems.find((s) => s.id === item.sealedPurchaseId) ?? null) : null}
-                linkedCardCount={item.sealedPurchaseId ? (linkedCountsBySealedId.get(item.sealedPurchaseId) ?? 0) : 0}
-                onEdit={setEditingItem}
-                onRemove={onRemove}
-                onOverrideValue={onOverrideValue}
-              />
+          <div className="flex flex-col gap-5">
+            {cardGroups.map((group) => (
+              <div key={group.label} className="flex flex-col gap-3">
+                {/* label vacío = "sin agrupar" (un único grupo): sin cabecera que mostrar. */}
+                {group.label && (
+                  <h2 className="text-sm font-bold text-[var(--text-secondary)]">
+                    {group.label} <span className="font-normal text-[var(--text-muted)]">({group.items.length})</span>
+                  </h2>
+                )}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {group.items.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      sealedPurchase={item.sealedPurchaseId ? (sealedItems.find((s) => s.id === item.sealedPurchaseId) ?? null) : null}
+                      linkedCardCount={item.sealedPurchaseId ? (linkedCountsBySealedId.get(item.sealedPurchaseId) ?? 0) : 0}
+                      onEdit={setEditingItem}
+                      onRemove={onRemove}
+                      onOverrideValue={onOverrideValue}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )
