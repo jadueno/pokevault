@@ -9,6 +9,9 @@ export function createFakeRepository<T extends { id: string }, TNew>(): Reposito
     async list() {
       return [...rows];
     },
+    async findById(id: string) {
+      return rows.find((r) => r.id === id) ?? null;
+    },
     async create(entity: TNew) {
       const created = { ...entity, id: String(nextId++) } as unknown as T;
       rows.push(created);
