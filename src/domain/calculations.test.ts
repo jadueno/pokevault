@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { CollectionItem, PlanItem, SealedPurchase, SetChecklist, SetChecklistCard, WishlistItem } from "./types";
 import {
+  collectionLanguageDistribution,
+  collectionRarityDistribution,
   computeSetChecklistCompletion,
   costPerCard,
   countLinkedCollectionItems,
@@ -8,8 +10,12 @@ import {
   findChecklistCardImage,
   findOwnedCollectionItemIds,
   formatMoney,
+  groupCollectionItems,
   groupPlanByMonth,
   groupWishlistByMonth,
+  mostValuableItem,
+  sortCollectionItems,
+  summarizeChecklistCompletion,
   totalPlanInvested,
 } from "./calculations";
 
@@ -457,5 +463,164 @@ describe("totalPlanInvested", () => {
 
   it("sin ítems 'comprar' hechos con precio, devuelve 0", () => {
     expect(totalPlanInvested([])).toBe(0);
+  });
+});
+
+describe("mostValuableItem", () => {
+  it("devuelve el ejemplar con mayor valor estimado por unidad", () => {
+    const items = [
+      collectionItem({ id: "c1", name: "Eevee", estimatedValueOverride: 5 }),
+      collectionItem({ id: "c2", name: "Mewtwo", estimatedValueOverride: 250 }),
+      collectionItem({ id: "c3", name: "Pikachu", estimatedValueOverride: 40 }),
+    ];
+    expect(mostValuableItem(items)?.name).toBe("Mewtwo");
+  });
+
+  it("ignora los ejemplares sin valor conocido, aunque tengan más cantidad", () => {
+    const items = [
+      collectionItem({ id: "c1", name: "Sin valor", estimatedValueOverride: null, quantity: 99 }),
+      collectionItem({ id: "c2", name: "Con valor", estimatedValueOverride: 1 }),
+    ];
+    expect(mostValuableItem(items)?.name).toBe("Con valor");
+  });
+
+  it("sin colección, o sin ningún valor conocido, devuelve null", () => {
+    expect(mostValuableItem([])).toBeNull();
+    expect(mostValuableItem([collectionItem({ estimatedValueOverride: null })])).toBeNull();
+  });
+});
+
+describe("collectionRarityDistribution / collectionLanguageDistribution", () => {
+  it("suma por cantidad (no por fila), de mayor a menor", () => {
+    const items = [
+      collectionItem({ id: "c1", rarity: "Rare", quantity: 1 }),
+      collectionItem({ id: "c2", rarity: "Common", quantity: 3 }),
+      collectionItem({ id: "c3", rarity: "Common", quantity: 2 }),
+    ];
+    expect(collectionRarityDistribution(items)).toEqual([
+      { key: "Common", count: 5 },
+      { key: "Rare", count: 1 },
+    ]);
+  });
+
+  it("agrupa la rareza desconocida bajo 'Sin rareza', sin inventar una", () => {
+    const items = [collectionItem({ rarity: null })];
+    expect(collectionRarityDistribution(items)).toEqual([{ key: "Sin rareza", count: 1 }]);
+  });
+
+  it("distribución por idioma, por código tal cual (la pantalla decide la etiqueta)", () => {
+    const items = [
+      collectionItem({ id: "c1", language: "es" }),
+      collectionItem({ id: "c2", language: "en" }),
+      collectionItem({ id: "c3", language: "es" }),
+    ];
+    expect(collectionLanguageDistribution(items)).toEqual([
+      { key: "es", count: 2 },
+      { key: "en", count: 1 },
+    ]);
+  });
+});
+
+describe("sortCollectionItems", () => {
+  it("por nombre, A-Z", () => {
+    const items = [collectionItem({ name: "Zubat" }), collectionItem({ name: "Abra" })];
+    expect(sortCollectionItems(items, "name").map((i) => i.name)).toEqual(["Abra", "Zubat"]);
+  });
+
+  it("por valor estimado, de mayor a menor — sin valor conocido va al final", () => {
+    const items = [
+      collectionItem({ name: "Barato", estimatedValueOverride: 5 }),
+      collectionItem({ name: "Sin valor", estimatedValueOverride: null }),
+      collectionItem({ name: "Caro", estimatedValueOverride: 200 }),
+    ];
+    expect(sortCollectionItems(items, "value_desc").map((i) => i.name)).toEqual(["Caro", "Barato", "Sin valor"]);
+  });
+
+  it("por fecha de compra más reciente — sin fecha va al final", () => {
+    const items = [
+      collectionItem({ name: "Antigua", purchaseDate: "2026-01-01" }),
+      collectionItem({ name: "Sin fecha", purchaseDate: null }),
+      collectionItem({ name: "Reciente", purchaseDate: "2026-07-01" }),
+    ];
+    expect(sortCollectionItems(items, "purchase_date_desc").map((i) => i.name)).toEqual(["Reciente", "Antigua", "Sin fecha"]);
+  });
+
+  it("no muta el array original", () => {
+    const items = [collectionItem({ name: "Zubat" }), collectionItem({ name: "Abra" })];
+    sortCollectionItems(items, "name");
+    expect(items.map((i) => i.name)).toEqual(["Zubat", "Abra"]);
+  });
+});
+
+describe("groupCollectionItems", () => {
+  it("sin agrupar, un único grupo con etiqueta vacía y todos los ejemplares", () => {
+    const items = [collectionItem({ name: "A" }), collectionItem({ name: "B" })];
+    expect(groupCollectionItems(items, "none")).toEqual([{ label: "", items }]);
+  });
+
+  it("por expansión, alfabético — sin expansión conocida bajo 'Sin expansión'", () => {
+    const items = [
+      collectionItem({ name: "A", setName: "Base" }),
+      collectionItem({ name: "B", setName: null }),
+      collectionItem({ name: "C", setName: "Jungla" }),
+    ];
+    const groups = groupCollectionItems(items, "set");
+    expect(groups.map((g) => g.label)).toEqual(["Base", "Jungla", "Sin expansión"]);
+    expect(groups[0].items.map((i) => i.name)).toEqual(["A"]);
+  });
+
+  it("por rareza, mantiene el orden ya aplicado dentro de cada grupo", () => {
+    const items = [
+      collectionItem({ name: "Segunda", rarity: "Rare", estimatedValueOverride: 1 }),
+      collectionItem({ name: "Primera", rarity: "Rare", estimatedValueOverride: 2 }),
+    ];
+    const sorted = sortCollectionItems(items, "value_desc");
+    const groups = groupCollectionItems(sorted, "rarity");
+    expect(groups).toHaveLength(1);
+    expect(groups[0].items.map((i) => i.name)).toEqual(["Primera", "Segunda"]);
+  });
+});
+
+describe("summarizeChecklistCompletion", () => {
+  it("porcentaje, coste de completar (solo las que tienen precio) y cuántas faltan sin precio", () => {
+    const checklist = setChecklist({ id: "cl1", setNameEs: "Oscuridad Absoluta" });
+    const cards = [
+      checklistCard({ id: "c1", number: "1", referencePrice: 10 }),
+      checklistCard({ id: "c2", number: "2", referencePrice: 5 }),
+      checklistCard({ id: "c3", number: "3", referencePrice: null }),
+    ];
+    const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "1/120" })];
+
+    const [summary] = summarizeChecklistCompletion([checklist], { cl1: cards }, items);
+    expect(summary.title).toBe("Oscuridad Absoluta");
+    expect(summary.ownedCount).toBe(1);
+    expect(summary.totalCount).toBe(3);
+    expect(summary.pct).toBe(33);
+    expect(summary.missingCost).toBe(5); // solo la #2, la #3 no tiene precio
+    expect(summary.missingWithoutPrice).toBe(1);
+  });
+
+  it("hereda el aislamiento entre checklists: una carta marcada en otro checklist no cuenta aquí", () => {
+    const checklist = setChecklist({ id: "cl1", setNameEs: "Oscuridad Absoluta" });
+    const cards = [checklistCard({ id: "c1", number: "1", referencePrice: 10 })];
+    const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "1/120", checklistId: "otro-checklist" })];
+
+    const [summary] = summarizeChecklistCompletion([checklist], { cl1: cards }, items);
+    expect(summary.ownedCount).toBe(0);
+    expect(summary.missingCost).toBe(10);
+  });
+
+  it("checklist vacío (sin cartas cargadas aún): 0/0, 0%", () => {
+    const checklist = setChecklist({ id: "cl1" });
+    const [summary] = summarizeChecklistCompletion([checklist], {}, []);
+    expect(summary).toEqual({
+      checklistId: "cl1",
+      title: "Oscuridad Absoluta",
+      ownedCount: 0,
+      totalCount: 0,
+      pct: 0,
+      missingCost: 0,
+      missingWithoutPrice: 0,
+    });
   });
 });

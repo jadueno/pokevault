@@ -285,3 +285,164 @@ export function findChecklistCardImage(
   }
   return null;
 }
+
+// ---- Estadísticas de colección (Fase 2 del roadmap) ----
+
+/** La carta de mayor valor estimado por unidad (no por fila×cantidad: interesa "cuál es
+ * la carta", no "qué fila suma más"). Ignora ejemplares sin valor estimado conocido —
+ * `null` nunca compite por ser "la más valiosa" frente a un valor real, por pequeño que
+ * sea. `null` si la colección está vacía o ninguna tiene valor conocido. */
+export function mostValuableItem(items: CollectionItem[]): CollectionItem | null {
+  let best: CollectionItem | null = null;
+  for (const item of items) {
+    if (item.estimatedValueOverride === null) continue;
+    if (best === null || item.estimatedValueOverride > (best.estimatedValueOverride as number)) best = item;
+  }
+  return best;
+}
+
+export interface CollectionDistributionEntry {
+  /** Valor bruto (rareza o código de idioma) tal cual está guardado — la pantalla decide
+   * cómo mostrarlo (p. ej. mapear el código de idioma a una etiqueta corta). */
+  key: string;
+  /** Suma de `quantity`, no nº de filas — dos filas de x1 y x3 de la misma rareza cuentan
+   * 4, no 2 (mismo criterio que el resto de agregados de la app, ver `countLinkedCollectionItems`). */
+  count: number;
+}
+
+function distributionBy(items: CollectionItem[], keyOf: (item: CollectionItem) => string): CollectionDistributionEntry[] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = keyOf(item);
+    counts.set(key, (counts.get(key) ?? 0) + item.quantity);
+  }
+  return [...counts.entries()].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
+}
+
+/** De más a menos frecuente. Sin rareza conocida se agrupa bajo "Sin rareza" (nunca se
+ * inventa una rareza real donde no la hay). */
+export function collectionRarityDistribution(items: CollectionItem[]): CollectionDistributionEntry[] {
+  return distributionBy(items, (item) => item.rarity ?? "Sin rareza");
+}
+
+/** De más a menos frecuente, por código de idioma ("es", "en"...) — la pantalla decide la
+ * etiqueta corta a mostrar (mismo mapa que ya usa cada `ItemCard`). */
+export function collectionLanguageDistribution(items: CollectionItem[]): CollectionDistributionEntry[] {
+  return distributionBy(items, (item) => item.language);
+}
+
+// ---- Orden y agrupación de "Mi colección" > Cartas ----
+
+export type CollectionSortKey = "name" | "value_desc" | "purchase_date_desc";
+
+export const COLLECTION_SORT_LABELS: Record<CollectionSortKey, string> = {
+  name: "Nombre (A-Z)",
+  value_desc: "Valor estimado (mayor a menor)",
+  purchase_date_desc: "Comprada más reciente",
+};
+
+/** Nueva copia ordenada (no muta `items`): las fechas de compra son texto "YYYY-MM-DD"
+ * (ver Bug real: columnas `date` de Postgres, ARCHITECTURE.md), así que el orden
+ * lexicográfico ya es el orden cronológico correcto, sin parsear a `Date`. Sin fecha de
+ * compra conocida, se queda al final (nunca antes que una fecha real). */
+export function sortCollectionItems(items: CollectionItem[], sortBy: CollectionSortKey): CollectionItem[] {
+  const sorted = [...items];
+  switch (sortBy) {
+    case "name":
+      sorted.sort((a, b) => a.name.localeCompare(b.name, "es"));
+      break;
+    case "value_desc":
+      sorted.sort((a, b) => (b.estimatedValueOverride ?? -1) - (a.estimatedValueOverride ?? -1));
+      break;
+    case "purchase_date_desc":
+      sorted.sort((a, b) => (b.purchaseDate ?? "").localeCompare(a.purchaseDate ?? ""));
+      break;
+  }
+  return sorted;
+}
+
+export type CollectionGroupKey = "none" | "set" | "rarity";
+
+export const COLLECTION_GROUP_LABELS: Record<CollectionGroupKey, string> = {
+  none: "Sin agrupar",
+  set: "Expansión",
+  rarity: "Rareza",
+};
+
+export interface CollectionGroup {
+  /** "" cuando `groupBy` es "none" — un único grupo con toda la colección, sin cabecera
+   * que mostrar (la pantalla omite la cabecera si el label está vacío). */
+  label: string;
+  items: CollectionItem[];
+}
+
+/** Agrupa manteniendo el orden ya aplicado por `sortCollectionItems` dentro de cada grupo
+ * (agrupar es una operación aparte de ordenar, no una alternativa — se aplican las dos a
+ * la vez). Los grupos en sí se ordenan alfabéticamente por etiqueta. */
+export function groupCollectionItems(items: CollectionItem[], groupBy: CollectionGroupKey): CollectionGroup[] {
+  if (groupBy === "none") return [{ label: "", items }];
+  const groups = new Map<string, CollectionItem[]>();
+  for (const item of items) {
+    const key = groupBy === "set" ? (item.setName ?? "Sin expansión") : (item.rarity ?? "Sin rareza");
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+  return [...groups.entries()]
+    .map(([label, groupItems]) => ({ label, items: groupItems }))
+    .sort((a, b) => a.label.localeCompare(b.label, "es"));
+}
+
+// ---- Resumen agregado de sets/binders sincronizados ----
+
+export interface ChecklistCompletionSummary {
+  checklistId: string;
+  title: string;
+  ownedCount: number;
+  /** Filas del checklist, no `checklist.totalCards` (que cuenta cartas del set, no filas
+   * de variante) — mismo criterio que ya usa `SetCard` para el "X/Y" de cada set. */
+  totalCount: number;
+  pct: number;
+  /** Suma de `referencePrice` de las cartas que faltan (solo las que tienen precio
+   * conocido) — cuánto costaría, a precio de referencia, terminar este set/binder. */
+  missingCost: number;
+  /** Cuántas de las que faltan no tienen precio de referencia conocido — para no dar la
+   * falsa impresión de que `missingCost` es el coste completo si faltan precios por medio. */
+  missingWithoutPrice: number;
+}
+
+/** Un resumen por checklist (set oficial o binder) de cuánto llevas y cuánto costaría
+ * terminarlo, para poder decidir en cuál merece más la pena centrarte. Reutiliza
+ * `computeSetChecklistCompletion` (ya aislado por checklist, ver `belongsToChecklist`), así
+ * que hereda la misma corrección de "no compartir cartas entre checklists". */
+export function summarizeChecklistCompletion(
+  checklists: SetChecklist[],
+  cardsByChecklist: Record<string, SetChecklistCard[]>,
+  collectionItems: CollectionItem[],
+): ChecklistCompletionSummary[] {
+  return checklists.map((checklist) => {
+    const cards = cardsByChecklist[checklist.id] ?? [];
+    const { owned, missing } = computeSetChecklistCompletion(
+      cards,
+      collectionItems,
+      [checklist.setName, checklist.setNameEs],
+      checklist.id,
+    );
+    let missingCost = 0;
+    let missingWithoutPrice = 0;
+    for (const card of missing) {
+      if (card.referencePrice !== null) missingCost += card.referencePrice;
+      else missingWithoutPrice++;
+    }
+    const totalCount = cards.length;
+    return {
+      checklistId: checklist.id,
+      title: checklist.setNameEs ?? checklist.setName,
+      ownedCount: owned.length,
+      totalCount,
+      pct: totalCount > 0 ? Math.round((owned.length / totalCount) * 100) : 0,
+      missingCost,
+      missingWithoutPrice,
+    };
+  });
+}
