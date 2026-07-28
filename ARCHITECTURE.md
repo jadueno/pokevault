@@ -146,9 +146,33 @@ La wishlist sigue teniendo su propio uso, distinto del plan: deseos puntuales de
 - `backend/src/domain|application|infrastructure/` — ver arquitectura hexagonal arriba.
 - `docker-compose.yml` — Postgres local, puerto 5436.
 
-## Roadmap (no construido todavía, documentado a propósito)
+## Roadmap
 
-- **Fase 2 — Progreso y organización**: vista grid/lista con agrupar/ordenar/filtrar avanzado, estadísticas (carta más valiosa, distribución por rareza/idioma). Solo lecturas nuevas sobre datos que ya existen.
-- **Fase 3 — Dinero histórico**: `collection_value_snapshots` para la evolución del valor en el tiempo, transacciones de compra/venta/intercambio con terceros (comisiones, envío, beneficio neto), presupuesto mensual vs gasto real (complementa el plan, que es planificación *antes* de comprar, con seguimiento de lo *ya* gastado).
-- **Fase 4 — Multi-usuario real**: el día que se decida abrir a otros coleccionistas (ver sección de auth arriba).
-- **Fase 5 — Ampliar la búsqueda de sets**: una tabla de alias ES/EN curada a mano (no adivinada) para que la búsqueda encuentre sets aunque se escriban en español, actualización automática periódica de precio de los sets ya sincronizados (hoy es manual, botón "🔄 Actualizar").
+- ~~**Fase 2 — Progreso y organización**~~: hecho el 2026-07-28 — ver "Estadísticas y resumen de sets/binders" y "Ordenar/agrupar la colección" más abajo.
+- **Fase 3 — Dinero histórico** (pendiente, descartada por ahora a petición explícita del usuario): `collection_value_snapshots` para la evolución del valor en el tiempo, transacciones de compra/venta/intercambio con terceros (comisiones, envío, beneficio neto), presupuesto mensual vs gasto real (complementa el plan, que es planificación *antes* de comprar, con seguimiento de lo *ya* gastado).
+- **Fase 4 — Multi-usuario real** (pendiente): el día que se decida abrir a otros coleccionistas (ver sección de auth arriba).
+- ~~**Fase 5 — Ampliar la búsqueda de sets**~~: revisada el 2026-07-28 — la tabla de alias ES/EN ya no hace falta (ver más abajo, TCGdex ya busca en español); la actualización automática de precio sí se construyó, ver "Actualización automática de precio".
+
+## Estadísticas y resumen de sets/binders (2026-07-28)
+
+Pedido explícito del usuario tras preguntar "¿algo más que podamos añadir?" — cierra la Fase 2 del roadmap.
+
+- **`mostValuableItem`/`collectionRarityDistribution`/`collectionLanguageDistribution`** (`src/domain/calculations.ts`): funciones puras sobre `CollectionItem[]` ya cargado, sin ninguna consulta nueva al backend — todo dato para esto ya existía en el cliente. La distribución cuenta por `quantity` (cuántas cartas físicas), no por fila, mismo criterio que el resto de agregados de la app.
+- **`summarizeChecklistCompletion`**: reutiliza `computeSetChecklistCompletion` (por eso hereda gratis el aislamiento entre checklists de la corrección de "cartas compartidas") para dar, por cada set/binder sincronizado, el % completado y cuánto costaría (suma de `referencePrice` de las que faltan, con precio conocido) terminarlo. Vive en `SetsSummaryCard` dentro de "Resumen", ordenado por % de completitud descendente — responde "¿en cuál merece más la pena centrarme ahora?".
+- Ninguna de las dos tarjetas nuevas (`CollectionStatsCard`, `SetsSummaryCard`) llama a nada por su cuenta: reciben los mismos `items`/`checklists`/`cardsByChecklist` que ya cargaba `App.tsx` para el resto de pantallas.
+
+## Ordenar/agrupar la colección (2026-07-28)
+
+`sortCollectionItems`/`groupCollectionItems` (`src/domain/calculations.ts`), aplicados en ese orden (agrupar es aparte de ordenar, no una alternativa) sobre la pestaña "Cartas" de "Mi colección". Los grupos se ordenan alfabéticamente por etiqueta; dentro de cada uno se mantiene el orden ya aplicado. "Sin agrupar" es un único grupo con etiqueta vacía, para no tener que ramificar el JSX de la rejilla en dos casos distintos.
+
+## La tabla de alias ES/EN de sets ya no hace falta (revisado 2026-07-28)
+
+Estaba en el roadmap desde que el proveedor era pokemontcg.io (solo nombres en inglés). Comprobado en vivo contra la API real de TCGdex: `GET /v2/es/sets?name=absoluta` encuentra "Oscuridad Absoluta" sin traducir nada — el proveedor actual ya resuelve el problema que esa tabla iba a resolver. No se construye nada.
+
+## Actualización automática de precio (2026-07-28)
+
+Antes solo existía el botón manual "🔄 Actualizar" por checklist — la app tiene una regla de diseño explícita de no llamar nunca a TCGdex en segundo plano, solo en acciones directas del usuario (ver "Checklist de set" más arriba). El usuario pidió automatizarlo de verdad, **exceptuando esa regla a propósito** para este caso concreto:
+
+- **`backend/src/scripts/refreshChecklistPrices.ts`** — script de servidor (mismo patrón que `seedDemoData.ts`/`hashPassword.ts`, `npm run refresh-checklist-prices`), no un endpoint HTTP: llama a `resync()` (el mismo caso de uso que ya usa el botón manual) para cada checklist ya sincronizado, con una pausa de 1s entre cada uno para no bombardear TCGdex de golpe. Se ejecuta con acceso directo al pool, así que no hace falta autenticarse contra la propia API ni guardar ninguna contraseña en el cron.
+- **Cron en el VPS** (`~/backups/refresh-pokevault-prices.sh`, mismo patrón que el backup de base de datos): semanal, domingos a las 05:00 — después de los backups diarios (04:15/04:20), y con periodicidad baja a propósito, ya que el precio de una colección personal no cambia lo bastante rápido como para justificar algo más frecuente.
+- Probado en real antes de desplegarlo: un checklist de prueba con un precio "envejecido" a mano (999,99 €) pasó a mostrar el precio real de Cardmarket (0,04 €) tras ejecutar el script, confirmando que llama a TCGdex de verdad y no solo simula el refresco.
