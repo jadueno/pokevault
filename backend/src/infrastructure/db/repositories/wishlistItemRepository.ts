@@ -37,6 +37,11 @@ export function createWishlistItemRepository(pool: Pool): WishlistItemRepository
       return rows.map(toWishlistItem);
     },
 
+    async findById(id: string) {
+      const { rows } = await pool.query<WishlistItemRow>(`select ${COLUMNS} from wishlist_items where id = $1`, [id]);
+      return rows[0] ? toWishlistItem(rows[0]) : null;
+    },
+
     async create(entity: NewWishlistItem) {
       const { rows } = await pool.query<WishlistItemRow>(
         `insert into wishlist_items (name, set_name, priority, max_price, target_month, notes, photo)

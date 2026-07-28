@@ -16,6 +16,7 @@ import type {
 
 export interface Repository<T, TNew> {
   list(): Promise<T[]>;
+  findById(id: string): Promise<T | null>;
   create(entity: TNew): Promise<T>;
   update(id: string, entity: TNew): Promise<T | null>;
   remove(id: string): Promise<boolean>;
@@ -45,6 +46,8 @@ export interface UpsertChecklistInput {
 
 export interface SetChecklistRepository {
   list(): Promise<SetChecklist[]>;
+  findById(id: string): Promise<SetChecklist | null>;
+  findByExternalId(externalSetId: string): Promise<SetChecklist | null>;
   getCards(checklistId: string): Promise<SetChecklistCard[]>;
   /** Reemplazo completo (borra y vuelve a insertar) — usado tanto al sincronizar un set
    * nuevo como al "Actualizar" uno ya existente (mismo externalSetId). */
