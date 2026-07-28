@@ -37,8 +37,7 @@ export function createPlanItemUseCases(repo: PlanItemRepository) {
     /** Casilla "hecho" independiente de "Ya la tengo": no exige idioma/estado/precio
      * ni pasa por la colección, así que se resuelve aquí en vez de en wishlistItems. */
     toggleDone: async (id: string) => {
-      const items = await repo.list();
-      const item = items.find((i) => i.id === id);
+      const item = await repo.findById(id);
       if (!item) throw new ValidationError("No existe ese ítem del plan");
       const { id: _id, ...rest } = item;
       return repo.update(id, { ...rest, done: !item.done });
