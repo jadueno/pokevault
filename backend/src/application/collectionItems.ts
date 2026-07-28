@@ -47,8 +47,7 @@ export function createCollectionItemUseCases(repo: CollectionItemRepository) {
     /** Corrección manual del valor estimado — queda identificada como tal (fecha + nota).
      * Sin catálogo externo, es la única fuente de valor: nunca se inventa un precio. */
     overrideEstimatedValue: async (id: string, value: number, note: string | null) => {
-      const items = await repo.list();
-      const existing = items.find((i) => i.id === id);
+      const existing = await repo.findById(id);
       if (!existing) throw new ValidationError("No existe ese ejemplar");
       const { id: _id, ...rest } = existing;
       return repo.update(id, {

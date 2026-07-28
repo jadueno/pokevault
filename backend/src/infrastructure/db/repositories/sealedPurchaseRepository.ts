@@ -49,6 +49,11 @@ export function createSealedPurchaseRepository(pool: Pool): SealedPurchaseReposi
       return rows.map(toSealedPurchase);
     },
 
+    async findById(id: string) {
+      const { rows } = await pool.query<SealedPurchaseRow>(`select ${COLUMNS} from sealed_purchases where id = $1`, [id]);
+      return rows[0] ? toSealedPurchase(rows[0]) : null;
+    },
+
     async create(entity: NewSealedPurchase) {
       const { rows } = await pool.query<SealedPurchaseRow>(
         `insert into sealed_purchases (product_name, product_type, quantity, purchase_price,

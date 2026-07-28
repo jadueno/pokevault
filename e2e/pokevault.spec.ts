@@ -10,12 +10,14 @@ test.describe.configure({ mode: "serial" });
 test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y ver su valor en el resumen", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Mi colección", exact: true }).click();
-  await page.getByRole("button", { name: "Sets (0)" }).click();
+  await page.getByRole("button", { name: "Sets", exact: true }).click();
+  await page.getByRole("button", { name: "+ Set" }).click();
 
   await page.getByPlaceholder("Nombre en inglés, p. ej. Pitch Black").fill("Test Set");
   await page.getByRole("button", { name: "Buscar", exact: true }).click();
   await expect(page.getByText("Test Set", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Añadir este set" }).click();
+  await page.getByRole("button", { name: "Cerrar" }).click();
 
   // Recién sincronizado y sin ninguna carta tuya, está incompleto: se abre solo.
   await expect(page.getByText("Fake Pikachu")).toBeVisible();
@@ -24,7 +26,7 @@ test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y 
   await page.getByRole("button", { name: "Marcar Fake Pikachu como mía" }).click();
   await page.getByRole("button", { name: "Marcar 1 como mías" }).click();
 
-  await page.getByRole("button", { name: "Cartas (1)" }).click();
+  await page.getByRole("button", { name: "Cartas", exact: true }).click();
   await expect(page.getByText("Fake Pikachu")).toBeVisible();
   // El precio de referencia del set sincronizado (1,50 €) se usa como valor estimado inicial.
   await expect(page.getByText("1,50 €")).toBeVisible();
@@ -36,8 +38,8 @@ test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y 
 test("da de alta una carta suelta a mano, sin depender de ningún set sincronizado", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Mi colección", exact: true }).click();
-  await page.getByRole("button", { name: /^Cartas/ }).click();
-  await page.getByRole("button", { name: "Añadir carta suelta" }).click();
+  await page.getByRole("button", { name: "Cartas", exact: true }).click();
+  await page.getByRole("button", { name: "+ Carta" }).click();
 
   await page.getByPlaceholder("Charizard").fill("Eevee");
   await page.getByPlaceholder("Base Set").fill("Jungla");

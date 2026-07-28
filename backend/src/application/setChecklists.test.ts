@@ -12,6 +12,12 @@ function createFakeSetChecklistRepository(): SetChecklistRepository {
     async list() {
       return [...checklists];
     },
+    async findById(id: string) {
+      return checklists.find((c) => c.id === id) ?? null;
+    },
+    async findByExternalId(externalSetId: string) {
+      return checklists.find((c) => c.externalSetId === externalSetId) ?? null;
+    },
     async getCards() {
       return [];
     },

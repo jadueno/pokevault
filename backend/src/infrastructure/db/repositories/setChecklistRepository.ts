@@ -66,6 +66,24 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
       return rows.map(toSetChecklist);
     },
 
+    async findById(id: string) {
+      const { rows } = await pool.query<SetChecklistRow>(
+        `select id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names
+         from set_checklists where id = $1`,
+        [id],
+      );
+      return rows[0] ? toSetChecklist(rows[0]) : null;
+    },
+
+    async findByExternalId(externalSetId: string) {
+      const { rows } = await pool.query<SetChecklistRow>(
+        `select id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names
+         from set_checklists where external_set_id = $1`,
+        [externalSetId],
+      );
+      return rows[0] ? toSetChecklist(rows[0]) : null;
+    },
+
     async getCards(checklistId: string) {
       const { rows } = await pool.query<SetChecklistCardRow>(
         `select id, checklist_id, number, name, rarity, variant, image_url, image_url_large, reference_price,
