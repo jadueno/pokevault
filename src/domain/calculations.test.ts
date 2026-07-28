@@ -65,6 +65,7 @@ function collectionItem(overrides: Partial<CollectionItem> = {}): CollectionItem
     estimatedValueOverrideNote: null,
     notes: null,
     photo: null,
+    checklistId: null,
     ...overrides,
   };
 }
@@ -116,7 +117,7 @@ describe("computeSetChecklistCompletion", () => {
       collectionItem({ setName: "Oscuridad Absoluta", number: "1/120" }),
       collectionItem({ setName: "Oscuridad Absoluta", number: "2/120" }),
     ];
-    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"]);
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"], "cl1");
 
     expect(owned.map((c) => c.number)).toEqual(["1", "2"]);
     expect(missing.map((c) => c.number)).toEqual(["3"]);
@@ -125,14 +126,14 @@ describe("computeSetChecklistCompletion", () => {
   it("relaciona por número aunque el nombre del set esté en inglés en la colección", () => {
     const cards = [checklistCard({ number: "1" })];
     const items = [collectionItem({ setName: "Pitch Black", number: "1/120" })];
-    const { owned } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"]);
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"], "cl1");
     expect(owned).toHaveLength(1);
   });
 
   it("ignora cartas de otro set aunque compartan número", () => {
     const cards = [checklistCard({ number: "1" })];
     const items = [collectionItem({ setName: "Base Set", number: "1/102" })];
-    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"]);
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Pitch Black", "Oscuridad Absoluta"], "cl1");
     expect(owned).toHaveLength(0);
     expect(missing).toHaveLength(1);
   });
@@ -140,13 +141,13 @@ describe("computeSetChecklistCompletion", () => {
   it("no distingue mayúsculas ni acentos al comparar el nombre del set", () => {
     const cards = [checklistCard({ number: "1" })];
     const items = [collectionItem({ setName: "OSCURIDAD ABSOLUTA", number: "1/120" })];
-    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"], "cl1");
     expect(owned).toHaveLength(1);
   });
 
   it("sin colección, todas las cartas del checklist están 'missing'", () => {
     const cards = [checklistCard({ number: "1" }), checklistCard({ number: "2" })];
-    const { owned, missing } = computeSetChecklistCompletion(cards, [], ["Oscuridad Absoluta"]);
+    const { owned, missing } = computeSetChecklistCompletion(cards, [], ["Oscuridad Absoluta"], "cl1");
     expect(owned).toHaveLength(0);
     expect(missing).toHaveLength(2);
   });
@@ -154,7 +155,7 @@ describe("computeSetChecklistCompletion", () => {
   it("relaciona el número aunque el checklist lo tenga con ceros a la izquierda (TCGdex) y la carta guardada no (pokemontcg.io)", () => {
     const cards = [checklistCard({ number: "001" })];
     const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "1/120" })];
-    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"], "cl1");
     expect(owned).toHaveLength(1);
   });
 });
@@ -219,7 +220,7 @@ describe("findOwnedCollectionItemIds", () => {
       collectionItem({ id: "c2", setName: "Oscuridad Absoluta", number: "2/120" }),
       collectionItem({ id: "c3", setName: "Base Set", number: "1/102" }), // otro set, no cuenta
     ];
-    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Pitch Black", "Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Pitch Black", "Oscuridad Absoluta"], "cl1");
     expect(ids).toEqual(["c1"]);
   });
 
@@ -228,24 +229,24 @@ describe("findOwnedCollectionItemIds", () => {
       collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" }),
       collectionItem({ id: "c2", setName: "Oscuridad Absoluta", number: "1/120" }),
     ];
-    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Oscuridad Absoluta"], "cl1");
     expect(ids).toEqual(["c1", "c2"]);
   });
 
   it("normaliza ceros a la izquierda al comparar (checklist con '001', colección con '1')", () => {
     const items = [collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120" })];
-    const ids = findOwnedCollectionItemIds([{ number: "001", variant: "normal" }], items, ["Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "001", variant: "normal" }], items, ["Oscuridad Absoluta"], "cl1");
     expect(ids).toEqual(["c1"]);
   });
 
   it("sin coincidencias, devuelve una lista vacía", () => {
     const items = [collectionItem({ id: "c1", setName: "Base Set", number: "1/102" })];
-    expect(findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Oscuridad Absoluta"])).toEqual([]);
+    expect(findOwnedCollectionItemIds([{ number: "1", variant: "normal" }], items, ["Oscuridad Absoluta"], "cl1")).toEqual([]);
   });
 
   it("no confunde variantes: pedir la de reverso no devuelve la normal del mismo número", () => {
     const items = [collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "1/120", variant: "normal" })];
-    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "reverse" }], items, ["Oscuridad Absoluta"]);
+    const ids = findOwnedCollectionItemIds([{ number: "1", variant: "reverse" }], items, ["Oscuridad Absoluta"], "cl1");
     expect(ids).toEqual([]);
   });
 
@@ -258,6 +259,7 @@ describe("findOwnedCollectionItemIds", () => {
       [{ number: "1", variant: "normal", setName: "Base Set" }],
       items,
       ["Slowpoke y Slowbro"],
+      "cl1",
     );
     expect(ids).toEqual(["c1"]);
   });
@@ -270,7 +272,7 @@ describe("computeSetChecklistCompletion — variantes", () => {
       checklistCard({ id: "r1", number: "2", name: "Grubbin", variant: "reverse" }),
     ];
     const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "2/120", variant: "normal" })];
-    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"], "cl1");
 
     expect(owned.map((c) => c.id)).toEqual(["n1"]);
     expect(missing.map((c) => c.id)).toEqual(["r1"]);
@@ -285,7 +287,7 @@ describe("computeSetChecklistCompletion — variantes", () => {
       collectionItem({ id: "i1", setName: "Oscuridad Absoluta", number: "2/120", variant: "normal" }),
       collectionItem({ id: "i2", setName: "Oscuridad Absoluta", number: "2/120", variant: "reverse" }),
     ];
-    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"]);
+    const { owned } = computeSetChecklistCompletion(cards, items, ["Oscuridad Absoluta"], "cl1");
     expect(owned.map((c) => c.id).sort()).toEqual(["n1", "r1"]);
   });
 });
@@ -300,10 +302,60 @@ describe("computeSetChecklistCompletion — binder (cartas de varias expansiones
       checklistCard({ id: "jungla-1", number: "1", name: "Slowpoke", setName: "Jungla" }),
     ];
     const items = [collectionItem({ setName: "Base Set", number: "1/102" })];
-    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Slowpoke y Slowbro"]);
+    const { owned, missing } = computeSetChecklistCompletion(cards, items, ["Slowpoke y Slowbro"], "cl1");
 
     expect(owned.map((c) => c.id)).toEqual(["base-1"]);
     expect(missing.map((c) => c.id)).toEqual(["jungla-1"]);
+  });
+});
+
+describe("computeSetChecklistCompletion / findOwnedCollectionItemIds — aislamiento entre checklists", () => {
+  // Bug real en producción (2026-07): un binder reúne un Pokémon de cualquier expansión
+  // donde haya salido, así que si esa expansión también está sincronizada como set
+  // oficial aparte, la misma carta real (mismo número+variante+expansión) aparece en las
+  // dos listas — marcarla como tuya en una la marcaba automáticamente como tuya en la
+  // otra, sin que el usuario lo pidiera ahí. Caso real: Slowbro/Slowpoke de "Oscuridad
+  // Absoluta", presentes tanto en el set oficial como en el binder "Slowpoke y Slowbro".
+  it("un ejemplar marcado desde un checklist NO cuenta como tuyo en otro checklist distinto, aunque coincida la carta", () => {
+    const card = checklistCard({ number: "30", name: "Slowbro", setName: "Oscuridad Absoluta", variant: "normal" });
+    const items = [
+      collectionItem({ setName: "Oscuridad Absoluta", number: "30/120", variant: "normal", checklistId: "oficial-oscuridad" }),
+    ];
+    const { owned: ownedEnOficial } = computeSetChecklistCompletion([card], items, ["Oscuridad Absoluta"], "oficial-oscuridad");
+    expect(ownedEnOficial).toHaveLength(1);
+
+    const { owned: ownedEnBinder, missing: missingEnBinder } = computeSetChecklistCompletion(
+      [card],
+      items,
+      ["Slowpoke y Slowbro"],
+      "binder-slowbro",
+    );
+    expect(ownedEnBinder).toHaveLength(0);
+    expect(missingEnBinder).toHaveLength(1);
+  });
+
+  it("findOwnedCollectionItemIds tampoco encuentra, para desmarcar, un ejemplar que pertenece a otro checklist", () => {
+    const items = [
+      collectionItem({ id: "c1", setName: "Oscuridad Absoluta", number: "30/120", variant: "normal", checklistId: "oficial-oscuridad" }),
+    ];
+    const ids = findOwnedCollectionItemIds(
+      [{ number: "30", variant: "normal", setName: "Oscuridad Absoluta" }],
+      items,
+      ["Slowpoke y Slowbro"],
+      "binder-slowbro",
+    );
+    expect(ids).toEqual([]);
+  });
+
+  it("un ejemplar sin checklist de origen (alta manual o de antes de este campo) sigue comparándose por texto en cualquier checklist, como antes", () => {
+    const card = checklistCard({ number: "30", name: "Slowbro", setName: "Oscuridad Absoluta", variant: "normal" });
+    const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "30/120", variant: "normal", checklistId: null })];
+
+    const { owned: ownedEnOficial } = computeSetChecklistCompletion([card], items, ["Oscuridad Absoluta"], "oficial-oscuridad");
+    const { owned: ownedEnBinder } = computeSetChecklistCompletion([card], items, ["Slowpoke y Slowbro"], "binder-slowbro");
+
+    expect(ownedEnOficial).toHaveLength(1);
+    expect(ownedEnBinder).toHaveLength(1);
   });
 });
 

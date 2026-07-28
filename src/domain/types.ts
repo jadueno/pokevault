@@ -55,6 +55,13 @@ export interface CollectionItem {
   estimatedValueOverrideNote: string | null;
   notes: string | null;
   photo: string | null;
+  /** Checklist/binder desde el que se marcó como propia (ver "Marcar como mía" en
+   * SetChecklistTab) — `null` en altas manuales, ajenas a cualquier checklist. Aísla la
+   * pertenencia entre checklists: sin esto, la misma carta real (número+variante) marcada
+   * en un checklist aparecía automáticamente como tuya en cualquier otro que la
+   * compartiera (p. ej. un Pokémon presente tanto en un set oficial como en un binder que
+   * lo reúne desde varias expansiones) — bug real encontrado en producción, 2026-07. */
+  checklistId: string | null;
 }
 
 export type NewCollectionItem = Omit<CollectionItem, "id">;

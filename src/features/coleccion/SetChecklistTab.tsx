@@ -318,7 +318,7 @@ function SetCardsGrid({
   const [marking, setMarking] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
+  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs], checklist.id) : null;
   const ownedIds = new Set(completion?.owned.map((c) => c.id) ?? []);
 
   const q = query.trim().toLowerCase();
@@ -384,6 +384,9 @@ function SetCardsGrid({
           estimatedValueOverrideNote: card.referencePrice !== null ? "Precio de referencia de Cardmarket (set sincronizado)" : null,
           notes: null,
           photo: card.imageUrlLarge ?? card.imageUrl,
+          // Aísla esta carta a ESTE checklist: no cuenta como "tuya" en otro checklist
+          // distinto que comparta la misma carta real (ver belongsToChecklist).
+          checklistId: checklist.id,
         })),
       );
       deselect(selectedMissing.map((c) => c.id));
@@ -398,6 +401,7 @@ function SetCardsGrid({
       selectedOwned.map((c) => ({ number: c.number, variant: c.variant, setName: c.setName })),
       collectionItems,
       [checklist.setName, checklist.setNameEs],
+      checklist.id,
     );
     if (ids.length === 0) return;
     const confirmed = await confirm(
@@ -547,7 +551,7 @@ function SetCard({
   onRemoveItems: (ids: string[]) => Promise<void>;
 }) {
   const [resyncing, setResyncing] = useState(false);
-  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]) : null;
+  const completion = cards ? computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs], checklist.id) : null;
   const ownedCount = completion?.owned.length ?? null;
   // cards.length, no checklist.totalCards: este último cuenta cartas del set (120), no
   // filas del checklist — con variantes (normal+reverso), una carta con las dos aporta
@@ -568,63 +572,70 @@ function SetCard({
   }
 
   return (
-    <Card
-      variant="gradient"
-      className={`flex flex-col gap-4 ${expanded ? "sm:col-span-2 lg:col-span-3" : ""}`}
-      style={{ background: "var(--hero-gradient)" }}
+    // role="group" + aria-label en el propio hijo directo del grid (para no romper el
+    // col-span condicional de más abajo, que necesita aplicarse al hijo directo): sin
+    // esto no había forma de distinguir por accesibilidad (ni de apuntar en un test E2E)
+    // a qué set/binder concreto pertenece cada botón "Que tengo"/"Que me faltan" cuando
+    // hay varios sets expandidos a la vez.
+    <div
+      role="group"
+      aria-label={`Set ${checklist.setNameEs ?? checklist.setName}`}
+      className={expanded ? "sm:col-span-2 lg:col-span-3" : ""}
     >
-      <div>
-        <div className="flex items-center gap-2">
-          <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--on-hero)]">
-            {checklist.setNameEs ?? checklist.setName}
-          </p>
-          {checklist.kind === "binder" && (
-            <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[var(--on-hero)] uppercase">
-              Binder
+      <Card variant="gradient" className="flex flex-col gap-4" style={{ background: "var(--hero-gradient)" }}>
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--on-hero)]">
+              {checklist.setNameEs ?? checklist.setName}
+            </p>
+            {checklist.kind === "binder" && (
+              <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[var(--on-hero)] uppercase">
+                Binder
+              </span>
+            )}
+          </div>
+          <p className="truncate text-xs text-white/70">Sincronizado el {syncedLabel}</p>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white/70">Completado</span>
+            <span className="font-semibold text-[var(--on-hero)]">
+              {ownedCount !== null ? `${ownedCount}/${total} (${pct}%)` : `— / ${total}`}
             </span>
-          )}
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+            <div className="h-full rounded-full bg-white transition-all" style={{ width: `${pct}%` }} />
+          </div>
         </div>
-        <p className="truncate text-xs text-white/70">Sincronizado el {syncedLabel}</p>
-      </div>
 
-      <div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-white/70">Completado</span>
-          <span className="font-semibold text-[var(--on-hero)]">
-            {ownedCount !== null ? `${ownedCount}/${total} (${pct}%)` : `— / ${total}`}
-          </span>
+        <div className="flex gap-2">
+          <Button variant="tint" tone="ink" size="sm" onClick={onToggle} className="flex-1">
+            {expanded ? "Ocultar" : "Ver el set completo"}
+          </Button>
+          <IconButton
+            onDark
+            onClick={handleResync}
+            disabled={resyncing}
+            label={`Actualizar ${checklist.setNameEs ?? checklist.setName}`}
+            title="Volver a traer las cartas de este set (rellena precio si no lo tenía)"
+          >
+            <RefreshIcon className={`size-4 ${resyncing ? "animate-spin" : ""}`} />
+          </IconButton>
         </div>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/25">
-          <div className="h-full rounded-full bg-white transition-all" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
 
-      <div className="flex gap-2">
-        <Button variant="tint" tone="ink" size="sm" onClick={onToggle} className="flex-1">
-          {expanded ? "Ocultar" : "Ver el set completo"}
-        </Button>
-        <IconButton
-          onDark
-          onClick={handleResync}
-          disabled={resyncing}
-          label={`Actualizar ${checklist.setNameEs ?? checklist.setName}`}
-          title="Volver a traer las cartas de este set (rellena precio si no lo tenía)"
-        >
-          <RefreshIcon className={`size-4 ${resyncing ? "animate-spin" : ""}`} />
-        </IconButton>
-      </div>
-
-      {expanded && (
-        <SetCardsGrid
-          checklist={checklist}
-          cards={cards}
-          collectionItems={collectionItems}
-          onZoom={onZoom}
-          onMarkOwned={onMarkOwned}
-          onRemoveItems={onRemoveItems}
-        />
-      )}
-    </Card>
+        {expanded && (
+          <SetCardsGrid
+            checklist={checklist}
+            cards={cards}
+            collectionItems={collectionItems}
+            onZoom={onZoom}
+            onMarkOwned={onMarkOwned}
+            onRemoveItems={onRemoveItems}
+          />
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -659,7 +670,7 @@ export function SetChecklistTab({
         const cards = cardsByChecklist[checklist.id];
         if (!cards) continue;
         initializedIds.current.add(checklist.id);
-        const { missing } = computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs]);
+        const { missing } = computeSetChecklistCompletion(cards, collectionItems, [checklist.setName, checklist.setNameEs], checklist.id);
         if (missing.length > 0) {
           next.add(checklist.id);
           changed = true;

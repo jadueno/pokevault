@@ -32,11 +32,12 @@ interface CollectionItemRow {
   estimated_value_override_note: string | null;
   notes: string | null;
   photo: string | null;
+  checklist_id: string | null;
 }
 
 const COLUMNS = `id, name, set_name, number, rarity, variant, language, condition, quantity, acquisition_type,
   sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded, grading_company, grade,
-  estimated_value_override, estimated_value_override_at, estimated_value_override_note, notes, photo`;
+  estimated_value_override, estimated_value_override_at, estimated_value_override_note, notes, photo, checklist_id`;
 
 function toCollectionItem(row: CollectionItemRow): CollectionItem {
   return {
@@ -64,6 +65,7 @@ function toCollectionItem(row: CollectionItemRow): CollectionItem {
     estimatedValueOverrideNote: row.estimated_value_override_note,
     notes: row.notes,
     photo: row.photo,
+    checklistId: row.checklist_id,
   };
 }
 
@@ -84,8 +86,8 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
         `insert into collection_items (name, set_name, number, rarity, variant, language, condition, quantity,
            acquisition_type, sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded,
            grading_company, grade, estimated_value_override, estimated_value_override_at,
-           estimated_value_override_note, notes, photo)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+           estimated_value_override_note, notes, photo, checklist_id)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          returning ${COLUMNS}`,
         [
           entity.name,
@@ -109,6 +111,7 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
           entity.estimatedValueOverrideNote,
           entity.notes,
           entity.photo,
+          entity.checklistId,
         ],
       );
       return toCollectionItem(rows[0]);
@@ -121,8 +124,8 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
              acquisition_type = $9, sealed_purchase_id = $10, purchase_price = $11, purchase_currency = $12,
              purchase_date = $13, is_graded = $14, grading_company = $15, grade = $16,
              estimated_value_override = $17, estimated_value_override_at = $18, estimated_value_override_note = $19,
-             notes = $20, photo = $21, updated_at = now()
-         where id = $22
+             notes = $20, photo = $21, checklist_id = $22, updated_at = now()
+         where id = $23
          returning ${COLUMNS}`,
         [
           entity.name,
@@ -146,6 +149,7 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
           entity.estimatedValueOverrideNote,
           entity.notes,
           entity.photo,
+          entity.checklistId,
           id,
         ],
       );

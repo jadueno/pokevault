@@ -27,6 +27,7 @@ function validItem(overrides: Partial<NewCollectionItem> = {}): NewCollectionIte
     estimatedValueOverrideNote: null,
     notes: null,
     photo: null,
+    checklistId: null,
     ...overrides,
   };
 }

@@ -116,6 +116,10 @@ export function CollectionQuickForm({
     // con alguno (ver handleSubmit); si no hay coincidencia, se queda sin foto. Al editar,
     // se parte de la foto que ya tenía por si no hay una coincidencia mejor.
     photo: initialItem?.photo ?? null,
+    // El alta manual nunca pertenece a ningún checklist (eso solo pasa al "Marcar como
+    // mía" desde la pestaña Sets); al editar, se conserva el que ya tuviera para no
+    // desvincularlo sin querer de su checklist de origen.
+    checklistId: initialItem?.checklistId ?? null,
   });
   const [saving, setSaving] = useState(false);
   // Foto que ha hecho el usuario en este mismo alta (distinta de la oficial del set

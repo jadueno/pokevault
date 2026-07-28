@@ -48,6 +48,37 @@ test("da de alta una carta suelta a mano, sin depender de ningún set sincroniza
   await expect(page.getByText("Eevee")).toBeVisible();
 });
 
+test("marcar una carta como tuya en un checklist no la marca automáticamente en otro que comparta la misma carta", async ({ page }) => {
+  // Bug real en producción (2026-07): un binder reúne un Pokémon de cualquier expansión
+  // donde haya salido, así que si esa expansión también está sincronizada como set oficial
+  // aparte, la misma carta real (mismo número+variante+expansión) aparece en las dos
+  // listas — marcarla como tuya en una la marcaba automáticamente como tuya en la otra.
+  // "Fake Slowbro" (binder) y "Fake Charizard" (set oficial "Test Set", ya sincronizado en
+  // el primer test de este fichero) comparten a propósito número "2"+variante "holo"+"Test
+  // Set" — el mismo caso real que Slowbro/Slowpoke de "Oscuridad Absoluta".
+  await page.goto("/");
+  await page.getByRole("button", { name: "Mi colección", exact: true }).click();
+  await page.getByRole("button", { name: "Sets", exact: true }).click();
+
+  // Fake Charizard ya está sincronizado (primer test) pero aún no marcado como propio.
+  // Es variante "holo", así que su etiqueta accesible lleva el sufijo "(Holo)".
+  await page.getByRole("button", { name: "Seleccionar varias" }).click();
+  await page.getByRole("button", { name: "Marcar Fake Charizard (Holo) como mía" }).click();
+  await page.getByRole("button", { name: "Marcar 1 como mías" }).click();
+
+  await page.getByRole("button", { name: "+ Binder" }).click();
+  await page.getByRole("textbox", { name: "Pokémon (separados por comas)" }).fill("Slowpoke, Slowbro");
+  await page.getByRole("button", { name: "Crear binder" }).click();
+  await page.getByRole("button", { name: "Cerrar" }).click();
+
+  const binderCard = page.getByRole("group", { name: "Set Slowpoke y Slowbro" });
+  await binderCard.getByRole("button", { name: "Que me faltan" }).click();
+  // Fake Slowbro NO debe aparecer como tuya en el binder solo por serlo en "Test Set".
+  await expect(binderCard.getByText("Fake Slowbro")).toBeVisible();
+  await binderCard.getByRole("button", { name: "Que tengo" }).click();
+  await expect(binderCard.getByText("Fake Slowbro")).not.toBeVisible();
+});
+
 test("añade un deseo a la wishlist con mes objetivo y lo agrupa correctamente", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Wishlist", exact: true }).click();

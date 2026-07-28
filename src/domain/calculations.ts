@@ -187,19 +187,35 @@ function cardSetHints(cardSetName: string | null, checklistHints: string[]): str
   return cardSetName ? [normalizeSetText(cardSetName)] : checklistHints;
 }
 
+/** Un ejemplar marcado desde un checklist concreto (`item.checklistId` puesto) solo cuenta
+ * como "tuya" DENTRO de ese mismo checklist — nunca en otro, aunque comparta la misma
+ * carta real (mismo número+variante), como pasa cuando un binder reúne un Pokémon que
+ * también está en un set oficial sincronizado aparte (bug real en producción, 2026-07:
+ * Slowbro/Slowpoke de "Oscuridad Absoluta", presentes tanto en el set oficial como en el
+ * binder "Slowpoke y Slowbro", se marcaban como propios en los dos con solo marcarla en
+ * uno). Los ejemplares sin checklist de origen (altas manuales, o de antes de que
+ * existiera este campo) siguen comparándose por el texto del nombre del set, como
+ * siempre — fallback deliberado, no se puede saber a qué checklist "pertenecían". */
+function belongsToChecklist(item: CollectionItem, checklistId: string, hints: string[]): boolean {
+  if (item.checklistId !== null) return item.checklistId === checklistId;
+  return !!item.setName && setTextMatches(item.setName, hints);
+}
+
 /** Compara el checklist de un set (sincronizado una vez desde el proveedor externo) con
- * la colección, para saber qué cartas ya tienes y cuáles te faltan. `collection_items` es
- * freeform (el nombre del set puede estar en cualquier idioma o forma, según lo que haya
- * reconocido la IA o escrito el usuario a mano), así que no hay relación por id — se
- * compara por número de carta (universal, no depende del idioma) + variante dentro de los
- * ejemplares cuyo `setName` se parece a la expansión de origen de cada carta del checklist
- * (la suya propia si la tiene, si no las pistas a nivel de checklist entero — ver
- * `cardSetHints`); "se parece" es contención de texto en cualquiera de los dos sentidos,
- * no coincidencia exacta, porque es un checklist de referencia, no un vínculo estructural. */
+ * la colección, para saber qué cartas ya tienes y cuáles te faltan. Para los ejemplares ya
+ * vinculados a un checklist concreto (`checklistId`, ver `belongsToChecklist`) la
+ * comparación es exacta; para los que no (altas manuales o de antes de que existiera el
+ * campo) se compara por número de carta (universal, no depende del idioma) + variante
+ * dentro de los ejemplares cuyo `setName` se parece a la expansión de origen de cada carta
+ * del checklist (la suya propia si la tiene, si no las pistas a nivel de checklist entero
+ * — ver `cardSetHints`); "se parece" es contención de texto en cualquiera de los dos
+ * sentidos, no coincidencia exacta, porque ese fallback es un checklist de referencia, no
+ * un vínculo estructural. */
 export function computeSetChecklistCompletion(
   checklistCards: SetChecklistCard[],
   collectionItems: CollectionItem[],
   setNameHints: (string | null)[],
+  checklistId: string,
 ): SetChecklistCompletion {
   const checklistHints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
 
@@ -209,7 +225,7 @@ export function computeSetChecklistCompletion(
     const hints = cardSetHints(card.setName, checklistHints);
     const key = ownedKey(card.number, card.variant);
     const isOwned = collectionItems.some((item) => {
-      if (!item.setName || !setTextMatches(item.setName, hints)) return false;
+      if (!belongsToChecklist(item, checklistId, hints)) return false;
       const number = item.number?.split("/")[0].trim();
       return !!number && ownedKey(number, item.variant) === key;
     });
@@ -219,15 +235,16 @@ export function computeSetChecklistCompletion(
 }
 
 /** Ids de todos los ejemplares de la colección que corresponden a alguna de estas cartas
- * del checklist (mismo criterio de coincidencia que `computeSetChecklistCompletion`: por
- * número + variante, dentro de los ejemplares cuyo `setName` se parece a la expansión de
- * origen de cada carta). Puede haber más de un id por carta si hay filas duplicadas — se
- * devuelven todas, para poder "desmarcar" (borrar de la colección real) una carta de golpe
- * desde el checklist, no solo la primera fila que coincida. */
+ * del checklist (mismo criterio de coincidencia que `computeSetChecklistCompletion`,
+ * incluida la pertenencia por `checklistId` — ver `belongsToChecklist`). Puede haber más
+ * de un id por carta si hay filas duplicadas — se devuelven todas, para poder "desmarcar"
+ * (borrar de la colección real) una carta de golpe desde el checklist, no solo la primera
+ * fila que coincida. */
 export function findOwnedCollectionItemIds(
   cards: { number: string; variant: CardVariant; setName?: string | null }[],
   collectionItems: CollectionItem[],
   setNameHints: (string | null)[],
+  checklistId: string,
 ): string[] {
   const checklistHints = setNameHints.filter((hint): hint is string => !!hint).map(normalizeSetText);
   const ids: string[] = [];
@@ -235,7 +252,7 @@ export function findOwnedCollectionItemIds(
     const hints = cardSetHints(card.setName ?? null, checklistHints);
     const key = ownedKey(card.number, card.variant);
     for (const item of collectionItems) {
-      if (!item.setName || !setTextMatches(item.setName, hints)) continue;
+      if (!belongsToChecklist(item, checklistId, hints)) continue;
       const number = item.number?.split("/")[0].trim();
       if (number && ownedKey(number, item.variant) === key) ids.push(item.id);
     }

@@ -33,6 +33,7 @@ function item(overrides: Partial<CollectionItem> = {}): CollectionItem {
     estimatedValueOverrideNote: null,
     notes: null,
     photo: null,
+    checklistId: null,
     ...overrides,
   };
 }

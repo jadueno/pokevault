@@ -69,6 +69,7 @@ export function createWishlistItemUseCases(repo: WishlistItemRepository, collect
         estimatedValueOverrideNote: null,
         notes: details.notes,
         photo: wishlistItem.photo,
+        checklistId: null,
       };
       const created = await collectionRepo.create(newItem);
       await repo.remove(id);

@@ -45,6 +45,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Vista en Cardmarket a ese precio"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Charizard,
+    checklistId: null,
   },
   {
     name: "Pikachu",
@@ -68,6 +69,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Estimado a mano"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Pikachu,
+    checklistId: null,
   },
   {
     name: "Mewtwo",
@@ -91,6 +93,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Precio de mercado para PSA 9"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Mewtwo,
+    checklistId: null,
   },
   {
     name: "Gengar",
@@ -114,6 +117,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: null,
     notes: demoNote("Salió de un sobre, sin valor estimado todavía"),
     photo: DEMO_PHOTOS.Gengar,
+    checklistId: null,
   },
   {
     name: "Eevee",
@@ -137,6 +141,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: null,
     notes: demoNote("Sin valor estimado todavía"),
     photo: DEMO_PHOTOS.Eevee,
+    checklistId: null,
   },
   {
     name: "Blastoise",
@@ -160,6 +165,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Estimado a mano"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Blastoise,
+    checklistId: null,
   },
   {
     name: "Umbreon",
@@ -183,6 +189,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Estimado a mano"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Umbreon,
+    checklistId: null,
   },
   {
     name: "Lugia",
@@ -206,6 +213,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Precio de mercado para CGC 8.5"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Lugia,
+    checklistId: null,
   },
   {
     name: "Rayquaza-EX",
@@ -229,6 +237,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Estimado a mano"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Rayquaza,
+    checklistId: null,
   },
   {
     name: "Sylveon",
@@ -252,6 +261,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Estimado a mano"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Sylveon,
+    checklistId: null,
   },
   {
     name: "Mew",
@@ -275,6 +285,7 @@ const COLLECTION_ITEMS: NewCollectionItem[] = [
     estimatedValueOverrideNote: demoNote("Estimado a mano"),
     notes: demoNote(),
     photo: DEMO_PHOTOS.Mew,
+    checklistId: null,
   },
 ];
 
