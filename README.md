@@ -6,6 +6,18 @@ Gestor personal de colecciones de cartas Pokémon TCG: buscas y sincronizas el s
 
 Es una herramienta de uso personal (como sus hermanos [rumbo](../rumbo), [nous](../nous) y [faro](../faro)) construida con calidad de producto real: base de datos real, arquitectura hexagonal, tests de verdad. Multi-usuario real (login, colecciones compartidas) queda para más adelante — ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Capturas
+
+Datos ficticios de ejemplo (sembrados con `npm run seed:demo` contra una base de datos temporal), no la colección real del dueño de la app.
+
+| Mi colección (escritorio) | Resumen (escritorio) | Resumen (móvil) |
+| --- | --- | --- |
+| ![Mi colección](docs/screenshots/coleccion-desktop.png) | ![Resumen](docs/screenshots/resumen-desktop.png) | ![Resumen en móvil](docs/screenshots/resumen-movil.png) |
+
+**Binder personalizado** — reúne todas las cartas de un Pokémon (aquí, Pikachu) de cualquier expansión donde haya salido, sin tener que sincronizar cada set entero:
+
+![Binder personalizado](docs/screenshots/binder-desktop.png)
+
 ## Configuración inicial (solo la primera vez)
 
 ```bash
