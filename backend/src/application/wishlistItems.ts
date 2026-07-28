@@ -44,8 +44,7 @@ export function createWishlistItemUseCases(repo: WishlistItemRepository, collect
     /** Registra la compra en la colección y quita el elemento de la wishlist en la
      * misma operación — "mover a colección" no es una tabla nueva, es este caso de uso. */
     moveToCollection: async (id: string, details: MoveToCollectionDetails) => {
-      const items = await repo.list();
-      const wishlistItem = items.find((i) => i.id === id);
+      const wishlistItem = await repo.findById(id);
       if (!wishlistItem) throw new ValidationError("No existe ese elemento de la wishlist");
 
       const newItem: NewCollectionItem = {
