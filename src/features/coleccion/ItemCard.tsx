@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CardCondition, CardVariant, CollectionItem, SealedPurchase } from "../../domain/types";
 import { costPerCard, formatMoney } from "../../domain/calculations";
-import { Badge, badgeToneColors, type BadgeTone } from "../../components/Badge";
+import { Badge, type BadgeTone } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { useConfirm } from "../../components/ConfirmProvider";
@@ -36,8 +36,7 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 // De mejor a peor estado, un degradado semántico de verde a rojo — mismo lenguaje que ya
-// usaban los tokens --status-* de la app (prioridad, ganancia/pérdida), aplicado ahora
-// también a la condición física de la carta.
+// usaban los tokens --status-* de la app (prioridad, ganancia/pérdida).
 const CONDITION_TONES: Record<CardCondition, BadgeTone> = {
   mint: "good",
   near_mint: "good",
@@ -92,22 +91,13 @@ export function ItemCard({
     }
   }
 
-  const conditionColor = badgeToneColors[CONDITION_TONES[item.condition]].bg;
   // Coste repartido: nunca se guarda en `item.purchasePrice` (seguiría siendo "no lo sé"
   // si vino de un sobre) — se calcula siempre al vuelo a partir del precio del sobre y
   // cuántas cartas se le han vinculado hasta ahora, para que no se quede desactualizado.
   const estimatedFromPack = sealedPurchase ? costPerCard(sealedPurchase, linkedCardCount) : null;
 
   return (
-    <Card
-      variant="gradient"
-      className="flex flex-col gap-3"
-      // Igual que la prioridad en wishlist: el estado de conservación tiñe toda la
-      // tarjeta (verde = mint, ámbar = medio, rojo = jugada), no solo la insignia.
-      style={{
-        background: `linear-gradient(165deg, color-mix(in srgb, ${conditionColor} 28%, var(--surface-2)) 0%, var(--surface-1) 62%, var(--page) 145%)`,
-      }}
-    >
+    <Card variant="gradient" className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
         {item.photo ? (
           <button
