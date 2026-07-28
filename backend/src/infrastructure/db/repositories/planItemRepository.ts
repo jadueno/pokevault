@@ -37,6 +37,11 @@ export function createPlanItemRepository(pool: Pool): PlanItemRepository {
       return rows.map(toPlanItem);
     },
 
+    async findById(id: string) {
+      const { rows } = await pool.query<PlanItemRow>(`select ${COLUMNS} from plan_items where id = $1`, [id]);
+      return rows[0] ? toPlanItem(rows[0]) : null;
+    },
+
     async create(entity: NewPlanItem) {
       const { rows } = await pool.query<PlanItemRow>(
         `insert into plan_items (month, category, description, reference_price, search_term, done, position)

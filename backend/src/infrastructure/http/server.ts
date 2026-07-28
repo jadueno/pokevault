@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyError } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -43,6 +43,20 @@ export async function buildServer(pool: Pool, pokemonTcgProvider: PokemonTcgProv
   // Límite generoso: la app la usa una sola persona, así que esto no debería notarse
   // nunca en uso normal, solo frena un abuso (o un bug) que dispare peticiones sin control.
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+
+  // Sin esto, un error no controlado (p. ej. uno real de Postgres) llega al cliente tal
+  // cual vía el manejador por defecto de Fastify, que sí serializa `error.message` en la
+  // respuesta — puede filtrar detalle interno (nombre de columna, mensaje del driver) en
+  // una API ya expuesta a internet. El error completo se sigue registrando en el logger.
+  app.setErrorHandler((error: FastifyError, request, reply) => {
+    const statusCode = error.statusCode ?? 500;
+    if (statusCode >= 500) {
+      request.log.error(error);
+      reply.code(500).send({ error: "Error interno del servidor" });
+      return;
+    }
+    reply.code(statusCode).send({ error: error.message });
+  });
 
   app.get("/health", async () => ({ status: "ok" }));
 

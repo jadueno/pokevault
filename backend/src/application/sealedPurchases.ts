@@ -33,8 +33,7 @@ export function createSealedPurchaseUseCases(repo: SealedPurchaseRepository) {
     /** No hay precio de mercado automático para sellado: se estima a mano, y la
      * corrección queda identificada como tal — mismo patrón que collectionItems. */
     overrideEstimatedValue: async (id: string, value: number, note: string | null) => {
-      const items = await repo.list();
-      const existing = items.find((i) => i.id === id);
+      const existing = await repo.findById(id);
       if (!existing) throw new ValidationError("No existe esa compra de producto sellado");
       const { id: _id, ...rest } = existing;
       return repo.update(id, {

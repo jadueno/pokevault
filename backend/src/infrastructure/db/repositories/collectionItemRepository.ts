@@ -74,6 +74,11 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
       return rows.map(toCollectionItem);
     },
 
+    async findById(id: string) {
+      const { rows } = await pool.query<CollectionItemRow>(`select ${COLUMNS} from collection_items where id = $1`, [id]);
+      return rows[0] ? toCollectionItem(rows[0]) : null;
+    },
+
     async create(entity: NewCollectionItem) {
       const { rows } = await pool.query<CollectionItemRow>(
         `insert into collection_items (name, set_name, number, rarity, variant, language, condition, quantity,

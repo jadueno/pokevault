@@ -90,6 +90,12 @@ A diferencia del resto del brief original (que planteaba un producto abierto a o
 - **Sesión con un token firmado (HMAC-SHA256) sin estado en el servidor** (`sessionToken.ts`) — nada que guardar en base de datos ni que se pierda si se reinicia el proceso; el propio token lleva su caducidad (30 días) firmada. Cerrar sesión desde la app solo borra el token del propio dispositivo (`localStorage`), no lo revoca en el servidor — con 30 días de vida y un único usuario real, no ha compensado la complejidad de una lista de revocación.
 - **`GET /auth-config`** (siempre público) le dice al frontend si hace falta login antes de intentar nada — así el frontend no dispara peticiones autenticadas a ciegas: los 5 hooks de datos (`useCollectionData`, etc.) reciben un flag `enabled` y no llaman a nada hasta saber que no hace falta login, o que ya hay sesión.
 - **`POST /login`** verifica usuario+contraseña y devuelve el token; `/health`, `/login` y `/auth-config` son las únicas rutas públicas cuando el login está activo.
+- **`/login` tiene su propio límite de peticiones** (10/minuto), aparte del límite general de la API (300/minuto, pensado para uso normal de CRUD) — es la única ruta que un atacante externo puede probar sin sesión, así que merece frenar la fuerza bruta por separado.
+
+Al hacer público el repo (28/07/2026) se revisó con más detalle de cara a portfolio y se corrigió lo siguiente:
+
+- **Manejador de errores global** (`server.ts`): cualquier error no controlado (p. ej. un id que no es un UUID válido, que antes hacía que Postgres lanzara su propio mensaje de error hasta el cliente tal cual) ahora responde con un mensaje genérico en 500 y registra el error completo solo en el logger del servidor — antes de esto, un error real podía filtrar detalle interno (nombre de columna, mensaje del driver) en una API ya expuesta a internet.
+- **`findById` en los repositorios** (`domain/ports.ts`): varios casos de uso (`overrideEstimatedValue` en colección/sellado, `toggleDone` del plan, `moveToCollection` de wishlist, y tres sitios de `setChecklists.ts`) traían la lista entera con `repo.list()` para buscar un solo elemento con `.find()`. Se añadió `findById` (y `findByExternalId` en `SetChecklistRepository`) al puerto y se implementó en cada repositorio Postgres — elimina la duplicación y evita traer todas las filas para operar sobre una sola.
 
 Si algún día se abre a otros usuarios, la migración queda documentada (no construida): añadir `users`+`sessions` reales, añadir `user_id` a `collection_items`/`wishlist_items`/`sealed_purchases` (nullable primero, backfill a un único usuario, luego `not null`), `collections` con visibilidad (`private`/`unlisted`/`public`).
 
@@ -135,7 +141,7 @@ La wishlist sigue teniendo su propio uso, distinto del plan: deseos puntuales de
 
 - `src/domain/` — tipos y cálculos puros (`formatMoney`, `groupWishlistByMonth`, `groupPlanByMonth`, `computeSetChecklistCompletion`).
 - `src/data/` — un hook por área (`useCollectionData`, `useWishlistData`, `useSealedData`, `usePlanData`, `useSetChecklistData`) + `api.ts` + `imageCapture.ts` (compresión de fotos en cliente, usada por el adjuntar-foto-a-mano de `PhotoField`).
-- `src/features/` — una pantalla por carpeta: `coleccion/` (incluye `SetChecklistTab.tsx` y el alta manual de carta), `wishlist/`, `sellado/`, `dashboard/`, `plan/`.
+- `src/features/` — una pantalla por carpeta: `coleccion/` (incluye `SetChecklistTab.tsx`, el alta manual de carta, y `ItemCard.tsx`/`SealedItemCard.tsx` como componentes propios — antes vivían dentro de `ColeccionScreen.tsx`, que llegó a 648 líneas mezclando demasiadas responsabilidades; se separaron el 28/07/2026 al revisar el repo de cara a portfolio), `wishlist/`, `sellado/`, `dashboard/`, `plan/`.
 - `backend/src/domain|application|infrastructure/` — ver arquitectura hexagonal arriba.
 - `docker-compose.yml` — Postgres local, puerto 5436.
 
