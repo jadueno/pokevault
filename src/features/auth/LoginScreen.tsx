@@ -46,8 +46,11 @@ export function LoginScreen({ onLogin }: { onLogin: (email: string, password: st
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Field label="Email">
+            {/* type="text", no "email": el backend no exige formato de email (algunas
+                cuentas, como la del dueño original, reutilizan un nombre de usuario que no
+                lo tiene) — con type="email" el navegador bloquearía el envío del todo. */}
             <input
-              type="email"
+              type="text"
               className={inputClass}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
