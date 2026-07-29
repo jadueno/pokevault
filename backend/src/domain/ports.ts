@@ -43,8 +43,13 @@ export interface UserRepository {
 }
 
 // ---- Checklist de set ----
+// `set_catalogs`/`set_catalog_cards` (verdad compartida del proveedor, un catálogo por
+// external_set_id real para TODA la instancia) vs. `set_checklists` (puntero ligero de UN
+// usuario a ese catálogo, con su propio alias `set_name_es`) — ver migración
+// 1784000000019 y ARCHITECTURE.md. El `SetChecklist` compuesto que devuelve el
+// repositorio no cambia de forma frente a antes de esta separación.
 
-export interface UpsertChecklistInput {
+export interface NewCatalogInput {
   externalSetId: string;
   setName: string;
   setNameEs: string | null;
@@ -54,14 +59,32 @@ export interface UpsertChecklistInput {
   pokemonNames: string[] | null;
 }
 
+export interface ResyncCatalogInput {
+  setName: string;
+  cards: PokemonTcgCardData[];
+}
+
 export interface SetChecklistRepository {
   list(): Promise<SetChecklist[]>;
   findById(id: string): Promise<SetChecklist | null>;
+  /** ¿YO (el usuario acotado de este repositorio) ya tengo un checklist para este set/
+   * binder real? — de-dup por usuario, sin relación con si el catálogo ya existe o no. */
   findByExternalId(externalSetId: string): Promise<SetChecklist | null>;
   getCards(checklistId: string): Promise<SetChecklistCard[]>;
-  /** Reemplazo completo (borra y vuelve a insertar) — usado tanto al sincronizar un set
-   * nuevo como al "Actualizar" uno ya existente (mismo externalSetId). */
-  upsertChecklist(input: UpsertChecklistInput): Promise<SetChecklist>;
+  /** ¿Existe YA un catálogo compartido para este set/binder real, lo tenga añadido quien
+   * lo tenga? Si lo hay, no hace falta llamar al proveedor ni volver a guardar sus
+   * cartas — solo añadir el puntero de este usuario (ver `addChecklistToCatalog`). */
+  findCatalogByExternalId(externalSetId: string): Promise<{ id: string } | null>;
+  /** Solo cuando NO existe catálogo todavía: crea catálogo + cartas + el puntero de este
+   * usuario, en una transacción. */
+  createChecklistWithNewCatalog(input: NewCatalogInput): Promise<SetChecklist>;
+  /** Reutiliza un catálogo ya existente: solo añade el puntero de este usuario (su propio
+   * alias), sin tocar cartas ni llamar al proveedor. */
+  addChecklistToCatalog(catalogId: string, userSetNameEs: string | null): Promise<SetChecklist>;
+  /** Refresca el catálogo COMPARTIDO al que apunta este checklist (comprobando antes que
+   * el checklist es de este usuario) — afecta a todos los usuarios que lo tengan añadido,
+   * no solo a quien pulsa "Actualizar". */
+  resyncCatalog(checklistId: string, input: ResyncCatalogInput): Promise<SetChecklist | null>;
 }
 
 // ---- Proveedor de datos de set de Pokémon TCG (puerto intercambiable) ----

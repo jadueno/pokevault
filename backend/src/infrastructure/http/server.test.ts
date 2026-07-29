@@ -328,17 +328,21 @@ describe("/set-checklists", () => {
   // datos — más simple que pasar por el flujo de búsqueda+sincronización del fake.
   async function seedChecklist() {
     const {
-      rows: [checklist],
+      rows: [catalog],
     } = await pool.query<{ id: string }>(
-      `insert into set_checklists (user_id, external_set_id, set_name, set_name_es, total_cards)
-       values ($1, 'me5', 'Pitch Black', 'Oscuridad Absoluta', 2) returning id`,
-      [userId],
+      `insert into set_catalogs (external_set_id, set_name, total_cards) values ('me5', 'Pitch Black', 2) returning id`,
     );
     await pool.query(
-      `insert into set_checklist_cards (checklist_id, number, name, rarity, image_url) values
+      `insert into set_catalog_cards (catalog_id, number, name, rarity, image_url) values
          ($1, '1', 'Tropius', 'Common', null),
          ($1, '2', 'Grubbin', 'Common', null)`,
-      [checklist.id],
+      [catalog.id],
+    );
+    const {
+      rows: [checklist],
+    } = await pool.query<{ id: string }>(
+      `insert into set_checklists (user_id, catalog_id, set_name_es) values ($1, $2, 'Oscuridad Absoluta') returning id`,
+      [userId, catalog.id],
     );
     return checklist.id;
   }
@@ -441,6 +445,38 @@ describe("/set-checklists", () => {
   it("POST /set-checklists/binder responde 400 si no se indica ningún Pokémon", async () => {
     const res = await injectAuthed({ method: "POST", url: "/set-checklists/binder", payload: { title: "Vacío", pokemonNames: [] } });
     expect(res.statusCode).toBe(400);
+  });
+
+  it("dos usuarios sincronizando el mismo set comparten un único catálogo, sin duplicar sus cartas", async () => {
+    const {
+      rows: [otherUser],
+    } = await pool.query<{ id: string }>("insert into users (email, password_hash) values ($1, $2) returning id", [
+      "otro@example.com",
+      hashPassword("otro-pass"),
+    ]);
+    const login = await app.inject({ method: "POST", url: "/login", payload: { email: "otro@example.com", password: "otro-pass" } });
+    const otherHeader = { authorization: `Bearer ${login.json().token}` };
+
+    const first = await injectAuthed({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: "Alias A" } });
+    const second = await app.inject({
+      method: "POST",
+      url: "/set-checklists",
+      headers: otherHeader,
+      payload: { externalSetId: "ts1", setNameEs: "Alias B" },
+    });
+    expect(first.statusCode).toBe(201);
+    expect(second.statusCode).toBe(201);
+    expect(first.json().id).not.toBe(second.json().id);
+
+    const { rows: catalogRows } = await pool.query("select count(*) from set_catalogs where external_set_id = 'ts1'");
+    expect(Number(catalogRows[0].count)).toBe(1);
+
+    const { rows: cardRows } = await pool.query(
+      "select count(*) from set_catalog_cards cc join set_catalogs c on c.id = cc.catalog_id where c.external_set_id = 'ts1'",
+    );
+    expect(Number(cardRows[0].count)).toBe(2);
+
+    await pool.query("delete from users where id = $1", [otherUser.id]);
   });
 });
 

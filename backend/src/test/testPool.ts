@@ -1,11 +1,14 @@
 import "../infrastructure/loadEnv.js";
 import { Pool } from "pg";
 
-// "plan_settings" no está aquí a propósito: es una tabla singleton (mismo patrón que
-// "profile" en faro), no una colección de fixtures que tenga sentido vaciar entre tests.
-// "set_checklist_cards" tampoco: cae con el "cascade" al truncar "set_checklists" (FK
-// ON DELETE CASCADE), no hace falta listarla aparte.
-const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items", "set_checklists"];
+// "plan_settings" no está aquí a propósito: cada usuario tiene su propia fila (ver
+// migración de multi-usuario), pero como no es una colección de fixtures propiamente
+// (se crea perezosamente al pedirla), truncarla no aporta nada especial frente al resto.
+// "set_catalogs" (no "set_checklists"): desde que se separó el catálogo compartido del
+// puntero por usuario (ver migración 1784000000019), las cartas cuelgan de
+// "set_catalogs" (set_catalog_cards.catalog_id), y "set_checklists" también referencia
+// "set_catalogs" (catalog_id) — truncar "set_catalogs" en cascada vacía las tres tablas.
+const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items", "set_catalogs"];
 
 /**
  * Pool conectado a TEST_DATABASE_URL, nunca a la base real. Falla pronto y con un

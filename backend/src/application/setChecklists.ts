@@ -39,17 +39,26 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
       }
     },
 
-    /** Sincroniza un set elegido explícitamente por su id — nunca adivinado. Si ya está
-     * sincronizado no repite el trabajo (usar `resync` para eso). `setNameEs` es el nombre
-     * en español que devolvió el proveedor al buscarlo (no lo que haya escrito el usuario
-     * en el buscador, que puede no ser exacto — ver SetSearchPanel.handleSync). */
+    /** Sincroniza un set elegido explícitamente por su id — nunca adivinado. Si YO ya lo
+     * tengo añadido, no repite el trabajo (usar `resync` para eso). Si no lo tengo pero YA
+     * existe un catálogo compartido para este set real (lo sincronizó otro usuario), solo
+     * añade mi puntero — sin llamar al proveedor ni duplicar cartas (ver
+     * ARCHITECTURE.md, separación catálogo/checklist). Solo si no existe ningún catálogo
+     * todavía se llama al proveedor y se crea uno nuevo. `setNameEs` es el nombre en
+     * español que devolvió el proveedor al buscarlo (no lo que haya escrito el usuario en
+     * el buscador, que puede no ser exacto — ver SetSearchPanel.handleSync). */
     sync: async (externalSetId: string, setNameEs: string | null): Promise<SetChecklist | null> => {
       assertNonEmpty(externalSetId, "El id del set");
       const existing = await repo.findByExternalId(externalSetId);
       if (existing) return null;
+
+      const catalog = await repo.findCatalogByExternalId(externalSetId);
+      if (catalog) {
+        return await repo.addChecklistToCatalog(catalog.id, setNameEs);
+      }
       try {
         const { setName, cards } = await provider.getSetCards(externalSetId);
-        return await repo.upsertChecklist({ externalSetId, setName, setNameEs, cards, kind: "official", pokemonNames: null });
+        return await repo.createChecklistWithNewCatalog({ externalSetId, setName, setNameEs, cards, kind: "official", pokemonNames: null });
       } catch {
         return null;
       }
@@ -58,9 +67,9 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
     /** Crea un "binder" personalizado: todas las cartas de uno o varios Pokémon, de
      * cualquier expansión donde hayan salido (p. ej. "Slowpoke y Slowbro" reunidos en un
      * único checklist) — alternativa a sincronizar un set oficial completo. `title` es el
-     * texto que ve el usuario en vez de un nombre de expansión real. Mismo criterio de
-     * dedup que `sync`: si ya existe un binder con exactamente estos Pokémon (en cualquier
-     * orden), no repite el trabajo. */
+     * texto que ve el usuario en vez de un nombre de expansión real — siempre el alias
+     * propio de quien lo crea/añade, nunca el de otro usuario aunque se reutilice su
+     * catálogo. Mismo criterio de dedup + reutilización de catálogo que `sync`. */
     createBinder: async (title: string, pokemonNames: string[]): Promise<SetChecklist | null> => {
       assertNonEmpty(title, "El título del binder");
       const names = pokemonNames.map((n) => n.trim()).filter((n) => n.length > 0);
@@ -70,9 +79,14 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
       const externalSetId = binderExternalId(names);
       const existing = await repo.findByExternalId(externalSetId);
       if (existing) return null;
+
+      const catalog = await repo.findCatalogByExternalId(externalSetId);
+      if (catalog) {
+        return await repo.addChecklistToCatalog(catalog.id, title);
+      }
       try {
         const cards = await provider.getCardsByPokemonNames(names);
-        return await repo.upsertChecklist({
+        return await repo.createChecklistWithNewCatalog({
           externalSetId,
           setName: title,
           setNameEs: title,
@@ -85,29 +99,22 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
       }
     },
 
-    /** Vuelve a traer las cartas de un checklist ya sincronizado (mismo externalSetId,
-     * mismo alias) — para rellenar precio en checklists sincronizados antes de que
-     * existiera ese campo, sin tener que borrarlo y volver a añadirlo a mano. En un binder
-     * repite la búsqueda por los mismos nombres de Pokémon en vez de pedir un set. */
+    /** Refresca el catálogo COMPARTIDO al que apunta este checklist — afecta a todos los
+     * usuarios que lo tengan añadido, no solo a quien pulsa "Actualizar". En un binder
+     * repite la búsqueda por los mismos nombres de Pokémon en vez de pedir un set; en un
+     * set oficial toma el nombre fresco del proveedor por si el nombre canónico cambió. */
     resync: async (checklistId: string): Promise<SetChecklist | null> => {
       const checklist = await repo.findById(checklistId);
       if (!checklist) return null;
       try {
-        // En un binder, "setName" es el título que puso el usuario (no viene del
+        // En un binder, "setName" es el título que puso quien lo creó (no viene del
         // proveedor, que solo da las cartas) — se mantiene tal cual. En un set oficial sí
         // se refresca con lo que devuelva el proveedor, por si el nombre canónico cambia.
         const { setName, cards } =
           checklist.kind === "binder"
             ? { setName: checklist.setName, cards: await provider.getCardsByPokemonNames(checklist.pokemonNames ?? []) }
             : await provider.getSetCards(checklist.externalSetId);
-        return await repo.upsertChecklist({
-          externalSetId: checklist.externalSetId,
-          setName,
-          setNameEs: checklist.setNameEs,
-          cards,
-          kind: checklist.kind,
-          pokemonNames: checklist.pokemonNames,
-        });
+        return await repo.resyncCatalog(checklistId, { setName, cards });
       } catch {
         return null;
       }

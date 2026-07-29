@@ -1,49 +1,145 @@
 import { describe, expect, it } from "vitest";
-import type { SetChecklistRepository, UpsertChecklistInput } from "../domain/ports.js";
-import type { SetChecklist } from "../domain/types.js";
+import type { NewCatalogInput, PokemonTcgCardData, PokemonTcgProvider, ResyncCatalogInput, SetChecklistRepository } from "../domain/ports.js";
+import type { SetChecklist, SetChecklistKind } from "../domain/types.js";
 import { createFakePokemonTcgProvider } from "../infrastructure/catalog/fakePokemonTcgProvider.js";
 import { createSetChecklistUseCases } from "./setChecklists.js";
 
-function createFakeSetChecklistRepository(): SetChecklistRepository {
-  const checklists: SetChecklist[] = [];
-  let nextId = 1;
+interface FakeCatalog {
+  id: string;
+  externalSetId: string;
+  setName: string;
+  totalCards: number;
+  syncedAt: string;
+  kind: SetChecklistKind;
+  pokemonNames: string[] | null;
+  cards: PokemonTcgCardData[];
+}
+
+interface FakeChecklistRow {
+  id: string;
+  userId: string;
+  catalogId: string;
+  setNameEs: string | null;
+}
+
+/** Almacén en memoria COMPARTIDO entre repos de distintos usuarios — es lo que permite
+ * simular la reutilización de catálogo entre usuarios (mismo criterio que la base de
+ * datos real, donde `set_catalogs` es compartida entre todos). */
+function createFakeCatalogStore() {
+  const catalogs: FakeCatalog[] = [];
+  const checklists: FakeChecklistRow[] = [];
+  let nextCatalogId = 1;
+  let nextChecklistId = 1;
+  return {
+    catalogs,
+    checklists,
+    nextCatalogId: () => String(nextCatalogId++),
+    nextChecklistId: () => String(nextChecklistId++),
+  };
+}
+type CatalogStore = ReturnType<typeof createFakeCatalogStore>;
+
+function countDistinctCards(cards: PokemonTcgCardData[]): number {
+  return new Set(cards.map((c) => `${c.setName}::${c.number}`)).size;
+}
+
+function composeSetChecklist(row: FakeChecklistRow, catalog: FakeCatalog): SetChecklist {
+  return {
+    id: row.id,
+    externalSetId: catalog.externalSetId,
+    setName: catalog.setName,
+    setNameEs: row.setNameEs,
+    totalCards: catalog.totalCards,
+    syncedAt: catalog.syncedAt,
+    kind: catalog.kind,
+    pokemonNames: catalog.pokemonNames,
+  };
+}
+
+function createFakeSetChecklistRepository(store: CatalogStore, userId: string): SetChecklistRepository {
+  function findRow(predicate: (row: FakeChecklistRow) => boolean) {
+    const row = store.checklists.find((c) => c.userId === userId && predicate(c));
+    if (!row) return null;
+    const catalog = store.catalogs.find((cat) => cat.id === row.catalogId)!;
+    return { row, catalog };
+  }
 
   return {
     async list() {
-      return [...checklists];
+      return store.checklists
+        .filter((c) => c.userId === userId)
+        .map((row) => composeSetChecklist(row, store.catalogs.find((cat) => cat.id === row.catalogId)!));
     },
     async findById(id: string) {
-      return checklists.find((c) => c.id === id) ?? null;
+      const found = findRow((row) => row.id === id);
+      return found ? composeSetChecklist(found.row, found.catalog) : null;
     },
     async findByExternalId(externalSetId: string) {
-      return checklists.find((c) => c.externalSetId === externalSetId) ?? null;
+      const found = findRow((row) => store.catalogs.find((cat) => cat.id === row.catalogId)?.externalSetId === externalSetId);
+      return found ? composeSetChecklist(found.row, found.catalog) : null;
     },
     async getCards() {
       return [];
     },
-    async upsertChecklist(input: UpsertChecklistInput) {
-      const index = checklists.findIndex((c) => c.externalSetId === input.externalSetId);
-      const checklist: SetChecklist = {
-        id: index === -1 ? String(nextId++) : checklists[index].id,
+    async findCatalogByExternalId(externalSetId: string) {
+      const catalog = store.catalogs.find((cat) => cat.externalSetId === externalSetId);
+      return catalog ? { id: catalog.id } : null;
+    },
+    async createChecklistWithNewCatalog(input: NewCatalogInput) {
+      const catalog: FakeCatalog = {
+        id: store.nextCatalogId(),
         externalSetId: input.externalSetId,
         setName: input.setName,
-        setNameEs: input.setNameEs,
-        totalCards: new Set(input.cards.map((c) => `${c.setName}::${c.number}`)).size,
+        totalCards: countDistinctCards(input.cards),
         syncedAt: new Date().toISOString(),
         kind: input.kind,
         pokemonNames: input.pokemonNames,
+        cards: input.cards,
       };
-      if (index === -1) checklists.push(checklist);
-      else checklists[index] = checklist;
-      return checklist;
+      store.catalogs.push(catalog);
+      const row: FakeChecklistRow = { id: store.nextChecklistId(), userId, catalogId: catalog.id, setNameEs: input.setNameEs };
+      store.checklists.push(row);
+      return composeSetChecklist(row, catalog);
+    },
+    async addChecklistToCatalog(catalogId: string, userSetNameEs: string | null) {
+      const catalog = store.catalogs.find((cat) => cat.id === catalogId)!;
+      const row: FakeChecklistRow = { id: store.nextChecklistId(), userId, catalogId, setNameEs: userSetNameEs };
+      store.checklists.push(row);
+      return composeSetChecklist(row, catalog);
+    },
+    async resyncCatalog(checklistId: string, input: ResyncCatalogInput) {
+      const found = findRow((row) => row.id === checklistId);
+      if (!found) return null;
+      found.catalog.setName = input.setName;
+      found.catalog.cards = input.cards;
+      found.catalog.totalCards = countDistinctCards(input.cards);
+      found.catalog.syncedAt = new Date().toISOString();
+      return composeSetChecklist(found.row, found.catalog);
     },
   };
 }
 
-function setup() {
-  const repo = createFakeSetChecklistRepository();
+function setup(store: CatalogStore = createFakeCatalogStore(), userId = "user-1") {
+  const repo = createFakeSetChecklistRepository(store, userId);
   const provider = createFakePokemonTcgProvider();
-  return { repo, useCases: createSetChecklistUseCases(repo, provider) };
+  return { repo, store, useCases: createSetChecklistUseCases(repo, provider) };
+}
+
+/** Envuelve el proveedor fake contando llamadas a getSetCards — para probar que reutilizar
+ * un catálogo existente no vuelve a llamar al proveedor. */
+function createCountingProvider(): { provider: PokemonTcgProvider; getSetCardsCalls: string[] } {
+  const inner = createFakePokemonTcgProvider();
+  const getSetCardsCalls: string[] = [];
+  return {
+    getSetCardsCalls,
+    provider: {
+      ...inner,
+      getSetCards: async (externalSetId: string) => {
+        getSetCardsCalls.push(externalSetId);
+        return inner.getSetCards(externalSetId);
+      },
+    },
+  };
 }
 
 describe("createSetChecklistUseCases", () => {
@@ -164,6 +260,38 @@ describe("createSetChecklistUseCases", () => {
       const { useCases } = setup();
       const result = await useCases.createBinder("Nada", ["no-existe-este-pokemon"]);
       expect(result?.totalCards).toBe(0);
+    });
+  });
+
+  describe("catálogo compartido entre usuarios", () => {
+    it("dos usuarios sincronizando el mismo set comparten un único catálogo, sin llamar dos veces al proveedor", async () => {
+      const store = createFakeCatalogStore();
+      const { provider, getSetCardsCalls } = createCountingProvider();
+      const useCasesA = createSetChecklistUseCases(createFakeSetChecklistRepository(store, "user-a"), provider);
+      const useCasesB = createSetChecklistUseCases(createFakeSetChecklistRepository(store, "user-b"), provider);
+
+      const a = await useCasesA.sync("ts1", "Alias A");
+      const b = await useCasesB.sync("ts1", "Alias B");
+
+      expect(a?.setNameEs).toBe("Alias A");
+      expect(b?.setNameEs).toBe("Alias B");
+      expect(a?.id).not.toBe(b?.id); // punteros distintos...
+      expect(store.catalogs).toHaveLength(1); // ...pero un solo catálogo compartido
+      expect(getSetCardsCalls).toEqual(["ts1"]); // el proveedor solo se llamó una vez
+    });
+
+    it("el resync de un usuario usa el mismo catálogo compartido, sin duplicarlo", async () => {
+      const store = createFakeCatalogStore();
+      const { useCases: useCasesA } = setup(store, "user-a");
+      const { useCases: useCasesB } = setup(store, "user-b");
+      const a = await useCasesA.sync("ts1", "Alias A");
+      await useCasesB.sync("ts1", "Alias B");
+
+      const resynced = await useCasesA.resync(a!.id);
+
+      expect(resynced).not.toBeNull();
+      expect(store.catalogs).toHaveLength(1); // el resync no crea un catálogo nuevo
+      expect((await useCasesB.list())[0].externalSetId).toBe("ts1"); // el otro usuario lo sigue viendo igual
     });
   });
 });
