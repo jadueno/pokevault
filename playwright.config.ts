@@ -25,7 +25,14 @@ export default defineConfig({
       // POKEMON_TCG_PROVIDER=fake fuerza el proveedor de sets fake (determinista, sin
       // red) — el real tiene ~45% de error y ~8s de latencia media, haría el E2E lento
       // y no determinista.
-      env: { PORT: String(BACKEND_PORT), DATABASE_URL: process.env.TEST_DATABASE_URL ?? "", POKEMON_TCG_PROVIDER: "fake" },
+      env: {
+        PORT: String(BACKEND_PORT),
+        DATABASE_URL: process.env.TEST_DATABASE_URL ?? "",
+        POKEMON_TCG_PROVIDER: "fake",
+        // Login obligatorio (ver auth.ts): el servidor ya no lee LOGIN_USERNAME/
+        // LOGIN_PASSWORD_HASH, solo necesita un secreto para firmar tokens.
+        SESSION_SECRET: "e2e-test-secret",
+      },
     },
     {
       command: `npx vite --port ${FRONTEND_PORT}`,
@@ -34,5 +41,12 @@ export default defineConfig({
       env: { VITE_API_URL: `http://localhost:${BACKEND_PORT}` },
     },
   ],
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "setup", testMatch: /.*\.setup\.ts/ },
+    {
+      name: "chromium",
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/user.json" },
+    },
+  ],
 });

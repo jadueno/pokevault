@@ -11,6 +11,7 @@ import type {
   SetChecklist,
   SetChecklistCard,
   SetChecklistKind,
+  User,
   WishlistItem,
 } from "./types.js";
 
@@ -30,6 +31,15 @@ export type PlanItemRepository = Repository<PlanItem, NewPlanItem>;
 export interface PlanSettingsRepository {
   get(): Promise<PlanSettings>;
   update(entity: PlanSettings): Promise<PlanSettings>;
+}
+
+// ---- Usuarios ----
+
+/** Solo `findByEmail`: se usa únicamente dentro de `/login` para resolver la identidad a
+ * partir de las credenciales — a diferencia del resto de repositorios, no se construye
+ * acotado a un `userId` (no tendría sentido, es lo que resuelve cuál es ese id). */
+export interface UserRepository {
+  findByEmail(email: string): Promise<User | null>;
 }
 
 // ---- Checklist de set ----

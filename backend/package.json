@@ -17,7 +17,8 @@
     "seed:demo": "tsx src/infrastructure/db/seedDemoData.ts",
     "seed:demo:clear": "tsx src/infrastructure/db/seedDemoData.ts --clear",
     "hash-password": "tsx src/scripts/hashPassword.ts",
-    "refresh-checklist-prices": "tsx src/scripts/refreshChecklistPrices.ts"
+    "refresh-checklist-prices": "tsx src/scripts/refreshChecklistPrices.ts",
+    "backfill-owner-user": "tsx src/scripts/backfillOwnerUser.ts"
   },
   "keywords": [],
   "author": "",

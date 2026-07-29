@@ -5,8 +5,8 @@ import { Field, inputClass } from "../../components/Field";
 /** Pantalla completa, sin nav ni contenido detrás — se muestra en vez de toda la app
  * (ver App.tsx) mientras no haya una sesión válida, no como un modal superpuesto: no
  * tiene sentido dejar entrever la colección de nadie detrás de un formulario de login. */
-export function LoginScreen({ onLogin }: { onLogin: (username: string, password: string) => Promise<void> }) {
-  const [username, setUsername] = useState("");
+export function LoginScreen({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function LoginScreen({ onLogin }: { onLogin: (username: string, password:
     setLoading(true);
     setError(null);
     try {
-      await onLogin(username, password);
+      await onLogin(email, password);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se ha podido iniciar sesión");
     } finally {
@@ -45,13 +45,14 @@ export function LoginScreen({ onLogin }: { onLogin: (username: string, password:
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Field label="Usuario">
+          <Field label="Email">
             <input
+              type="email"
               className={inputClass}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoFocus
-              autoComplete="username"
+              autoComplete="email"
               required
             />
           </Field>

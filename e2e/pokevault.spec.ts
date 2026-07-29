@@ -17,7 +17,7 @@ test("flujo completo: buscar y sincronizar un set, marcar una carta como tuya y 
   await page.getByRole("button", { name: "Buscar", exact: true }).click();
   await expect(page.getByText("Test Set", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Añadir este set" }).click();
-  await page.getByRole("button", { name: "Cerrar" }).click();
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
 
   // Recién sincronizado y sin ninguna carta tuya, está incompleto: se abre solo.
   await expect(page.getByText("Fake Pikachu")).toBeVisible();
@@ -72,7 +72,7 @@ test("marcar una carta como tuya en un checklist no la marca automáticamente en
   await page.getByRole("button", { name: "+ Binder" }).click();
   await page.getByRole("textbox", { name: "Pokémon (separados por comas)" }).fill("Slowpoke, Slowbro");
   await page.getByRole("button", { name: "Crear binder" }).click();
-  await page.getByRole("button", { name: "Cerrar" }).click();
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
 
   const binderCard = page.getByRole("group", { name: "Set Slowpoke y Slowbro" });
   await binderCard.getByRole("button", { name: "Que me faltan" }).click();

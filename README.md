@@ -24,8 +24,10 @@ Datos ficticios de ejemplo (sembrados con `npm run seed:demo` contra una base de
 # 1. Variables de entorno
 cp .env.example .env
 cp backend/.env.example backend/.env
-# Edita ambos .env y pon tu propia contraseña de Postgres (debe coincidir en los dos
-# archivos, tanto en POSTGRES_PASSWORD como dentro de DATABASE_URL).
+# Edita ambos .env: tu propia contraseña de Postgres (debe coincidir en los dos archivos,
+# tanto en POSTGRES_PASSWORD como dentro de DATABASE_URL), un SESSION_SECRET (p. ej.
+# `openssl rand -hex 32`) y unas LOGIN_USERNAME/LOGIN_PASSWORD_HASH (con
+# `npm run hash-password -- "tu-contraseña"`, tras el paso 3) para tu primera cuenta.
 
 # 2. Base de datos
 docker compose up -d
@@ -34,6 +36,7 @@ docker compose up -d
 cd backend
 npm install
 npm run migrate:up
+npm run backfill-owner-user  # crea tu cuenta a partir de LOGIN_USERNAME/LOGIN_PASSWORD_HASH
 cd ..
 
 # 4. Frontend
@@ -105,4 +108,4 @@ Más detalle de las decisiones técnicas (por qué no hay catálogo externo en v
 
 ## Privacidad
 
-Herramienta de uso personal. En local, los datos viven en tu propia base de datos (Docker), igual que rumbo/nous/faro. También se puede desplegar en un servidor propio (ver ARCHITECTURE.md) — en ese caso, protégela con login (`LOGIN_USERNAME`/`LOGIN_PASSWORD_HASH`/`SESSION_SECRET` en `backend/.env`, ver `.env.example`) para que solo tú puedas entrar.
+Multi-usuario real desde el 2026-07-29 (ver ARCHITECTURE.md): cada cuenta tiene sus propios datos, aislados del resto. El login ya es obligatorio siempre — solo `SESSION_SECRET` en `backend/.env` (ver `.env.example`); la primera cuenta se crea con `npm run backfill-owner-user` a partir de `LOGIN_USERNAME`/`LOGIN_PASSWORD_HASH`, sin alta pública todavía.

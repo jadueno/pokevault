@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, InjectOptions } from "fastify";
 import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTestPool, resetDatabase } from "../../test/testPool.js";
@@ -8,10 +8,31 @@ import { buildServer } from "./server.js";
 
 let pool: Pool;
 let app: FastifyInstance;
+let authHeader: { authorization: string };
+let userId: string;
+
+/** Cabecera de autenticación ya adjunta — el login es obligatorio en todas las rutas
+ * salvo /health, /login y /auth-config (ver auth.ts), así que la práctica totalidad de
+ * este fichero necesita un token válido. */
+function injectAuthed(opts: InjectOptions) {
+  return app.inject({ ...opts, headers: { ...authHeader, ...opts.headers } });
+}
 
 beforeAll(async () => {
   pool = createTestPool();
-  app = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false });
+  app = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false, sessionSecret: "un-secreto" });
+
+  const {
+    rows: [user],
+  } = await pool.query<{ id: string }>("insert into users (email, password_hash) values ($1, $2) returning id", [
+    "demo@example.com",
+    hashPassword("demo-pass"),
+  ]);
+  userId = user.id;
+
+  const login = await app.inject({ method: "POST", url: "/login", payload: { email: "demo@example.com", password: "demo-pass" } });
+  const { token } = login.json();
+  authHeader = { authorization: `Bearer ${token}` };
 });
 
 afterEach(async () => {
@@ -60,7 +81,7 @@ describe("/collection-items", () => {
   }
 
   it("crea, lista, actualiza y borra un ejemplar", async () => {
-    const create = await app.inject({ method: "POST", url: "/collection-items", payload: payload() });
+    const create = await injectAuthed({ method: "POST", url: "/collection-items", payload: payload() });
     expect(create.statusCode).toBe(201);
     const item = create.json();
     // Regresión: purchase_date se guardaba como "date" de Postgres, y al leerlo de
@@ -69,10 +90,10 @@ describe("/collection-items", () => {
     expect(item.purchaseDate).toBe("2026-07-01");
     expect(item.name).toBe("Charizard");
 
-    const list = await app.inject({ method: "GET", url: "/collection-items" });
+    const list = await injectAuthed({ method: "GET", url: "/collection-items" });
     expect(list.json()).toHaveLength(1);
 
-    const update = await app.inject({
+    const update = await injectAuthed({
       method: "PUT",
       url: `/collection-items/${item.id}`,
       payload: payload({ quantity: 2 }),
@@ -80,35 +101,35 @@ describe("/collection-items", () => {
     expect(update.statusCode).toBe(200);
     expect(update.json().quantity).toBe(2);
 
-    const remove = await app.inject({ method: "DELETE", url: `/collection-items/${item.id}` });
+    const remove = await injectAuthed({ method: "DELETE", url: `/collection-items/${item.id}` });
     expect(remove.statusCode).toBe(204);
-    expect((await app.inject({ method: "GET", url: "/collection-items" })).json()).toEqual([]);
+    expect((await injectAuthed({ method: "GET", url: "/collection-items" })).json()).toEqual([]);
   });
 
   it("responde 400 con un idioma no reconocido", async () => {
-    const res = await app.inject({ method: "POST", url: "/collection-items", payload: payload({ language: "klingon" }) });
+    const res = await injectAuthed({ method: "POST", url: "/collection-items", payload: payload({ language: "klingon" }) });
     expect(res.statusCode).toBe(400);
   });
 
   it("GET /collection-items/summary suma valor estimado × cantidad, usando la corrección manual", async () => {
-    const create = await app.inject({
+    const create = await injectAuthed({
       method: "POST",
       url: "/collection-items",
       payload: payload({ quantity: 3, purchasePrice: 90 }),
     });
-    await app.inject({
+    await injectAuthed({
       method: "PUT",
       url: `/collection-items/${create.json().id}/estimated-value`,
       payload: { value: 100, note: "Estimado a mano" },
     });
-    const summary = await app.inject({ method: "GET", url: "/collection-items/summary" });
+    const summary = await injectAuthed({ method: "GET", url: "/collection-items/summary" });
     expect(summary.json().totalValue).toBe(300);
     expect(summary.json().totalInvested).toBe(270);
   });
 
   it("PUT /collection-items/:id/estimated-value marca la corrección manual", async () => {
-    const create = await app.inject({ method: "POST", url: "/collection-items", payload: payload() });
-    const res = await app.inject({
+    const create = await injectAuthed({ method: "POST", url: "/collection-items", payload: payload() });
+    const res = await injectAuthed({
       method: "PUT",
       url: `/collection-items/${create.json().id}/estimated-value`,
       payload: { value: 200, note: "Visto en tienda" },
@@ -120,14 +141,14 @@ describe("/collection-items", () => {
 
 describe("/wishlist-items", () => {
   it("crea, lista y mueve un deseo a la colección", async () => {
-    const create = await app.inject({
+    const create = await injectAuthed({
       method: "POST",
       url: "/wishlist-items",
       payload: { name: "Charizard", setName: "Base", priority: "high", maxPrice: 150, targetMonth: "2026-08", notes: null, photo: null },
     });
     expect(create.statusCode).toBe(201);
 
-    const move = await app.inject({
+    const move = await injectAuthed({
       method: "POST",
       url: `/wishlist-items/${create.json().id}/move-to-collection`,
       payload: {
@@ -142,12 +163,12 @@ describe("/wishlist-items", () => {
     });
     expect(move.statusCode).toBe(201);
     expect(move.json().name).toBe("Charizard");
-    expect((await app.inject({ method: "GET", url: "/wishlist-items" })).json()).toEqual([]);
-    expect((await app.inject({ method: "GET", url: "/collection-items" })).json()).toHaveLength(1);
+    expect((await injectAuthed({ method: "GET", url: "/wishlist-items" })).json()).toEqual([]);
+    expect((await injectAuthed({ method: "GET", url: "/collection-items" })).json()).toHaveLength(1);
   });
 
   it("responde 400 con un mes objetivo mal formado", async () => {
-    const res = await app.inject({
+    const res = await injectAuthed({
       method: "POST",
       url: "/wishlist-items",
       payload: { name: "Charizard", setName: null, priority: "medium", maxPrice: null, targetMonth: "agosto", notes: null, photo: null },
@@ -172,13 +193,13 @@ describe("/sealed-purchases", () => {
       notes: null,
       photo: null,
     };
-    const create = await app.inject({ method: "POST", url: "/sealed-purchases", payload });
+    const create = await injectAuthed({ method: "POST", url: "/sealed-purchases", payload });
     expect(create.statusCode).toBe(201);
 
-    const list = await app.inject({ method: "GET", url: "/sealed-purchases" });
+    const list = await injectAuthed({ method: "GET", url: "/sealed-purchases" });
     expect(list.json()).toHaveLength(1);
 
-    const override = await app.inject({
+    const override = await injectAuthed({
       method: "PUT",
       url: `/sealed-purchases/${create.json().id}/estimated-value`,
       payload: { value: 8, note: "Precio actual en tienda" },
@@ -186,7 +207,7 @@ describe("/sealed-purchases", () => {
     expect(override.statusCode).toBe(200);
     expect(override.json().estimatedValueOverride).toBe(8);
 
-    const remove = await app.inject({ method: "DELETE", url: `/sealed-purchases/${create.json().id}` });
+    const remove = await injectAuthed({ method: "DELETE", url: `/sealed-purchases/${create.json().id}` });
     expect(remove.statusCode).toBe(204);
   });
 });
@@ -202,28 +223,28 @@ describe("/plan-items", () => {
       done: false,
       position: 0,
     };
-    const create = await app.inject({ method: "POST", url: "/plan-items", payload });
+    const create = await injectAuthed({ method: "POST", url: "/plan-items", payload });
     expect(create.statusCode).toBe(201);
     expect(create.json().done).toBe(false);
     expect(create.json().referencePrice).toBe(59);
     expect(create.json().searchTerm).toBe("ETB Megaevolución Español");
 
-    const list = await app.inject({ method: "GET", url: "/plan-items" });
+    const list = await injectAuthed({ method: "GET", url: "/plan-items" });
     expect(list.json()).toHaveLength(1);
 
-    const toggle = await app.inject({ method: "POST", url: `/plan-items/${create.json().id}/toggle-done` });
+    const toggle = await injectAuthed({ method: "POST", url: `/plan-items/${create.json().id}/toggle-done` });
     expect(toggle.statusCode).toBe(200);
     expect(toggle.json().done).toBe(true);
 
     // "hecho" en el plan es independiente de "Ya la tengo": no debe aparecer nada en la colección.
-    expect((await app.inject({ method: "GET", url: "/collection-items" })).json()).toEqual([]);
+    expect((await injectAuthed({ method: "GET", url: "/collection-items" })).json()).toEqual([]);
 
-    const remove = await app.inject({ method: "DELETE", url: `/plan-items/${create.json().id}` });
+    const remove = await injectAuthed({ method: "DELETE", url: `/plan-items/${create.json().id}` });
     expect(remove.statusCode).toBe(204);
   });
 
   it("responde 400 con un mes mal formado o una categoría no reconocida", async () => {
-    const badMonth = await app.inject({
+    const badMonth = await injectAuthed({
       method: "POST",
       url: "/plan-items",
       payload: {
@@ -238,7 +259,7 @@ describe("/plan-items", () => {
     });
     expect(badMonth.statusCode).toBe(400);
 
-    const badCategory = await app.inject({
+    const badCategory = await injectAuthed({
       method: "POST",
       url: "/plan-items",
       payload: {
@@ -255,7 +276,7 @@ describe("/plan-items", () => {
   });
 
   it("responde 400 con un precio de referencia negativo", async () => {
-    const res = await app.inject({
+    const res = await injectAuthed({
       method: "POST",
       url: "/plan-items",
       payload: {
@@ -274,10 +295,10 @@ describe("/plan-items", () => {
 
 describe("/plan-settings", () => {
   it("lee y actualiza el presupuesto mensual y las notas del plan", async () => {
-    const get = await app.inject({ method: "GET", url: "/plan-settings" });
+    const get = await injectAuthed({ method: "GET", url: "/plan-settings" });
     expect(get.statusCode).toBe(200);
 
-    const update = await app.inject({
+    const update = await injectAuthed({
       method: "PUT",
       url: "/plan-settings",
       payload: {
@@ -293,7 +314,7 @@ describe("/plan-settings", () => {
   });
 
   it("responde 400 con un presupuesto negativo", async () => {
-    const res = await app.inject({
+    const res = await injectAuthed({
       method: "PUT",
       url: "/plan-settings",
       payload: { monthlyBudget: -10, yearRules: null, yearGoal: null, shoppingLinks: [] },
@@ -309,8 +330,9 @@ describe("/set-checklists", () => {
     const {
       rows: [checklist],
     } = await pool.query<{ id: string }>(
-      `insert into set_checklists (external_set_id, set_name, set_name_es, total_cards)
-       values ('me5', 'Pitch Black', 'Oscuridad Absoluta', 2) returning id`,
+      `insert into set_checklists (user_id, external_set_id, set_name, set_name_es, total_cards)
+       values ($1, 'me5', 'Pitch Black', 'Oscuridad Absoluta', 2) returning id`,
+      [userId],
     );
     await pool.query(
       `insert into set_checklist_cards (checklist_id, number, name, rarity, image_url) values
@@ -323,7 +345,7 @@ describe("/set-checklists", () => {
 
   it("lista los checklists sincronizados", async () => {
     await seedChecklist();
-    const res = await app.inject({ method: "GET", url: "/set-checklists" });
+    const res = await injectAuthed({ method: "GET", url: "/set-checklists" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([
       expect.objectContaining({ externalSetId: "me5", setName: "Pitch Black", setNameEs: "Oscuridad Absoluta", totalCards: 2 }),
@@ -332,7 +354,7 @@ describe("/set-checklists", () => {
 
   it("devuelve las cartas de un checklist ordenadas por número", async () => {
     const checklistId = await seedChecklist();
-    const res = await app.inject({ method: "GET", url: `/set-checklists/${checklistId}/cards` });
+    const res = await injectAuthed({ method: "GET", url: `/set-checklists/${checklistId}/cards` });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([
       expect.objectContaining({ number: "1", name: "Tropius" }),
@@ -341,19 +363,19 @@ describe("/set-checklists", () => {
   });
 
   it("con un checklist sin cartas, devuelve una lista vacía", async () => {
-    const res = await app.inject({ method: "GET", url: "/set-checklists/00000000-0000-0000-0000-000000000000/cards" });
+    const res = await injectAuthed({ method: "GET", url: "/set-checklists/00000000-0000-0000-0000-000000000000/cards" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
 
   it("GET /set-search devuelve los candidatos que encuentra el proveedor (fake en tests)", async () => {
-    const res = await app.inject({ method: "GET", url: "/set-search?q=Test Set" });
+    const res = await injectAuthed({ method: "GET", url: "/set-search?q=Test Set" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([{ externalSetId: "ts1", name: "Test Set", totalCards: 2, releaseDate: "2026/01/01" }]);
   });
 
   it("POST /set-checklists sincroniza el set elegido, con precio de referencia incluido", async () => {
-    const res = await app.inject({
+    const res = await injectAuthed({
       method: "POST",
       url: "/set-checklists",
       payload: { externalSetId: "ts1", setNameEs: "Set de Prueba" },
@@ -361,7 +383,7 @@ describe("/set-checklists", () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({ externalSetId: "ts1", setNameEs: "Set de Prueba", totalCards: 2 });
 
-    const cards = await app.inject({ method: "GET", url: `/set-checklists/${res.json().id}/cards` });
+    const cards = await injectAuthed({ method: "GET", url: `/set-checklists/${res.json().id}/cards` });
     expect(cards.json()).toEqual([
       expect.objectContaining({ number: "1", name: "Fake Pikachu", referencePrice: 1.5 }),
       expect.objectContaining({ number: "2", name: "Fake Charizard", referencePrice: null }),
@@ -369,25 +391,25 @@ describe("/set-checklists", () => {
   });
 
   it("POST /set-checklists responde 404 si ya estaba sincronizado", async () => {
-    await app.inject({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
-    const res = await app.inject({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
+    await injectAuthed({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
+    const res = await injectAuthed({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
     expect(res.statusCode).toBe(404);
   });
 
   it("POST /set-checklists/:id/resync vuelve a traer las cartas del mismo set", async () => {
-    const sync = await app.inject({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
-    const res = await app.inject({ method: "POST", url: `/set-checklists/${sync.json().id}/resync` });
+    const sync = await injectAuthed({ method: "POST", url: "/set-checklists", payload: { externalSetId: "ts1", setNameEs: null } });
+    const res = await injectAuthed({ method: "POST", url: `/set-checklists/${sync.json().id}/resync` });
     expect(res.statusCode).toBe(200);
     expect(res.json().externalSetId).toBe("ts1");
   });
 
   it("POST /set-checklists/:id/resync responde 404 si el checklist no existe", async () => {
-    const res = await app.inject({ method: "POST", url: "/set-checklists/00000000-0000-0000-0000-000000000000/resync" });
+    const res = await injectAuthed({ method: "POST", url: "/set-checklists/00000000-0000-0000-0000-000000000000/resync" });
     expect(res.statusCode).toBe(404);
   });
 
   it("POST /set-checklists/binder crea un binder con las cartas de los Pokémon indicados, de expansiones distintas", async () => {
-    const res = await app.inject({
+    const res = await injectAuthed({
       method: "POST",
       url: "/set-checklists/binder",
       payload: { title: "Slowpoke y Slowbro", pokemonNames: ["Slowpoke", "Slowbro"] },
@@ -400,7 +422,7 @@ describe("/set-checklists", () => {
       totalCards: 3,
     });
 
-    const cards = await app.inject({ method: "GET", url: `/set-checklists/${res.json().id}/cards` });
+    const cards = await injectAuthed({ method: "GET", url: `/set-checklists/${res.json().id}/cards` });
     expect(cards.json()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "Fake Slowpoke", setName: "Test Set" }),
@@ -411,21 +433,20 @@ describe("/set-checklists", () => {
   });
 
   it("POST /set-checklists/binder responde 404 si ya existe un binder con esos mismos Pokémon", async () => {
-    await app.inject({ method: "POST", url: "/set-checklists/binder", payload: { title: "A", pokemonNames: ["Slowpoke"] } });
-    const res = await app.inject({ method: "POST", url: "/set-checklists/binder", payload: { title: "B", pokemonNames: ["Slowpoke"] } });
+    await injectAuthed({ method: "POST", url: "/set-checklists/binder", payload: { title: "A", pokemonNames: ["Slowpoke"] } });
+    const res = await injectAuthed({ method: "POST", url: "/set-checklists/binder", payload: { title: "B", pokemonNames: ["Slowpoke"] } });
     expect(res.statusCode).toBe(404);
   });
 
   it("POST /set-checklists/binder responde 400 si no se indica ningún Pokémon", async () => {
-    const res = await app.inject({ method: "POST", url: "/set-checklists/binder", payload: { title: "Vacío", pokemonNames: [] } });
+    const res = await injectAuthed({ method: "POST", url: "/set-checklists/binder", payload: { title: "Vacío", pokemonNames: [] } });
     expect(res.statusCode).toBe(400);
   });
 });
 
-
 describe("/card-search", () => {
   it("con un nombre sin ambigüedad, devuelve un único candidato", async () => {
-    const res = await app.inject({ method: "GET", url: "/card-search?name=pikachu" });
+    const res = await injectAuthed({ method: "GET", url: "/card-search?name=pikachu" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([
       expect.objectContaining({ name: "Fake Pikachu", setName: "Test Set", number: "1/2", variant: "normal" }),
@@ -433,7 +454,7 @@ describe("/card-search", () => {
   });
 
   it("con un nombre ambiguo (varias expansiones), devuelve todos los candidatos", async () => {
-    const res = await app.inject({ method: "GET", url: "/card-search?name=charizard" });
+    const res = await injectAuthed({ method: "GET", url: "/card-search?name=charizard" });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body).toHaveLength(2);
@@ -441,121 +462,64 @@ describe("/card-search", () => {
   });
 
   it("sin coincidencias, devuelve una lista vacía", async () => {
-    const res = await app.inject({ method: "GET", url: "/card-search?name=no-existe-esta-carta" });
+    const res = await injectAuthed({ method: "GET", url: "/card-search?name=no-existe-esta-carta" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
 
   it("responde 400 si el nombre viene vacío", async () => {
-    const res = await app.inject({ method: "GET", url: "/card-search?name=" });
+    const res = await injectAuthed({ method: "GET", url: "/card-search?name=" });
     expect(res.statusCode).toBe(400);
   });
 });
 
 describe("/auth-config", () => {
-  it("sin login configurado, indica que no hace falta", async () => {
+  it("siempre indica que hace falta login (ya no es opcional)", async () => {
     const res = await app.inject({ method: "GET", url: "/auth-config" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ loginRequired: false });
-  });
-
-  it("con login configurado, indica que hace falta", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
-    });
-    const res = await authedApp.inject({ method: "GET", url: "/auth-config" });
     expect(res.json()).toEqual({ loginRequired: true });
-    await authedApp.close();
   });
 });
 
-describe("login opcional, de extremo a extremo con el servidor real", () => {
-  it("con login configurado, exige el token de sesión también en las rutas ya montadas", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
-    });
-
-    const withoutToken = await authedApp.inject({ method: "GET", url: "/collection-items" });
+describe("login obligatorio, de extremo a extremo con el servidor real", () => {
+  it("exige el token de sesión también en las rutas ya montadas", async () => {
+    const withoutToken = await app.inject({ method: "GET", url: "/collection-items" });
     expect(withoutToken.statusCode).toBe(401);
 
-    const health = await authedApp.inject({ method: "GET", url: "/health" });
+    const health = await app.inject({ method: "GET", url: "/health" });
     expect(health.statusCode).toBe(200);
 
-    const login = await authedApp.inject({
-      method: "POST",
-      url: "/login",
-      payload: { username: "demo", password: "demo-pass" },
-    });
-    expect(login.statusCode).toBe(200);
-    const { token } = login.json();
-    expect(typeof token).toBe("string");
-
-    const withToken = await authedApp.inject({
-      method: "GET",
-      url: "/collection-items",
-      headers: { authorization: `Bearer ${token}` },
-    });
+    const withToken = await injectAuthed({ method: "GET", url: "/collection-items" });
     expect(withToken.statusCode).toBe(200);
-
-    await authedApp.close();
   });
 
   it("POST /login responde 401 con la contraseña incorrecta", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
-    });
-    const res = await authedApp.inject({ method: "POST", url: "/login", payload: { username: "demo", password: "mal" } });
+    const res = await app.inject({ method: "POST", url: "/login", payload: { email: "demo@example.com", password: "mal" } });
     expect(res.statusCode).toBe(401);
-    await authedApp.close();
   });
 
-  it("POST /login responde 401 con el usuario incorrecto", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
-    });
-    const res = await authedApp.inject({ method: "POST", url: "/login", payload: { username: "otro", password: "demo-pass" } });
+  it("POST /login responde 401 con un email que no existe", async () => {
+    const res = await app.inject({ method: "POST", url: "/login", payload: { email: "otro@example.com", password: "demo-pass" } });
     expect(res.statusCode).toBe(401);
-    await authedApp.close();
   });
 
-  it("un token de sesión de otra instancia (firmado con otro secreto) no sirve", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
-    });
-    const otherApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "otro-secreto-distinto" },
-    });
+  it("un token de sesión firmado con otro secreto no sirve", async () => {
+    const otherApp = await buildServer(pool, createFakePokemonTcgProvider(), { logger: false, sessionSecret: "otro-secreto-distinto" });
 
-    const login = await otherApp.inject({ method: "POST", url: "/login", payload: { username: "demo", password: "demo-pass" } });
+    const login = await otherApp.inject({ method: "POST", url: "/login", payload: { email: "demo@example.com", password: "demo-pass" } });
     const { token } = login.json();
 
-    const res = await authedApp.inject({ method: "GET", url: "/collection-items", headers: { authorization: `Bearer ${token}` } });
+    const res = await app.inject({ method: "GET", url: "/collection-items", headers: { authorization: `Bearer ${token}` } });
     expect(res.statusCode).toBe(401);
 
-    await authedApp.close();
     await otherApp.close();
   });
 
   it("/login tiene su propio límite de peticiones, más estricto que el general de la API", async () => {
-    const authedApp = await buildServer(pool, createFakePokemonTcgProvider(), {
-      logger: false,
-      loginConfig: { username: "demo", passwordHash: hashPassword("demo-pass"), sessionSecret: "un-secreto" },
-    });
-
     const attempts = await Promise.all(
-      Array.from({ length: 11 }, () =>
-        authedApp.inject({ method: "POST", url: "/login", payload: { username: "demo", password: "mal" } }),
-      ),
+      Array.from({ length: 11 }, () => app.inject({ method: "POST", url: "/login", payload: { email: "demo@example.com", password: "mal" } })),
     );
     expect(attempts.some((res) => res.statusCode === 429)).toBe(true);
-
-    await authedApp.close();
   });
 });
 
@@ -564,7 +528,7 @@ describe("manejador de errores global", () => {
     // Payload válido (pasa la validación de la aplicación) con un id que no es un UUID:
     // Postgres lanza un error de sintaxis real al llegar a la query — justo el caso que
     // antes habría devuelto el mensaje del driver de Postgres tal cual al cliente.
-    const res = await app.inject({
+    const res = await injectAuthed({
       method: "PUT",
       url: "/collection-items/no-es-un-uuid",
       payload: {

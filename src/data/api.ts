@@ -44,16 +44,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** `loginRequired: false` si el backend no tiene login configurado (uso personal local,
- * ver backend/.env.example) — la app entera sigue sin fricción en ese caso. */
+/** El login ya es obligatorio siempre — este endpoint siempre devuelve `loginRequired: true`,
+ * se mantiene para no tener que tocar el resto del flujo de `App.tsx` que ya lo usa. */
 export function getAuthConfig<T = { loginRequired: boolean }>(): Promise<T> {
   return request("/auth-config");
 }
 
-export async function login(username: string, password: string): Promise<void> {
+export async function login(email: string, password: string): Promise<void> {
   const { token } = await request<{ token: string }>("/login", {
     method: "POST",
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   });
   setStoredToken(token);
 }

@@ -1,5 +1,6 @@
 import "../loadEnv.js";
 import { pool } from "./pool.js";
+import { createUserRepository } from "./repositories/userRepository.js";
 import { createCollectionItemRepository } from "./repositories/collectionItemRepository.js";
 import { createSealedPurchaseRepository } from "./repositories/sealedPurchaseRepository.js";
 import { createWishlistItemRepository } from "./repositories/wishlistItemRepository.js";
@@ -12,6 +13,10 @@ import type { NewCollectionItem, NewSealedPurchase, NewWishlistItem } from "../.
  * a uno. Cada fila lleva el tag DEMO_TAG al principio de "notes" para poder borrarlas
  * selectivamente (`--clear`) sin arriesgarse a tocar datos reales que el usuario haya
  * añadido después — nunca un TRUNCATE a ciegas de estas tablas.
+ *
+ * Se siembra sobre el usuario ya creado con `npm run backfill-owner-user` (mismo
+ * LOGIN_USERNAME) — este script es una herramienta de desarrollo local, no hace falta que
+ * sepa nada de multi-usuario real más allá de encontrar esa cuenta.
  *
  * Uso: npm run seed:demo        (borra el demo anterior si lo hay, y siembra de nuevo)
  *      npm run seed:demo:clear  (solo borra, no vuelve a sembrar)
@@ -421,9 +426,18 @@ async function clearDemoData(): Promise<void> {
 async function seedDemoData(): Promise<void> {
   await clearDemoData(); // evita duplicar si se ejecuta varias veces seguidas
 
-  const collectionRepo = createCollectionItemRepository(pool);
-  const sealedRepo = createSealedPurchaseRepository(pool);
-  const wishlistRepo = createWishlistItemRepository(pool);
+  const email = process.env.LOGIN_USERNAME;
+  if (!email) {
+    throw new Error("Falta LOGIN_USERNAME en el entorno (ver npm run backfill-owner-user) para saber a qué usuario sembrar.");
+  }
+  const user = await createUserRepository(pool).findByEmail(email);
+  if (!user) {
+    throw new Error(`No existe ningún usuario con email ${email} — ejecuta antes 'npm run backfill-owner-user'.`);
+  }
+
+  const collectionRepo = createCollectionItemRepository(pool, user.id);
+  const sealedRepo = createSealedPurchaseRepository(pool, user.id);
+  const wishlistRepo = createWishlistItemRepository(pool, user.id);
 
   for (const item of COLLECTION_ITEMS) await collectionRepo.create(item);
   for (const item of SEALED_PURCHASES) await sealedRepo.create(item);

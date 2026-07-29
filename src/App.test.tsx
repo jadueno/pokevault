@@ -114,25 +114,25 @@ describe("App — puerta de login", () => {
     login.mockResolvedValue(undefined);
     render(<App />);
 
-    await user.type(await screen.findByLabelText("Usuario"), "jadueno");
+    await user.type(await screen.findByLabelText("Email"), "jadueno@example.com");
     await user.type(screen.getByLabelText("Contraseña"), "correcta");
     await user.click(screen.getByRole("button", { name: "Entrar" }));
 
-    expect(login).toHaveBeenCalledWith("jadueno", "correcta");
+    expect(login).toHaveBeenCalledWith("jadueno@example.com", "correcta");
     expect(await screen.findByRole("button", { name: "+ Set" })).toBeInTheDocument();
   });
 
   it("con contraseña incorrecta, muestra el error y no entra", async () => {
     const user = userEvent.setup();
     getAuthConfig.mockResolvedValue({ loginRequired: true });
-    login.mockRejectedValue(new Error("Usuario o contraseña incorrectos"));
+    login.mockRejectedValue(new Error("Email o contraseña incorrectos"));
     render(<App />);
 
-    await user.type(await screen.findByLabelText("Usuario"), "jadueno");
+    await user.type(await screen.findByLabelText("Email"), "jadueno@example.com");
     await user.type(screen.getByLabelText("Contraseña"), "mal");
     await user.click(screen.getByRole("button", { name: "Entrar" }));
 
-    expect(await screen.findByText("Usuario o contraseña incorrectos")).toBeInTheDocument();
+    expect(await screen.findByText("Email o contraseña incorrectos")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ Set" })).not.toBeInTheDocument();
   });
 
@@ -142,7 +142,7 @@ describe("App — puerta de login", () => {
     login.mockResolvedValue(undefined);
     render(<App />);
 
-    await user.type(await screen.findByLabelText("Usuario"), "jadueno");
+    await user.type(await screen.findByLabelText("Email"), "jadueno@example.com");
     await user.type(screen.getByLabelText("Contraseña"), "correcta");
     await user.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await screen.findByRole("button", { name: "+ Set" })).toBeInTheDocument();

@@ -1,24 +1,27 @@
-import type { FastifyInstance } from "fastify";
-import type { createPlanItemUseCases } from "../../application/planItems.js";
-import type { createPlanSettingsUseCases } from "../../application/planSettings.js";
-import type { NewPlanItem, PlanSettings } from "../../domain/types.js";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { Pool } from "pg";
+import { createPlanItemRepository } from "../db/repositories/planItemRepository.js";
+import { createPlanSettingsRepository } from "../db/repositories/planSettingsRepository.js";
+import { createPlanItemUseCases } from "../../application/planItems.js";
+import { createPlanSettingsUseCases } from "../../application/planSettings.js";
+import type { NewPlanItem, PlanItem, PlanSettings } from "../../domain/types.js";
 import { handleError, registerCrudRoutes } from "./crudRoutes.js";
 
-export function registerPlanRoutes(
-  app: FastifyInstance,
-  planItemUseCases: ReturnType<typeof createPlanItemUseCases>,
-  planSettingsUseCases: ReturnType<typeof createPlanSettingsUseCases>,
-): void {
-  registerCrudRoutes<Awaited<ReturnType<typeof planItemUseCases.create>>, NewPlanItem>(
-    app,
-    "/plan-items",
-    planItemUseCases,
-  );
+function planItemUseCasesFor(pool: Pool, request: FastifyRequest) {
+  return createPlanItemUseCases(createPlanItemRepository(pool, request.userId));
+}
+
+function planSettingsUseCasesFor(pool: Pool, request: FastifyRequest) {
+  return createPlanSettingsUseCases(createPlanSettingsRepository(pool, request.userId));
+}
+
+export function registerPlanRoutes(app: FastifyInstance, pool: Pool): void {
+  registerCrudRoutes<PlanItem, NewPlanItem>(app, "/plan-items", (request) => planItemUseCasesFor(pool, request));
 
   app.post("/plan-items/:id/toggle-done", async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      const updated = await planItemUseCases.toggleDone(id);
+      const updated = await planItemUseCasesFor(pool, request).toggleDone(id);
       if (!updated) {
         reply.code(404).send({ error: "No encontrado" });
         return;
@@ -29,11 +32,11 @@ export function registerPlanRoutes(
     }
   });
 
-  app.get("/plan-settings", async () => planSettingsUseCases.get());
+  app.get("/plan-settings", async (request) => planSettingsUseCasesFor(pool, request).get());
 
   app.put("/plan-settings", async (request, reply) => {
     try {
-      const updated = await planSettingsUseCases.update(request.body as PlanSettings);
+      const updated = await planSettingsUseCasesFor(pool, request).update(request.body as PlanSettings);
       reply.send(updated);
     } catch (error) {
       handleError(error, reply);

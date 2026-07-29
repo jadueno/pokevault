@@ -28,26 +28,29 @@ function toPlanItem(row: PlanItemRow): PlanItem {
   };
 }
 
-export function createPlanItemRepository(pool: Pool): PlanItemRepository {
+/** Se construye acotado a un usuario concreto (`userId`) — ver misma nota en
+ * `collectionItemRepository.ts`. */
+export function createPlanItemRepository(pool: Pool, userId: string): PlanItemRepository {
   return {
     async list() {
       const { rows } = await pool.query<PlanItemRow>(
-        `select ${COLUMNS} from plan_items order by month, category, position`,
+        `select ${COLUMNS} from plan_items where user_id = $1 order by month, category, position`,
+        [userId],
       );
       return rows.map(toPlanItem);
     },
 
     async findById(id: string) {
-      const { rows } = await pool.query<PlanItemRow>(`select ${COLUMNS} from plan_items where id = $1`, [id]);
+      const { rows } = await pool.query<PlanItemRow>(`select ${COLUMNS} from plan_items where id = $1 and user_id = $2`, [id, userId]);
       return rows[0] ? toPlanItem(rows[0]) : null;
     },
 
     async create(entity: NewPlanItem) {
       const { rows } = await pool.query<PlanItemRow>(
-        `insert into plan_items (month, category, description, reference_price, search_term, done, position)
-         values ($1, $2, $3, $4, $5, $6, $7)
+        `insert into plan_items (user_id, month, category, description, reference_price, search_term, done, position)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
          returning ${COLUMNS}`,
-        [entity.month, entity.category, entity.description, entity.referencePrice, entity.searchTerm, entity.done, entity.position],
+        [userId, entity.month, entity.category, entity.description, entity.referencePrice, entity.searchTerm, entity.done, entity.position],
       );
       return toPlanItem(rows[0]);
     },
@@ -56,15 +59,15 @@ export function createPlanItemRepository(pool: Pool): PlanItemRepository {
       const { rows } = await pool.query<PlanItemRow>(
         `update plan_items
          set month = $1, category = $2, description = $3, reference_price = $4, search_term = $5, done = $6, position = $7, updated_at = now()
-         where id = $8
+         where id = $8 and user_id = $9
          returning ${COLUMNS}`,
-        [entity.month, entity.category, entity.description, entity.referencePrice, entity.searchTerm, entity.done, entity.position, id],
+        [entity.month, entity.category, entity.description, entity.referencePrice, entity.searchTerm, entity.done, entity.position, id, userId],
       );
       return rows[0] ? toPlanItem(rows[0]) : null;
     },
 
     async remove(id: string) {
-      const { rowCount } = await pool.query("delete from plan_items where id = $1", [id]);
+      const { rowCount } = await pool.query("delete from plan_items where id = $1 and user_id = $2", [id, userId]);
       return (rowCount ?? 0) > 0;
     },
   };

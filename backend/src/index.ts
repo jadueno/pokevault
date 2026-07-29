@@ -13,19 +13,19 @@ const port = Number(process.env.PORT ?? 3004);
 const pokemonTcgProvider =
   process.env.POKEMON_TCG_PROVIDER === "fake" ? createFakePokemonTcgProvider() : createTcgdexApiProvider();
 
-// Login opcional: las tres variables juntas o ninguna (ver .env.example) — sin ellas el
-// uso personal local sigue sin fricción, exactamente igual que el token fijo que sustituye.
-const loginConfig =
-  process.env.LOGIN_USERNAME && process.env.LOGIN_PASSWORD_HASH && process.env.SESSION_SECRET
-    ? {
-        username: process.env.LOGIN_USERNAME,
-        passwordHash: process.env.LOGIN_PASSWORD_HASH,
-        sessionSecret: process.env.SESSION_SECRET,
-      }
-    : undefined;
+// Login obligatorio (ya no opcional): con datos por usuario, cada petición necesita saber
+// de quién es. LOGIN_USERNAME/LOGIN_PASSWORD_HASH ya no los lee el servidor — solo los usa
+// `npm run backfill-owner-user` una vez, para crear la cuenta del dueño.
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  console.error("Falta SESSION_SECRET en el entorno: el login ya no es opcional (ver .env.example).");
+  process.exit(1);
+}
 
 async function main() {
-  const app = await buildServer(pool, pokemonTcgProvider, { loginConfig });
+  // Ya comprobado arriba (con process.exit si faltaba) — TS no retiene el estrechado de
+  // un `const` de módulo dentro de una función declarada aparte.
+  const app = await buildServer(pool, pokemonTcgProvider, { sessionSecret: sessionSecret! });
   await app.listen({ port, host: "0.0.0.0" });
 }
 

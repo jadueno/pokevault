@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { ValidationError } from "../../application/errors.js";
 
 interface CrudUseCases<T, TNew> {
@@ -8,17 +8,20 @@ interface CrudUseCases<T, TNew> {
   remove: (id: string) => Promise<boolean>;
 }
 
-/** Registra GET/POST/PUT/DELETE estándar para un recurso sobre unos casos de uso con la misma forma. */
+/** Registra GET/POST/PUT/DELETE estándar para un recurso. `useCasesFor` construye los
+ * casos de uso (sobre un repositorio acotado a `request.userId`) en cada petición, en vez
+ * de recibir un objeto ya construido al arrancar el servidor — el `userId` solo se conoce
+ * por request, tras verificar el token (ver auth.ts). */
 export function registerCrudRoutes<T, TNew>(
   app: FastifyInstance,
   path: string,
-  useCases: CrudUseCases<T, TNew>,
+  useCasesFor: (request: FastifyRequest) => CrudUseCases<T, TNew>,
 ): void {
-  app.get(path, async () => useCases.list());
+  app.get(path, async (request) => useCasesFor(request).list());
 
   app.post(path, async (request, reply) => {
     try {
-      const created = await useCases.create(request.body as TNew);
+      const created = await useCasesFor(request).create(request.body as TNew);
       reply.code(201).send(created);
     } catch (error) {
       handleError(error, reply);
@@ -28,7 +31,7 @@ export function registerCrudRoutes<T, TNew>(
   app.put(`${path}/:id`, async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      const updated = await useCases.update(id, request.body as TNew);
+      const updated = await useCasesFor(request).update(id, request.body as TNew);
       if (!updated) {
         reply.code(404).send({ error: "No encontrado" });
         return;
@@ -41,7 +44,7 @@ export function registerCrudRoutes<T, TNew>(
 
   app.delete(`${path}/:id`, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const removed = await useCases.remove(id);
+    const removed = await useCasesFor(request).remove(id);
     if (!removed) {
       reply.code(404).send({ error: "No encontrado" });
       return;

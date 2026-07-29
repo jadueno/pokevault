@@ -177,6 +177,13 @@ export interface SetChecklist {
   pokemonNames: string[] | null;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  /** Hash con scrypt, formato "salt:hash" — ver infrastructure/http/passwordHash.ts. */
+  passwordHash: string;
+}
+
 export interface SetChecklistCard {
   id: string;
   checklistId: string;

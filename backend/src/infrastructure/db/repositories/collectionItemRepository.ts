@@ -69,27 +69,37 @@ function toCollectionItem(row: CollectionItemRow): CollectionItem {
   };
 }
 
-export function createCollectionItemRepository(pool: Pool): CollectionItemRepository {
+/** Se construye acotado a un usuario concreto (`userId`) — cada consulta filtra siempre
+ * por él, nunca solo por `id`, para que un usuario autenticado no pueda leer/editar/borrar
+ * filas de otro solo adivinando su UUID. */
+export function createCollectionItemRepository(pool: Pool, userId: string): CollectionItemRepository {
   return {
     async list() {
-      const { rows } = await pool.query<CollectionItemRow>(`select ${COLUMNS} from collection_items order by created_at desc`);
+      const { rows } = await pool.query<CollectionItemRow>(
+        `select ${COLUMNS} from collection_items where user_id = $1 order by created_at desc`,
+        [userId],
+      );
       return rows.map(toCollectionItem);
     },
 
     async findById(id: string) {
-      const { rows } = await pool.query<CollectionItemRow>(`select ${COLUMNS} from collection_items where id = $1`, [id]);
+      const { rows } = await pool.query<CollectionItemRow>(
+        `select ${COLUMNS} from collection_items where id = $1 and user_id = $2`,
+        [id, userId],
+      );
       return rows[0] ? toCollectionItem(rows[0]) : null;
     },
 
     async create(entity: NewCollectionItem) {
       const { rows } = await pool.query<CollectionItemRow>(
-        `insert into collection_items (name, set_name, number, rarity, variant, language, condition, quantity,
+        `insert into collection_items (user_id, name, set_name, number, rarity, variant, language, condition, quantity,
            acquisition_type, sealed_purchase_id, purchase_price, purchase_currency, purchase_date, is_graded,
            grading_company, grade, estimated_value_override, estimated_value_override_at,
            estimated_value_override_note, notes, photo, checklist_id)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
          returning ${COLUMNS}`,
         [
+          userId,
           entity.name,
           entity.setName,
           entity.number,
@@ -125,7 +135,7 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
              purchase_date = $13, is_graded = $14, grading_company = $15, grade = $16,
              estimated_value_override = $17, estimated_value_override_at = $18, estimated_value_override_note = $19,
              notes = $20, photo = $21, checklist_id = $22, updated_at = now()
-         where id = $23
+         where id = $23 and user_id = $24
          returning ${COLUMNS}`,
         [
           entity.name,
@@ -151,13 +161,14 @@ export function createCollectionItemRepository(pool: Pool): CollectionItemReposi
           entity.photo,
           entity.checklistId,
           id,
+          userId,
         ],
       );
       return rows[0] ? toCollectionItem(rows[0]) : null;
     },
 
     async remove(id: string) {
-      const { rowCount } = await pool.query("delete from collection_items where id = $1", [id]);
+      const { rowCount } = await pool.query("delete from collection_items where id = $1 and user_id = $2", [id, userId]);
       return (rowCount ?? 0) > 0;
     },
   };

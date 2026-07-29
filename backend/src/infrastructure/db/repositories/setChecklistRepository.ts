@@ -56,12 +56,18 @@ function toSetChecklistCard(row: SetChecklistCardRow): SetChecklistCard {
   };
 }
 
-export function createSetChecklistRepository(pool: Pool): SetChecklistRepository {
+/** Se construye acotado a un usuario concreto (`userId`) — mismo criterio que el resto de
+ * repositorios. `set_checklist_cards` no tiene `user_id` propio (su pertenencia es
+ * transitiva vía `checklist_id`), así que `getCards` necesita un JOIN contra
+ * `set_checklists` para comprobar el dueño — sin él, cualquier usuario autenticado podría
+ * leer las cartas de un checklist ajeno solo conociendo/adivinando su id. */
+export function createSetChecklistRepository(pool: Pool, userId: string): SetChecklistRepository {
   return {
     async list() {
       const { rows } = await pool.query<SetChecklistRow>(
         `select id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names
-         from set_checklists order by synced_at desc`,
+         from set_checklists where user_id = $1 order by synced_at desc`,
+        [userId],
       );
       return rows.map(toSetChecklist);
     },
@@ -69,8 +75,8 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
     async findById(id: string) {
       const { rows } = await pool.query<SetChecklistRow>(
         `select id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names
-         from set_checklists where id = $1`,
-        [id],
+         from set_checklists where id = $1 and user_id = $2`,
+        [id, userId],
       );
       return rows[0] ? toSetChecklist(rows[0]) : null;
     },
@@ -78,22 +84,24 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
     async findByExternalId(externalSetId: string) {
       const { rows } = await pool.query<SetChecklistRow>(
         `select id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names
-         from set_checklists where external_set_id = $1`,
-        [externalSetId],
+         from set_checklists where external_set_id = $1 and user_id = $2`,
+        [externalSetId, userId],
       );
       return rows[0] ? toSetChecklist(rows[0]) : null;
     },
 
     async getCards(checklistId: string) {
       const { rows } = await pool.query<SetChecklistCardRow>(
-        `select id, checklist_id, number, name, rarity, variant, image_url, image_url_large, reference_price,
-                set_name, set_total_cards
-         from set_checklist_cards where checklist_id = $1
+        `select scc.id, scc.checklist_id, scc.number, scc.name, scc.rarity, scc.variant, scc.image_url,
+                scc.image_url_large, scc.reference_price, scc.set_name, scc.set_total_cards
+         from set_checklist_cards scc
+         join set_checklists sc on sc.id = scc.checklist_id
+         where scc.checklist_id = $1 and sc.user_id = $2
          -- Los números puramente numéricos se ordenan como número (con padding para que
          -- el orden alfabético de texto no ponga "10" antes que "2"); los que llevan
          -- letras (p. ej. "TG01") se quedan con orden alfabético tal cual.
-         order by case when number ~ '^\\d+$' then lpad(number, 10, '0') else number end`,
-        [checklistId],
+         order by case when scc.number ~ '^\\d+$' then lpad(scc.number, 10, '0') else scc.number end`,
+        [checklistId, userId],
       );
       return rows.map(toSetChecklistCard);
     },
@@ -104,8 +112,9 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
         await client.query("begin");
 
         // Reemplazo completo: tanto al sincronizar un set nuevo como al "Actualizar" uno
-        // ya existente (cascade se lleva las cartas viejas por delante).
-        await client.query("delete from set_checklists where external_set_id = $1", [input.externalSetId]);
+        // ya existente (cascade se lleva las cartas viejas por delante). Acotado también
+        // por user_id: cada usuario sincroniza el mismo set real de forma independiente.
+        await client.query("delete from set_checklists where external_set_id = $1 and user_id = $2", [input.externalSetId, userId]);
 
         // Cartas distintas (una por expansión+número), no filas de variante: una misma
         // carta con normal+reverso aporta dos filas a set_checklist_cards pero sigue
@@ -115,10 +124,10 @@ export function createSetChecklistRepository(pool: Pool): SetChecklistRepository
         const totalCards = new Set(input.cards.map((c) => `${c.setName}::${c.number}`)).size;
 
         const { rows } = await client.query<SetChecklistRow>(
-          `insert into set_checklists (external_set_id, set_name, set_name_es, total_cards, kind, pokemon_names)
-           values ($1, $2, $3, $4, $5, $6)
+          `insert into set_checklists (user_id, external_set_id, set_name, set_name_es, total_cards, kind, pokemon_names)
+           values ($1, $2, $3, $4, $5, $6, $7)
            returning id, external_set_id, set_name, set_name_es, total_cards, synced_at, kind, pokemon_names`,
-          [input.externalSetId, input.setName, input.setNameEs, totalCards, input.kind, input.pokemonNames],
+          [userId, input.externalSetId, input.setName, input.setNameEs, totalCards, input.kind, input.pokemonNames],
         );
         const checklist = rows[0];
 
