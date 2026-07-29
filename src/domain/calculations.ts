@@ -286,6 +286,44 @@ export function findChecklistCardImage(
   return null;
 }
 
+/** Ejemplares ya existentes en TODA la colección (a diferencia de `computeSetChecklistCompletion`,
+ * que solo mira dentro de un checklist concreto) que coinciden con esta carta exacta —
+ * mismo número+variante, expansión parecida (mismo criterio de `setTextMatches`). Para
+ * avisar "ya tienes N" al aplicar una coincidencia del catálogo al dar de alta una carta
+ * suelta, sin bloquear el alta (puede ser una segunda copia real, o un regalo). */
+export function findMatchingCollectionItems(
+  card: { setName: string; number: string; variant: CardVariant },
+  items: CollectionItem[],
+): CollectionItem[] {
+  const key = ownedKey(card.number.split("/")[0].trim(), card.variant);
+  const hints = [normalizeSetText(card.setName)];
+  return items.filter((item) => {
+    const number = item.number?.split("/")[0].trim();
+    if (!number || ownedKey(number, item.variant) !== key) return false;
+    return !!item.setName && setTextMatches(item.setName, hints);
+  });
+}
+
+/** Checklists (sets oficiales o binders) ya sincronizados cuyo listado de cartas incluye
+ * esta carta exacta (mismo número+variante) — para poder ofrecer asignar un alta manual a
+ * su checklist de origen cuando corresponda, en vez de dejarla siempre como carta suelta
+ * sin checklist. Solo se ofrecen los que de verdad la contienen: asignarla a uno que no la
+ * tuviera distorsionaría el % completado de ese checklist. */
+export function findChecklistsContainingCard(
+  card: { setName: string; number: string; variant: CardVariant },
+  checklists: SetChecklist[],
+  cardsByChecklist: Record<string, SetChecklistCard[]>,
+): SetChecklist[] {
+  const key = ownedKey(card.number.split("/")[0].trim(), card.variant);
+  return checklists.filter((checklist) => {
+    const checklistHints = [checklist.setName, checklist.setNameEs].filter((hint): hint is string => !!hint).map(normalizeSetText);
+    return (cardsByChecklist[checklist.id] ?? []).some((c) => {
+      const hints = cardSetHints(c.setName, checklistHints);
+      return ownedKey(c.number, c.variant) === key && setTextMatches(card.setName, hints);
+    });
+  });
+}
+
 // ---- Estadísticas de colección (Fase 2 del roadmap) ----
 
 /** La carta de mayor valor estimado por unidad (no por fila×cantidad: interesa "cuál es

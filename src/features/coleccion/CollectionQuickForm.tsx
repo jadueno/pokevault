@@ -11,7 +11,14 @@ import type {
   SetChecklist,
   SetChecklistCard,
 } from "../../domain/types";
-import { costPerCard, countLinkedCollectionItems, findChecklistCardImage, formatMoney } from "../../domain/calculations";
+import {
+  costPerCard,
+  countLinkedCollectionItems,
+  findChecklistCardImage,
+  findChecklistsContainingCard,
+  findMatchingCollectionItems,
+  formatMoney,
+} from "../../domain/calculations";
 import { Button } from "../../components/Button";
 import { Field, inputClass } from "../../components/Field";
 import { SectionLabel } from "../../components/SectionLabel";
@@ -116,8 +123,9 @@ export function CollectionQuickForm({
     // con alguno (ver handleSubmit); si no hay coincidencia, se queda sin foto. Al editar,
     // se parte de la foto que ya tenía por si no hay una coincidencia mejor.
     photo: initialItem?.photo ?? null,
-    // El alta manual nunca pertenece a ningún checklist (eso solo pasa al "Marcar como
-    // mía" desde la pestaña Sets); al editar, se conserva el que ya tuviera para no
+    // El alta manual empieza sin checklist — solo se asigna si, tras buscarla en el
+    // catálogo, la carta resulta pertenecer a un set/binder ya sincronizado (ver
+    // matchingChecklists más abajo). Al editar, se conserva el que ya tuviera para no
     // desvincularlo sin querer de su checklist de origen.
     checklistId: initialItem?.checklistId ?? null,
   });
@@ -146,6 +154,17 @@ export function CollectionQuickForm({
     : 0;
   const projectedCostPerCard = selectedSealedPurchase ? costPerCard(selectedSealedPurchase, projectedLinkedCount) : null;
   const matchedChecklistCard = findChecklistCardImage(form.setName, form.number, checklists, cardsByChecklist);
+  // Solo tras aplicar una coincidencia real del catálogo (no con texto libre a medio
+  // escribir): a partir de ahí expansión/número/variante son datos oficiales, así que
+  // "¿ya la tengo?" y "¿a qué checklist pertenece?" dejan de ser una suposición.
+  const canCheckOwnership = appliedMatch !== null && !!form.setName && !!form.number;
+  const duplicateItems = canCheckOwnership
+    ? findMatchingCollectionItems({ setName: form.setName!, number: form.number!, variant: form.variant }, collectionItems)
+    : [];
+  const duplicateQuantity = duplicateItems.reduce((sum, item) => sum + item.quantity, 0);
+  const matchingChecklists = canCheckOwnership
+    ? findChecklistsContainingCard({ setName: form.setName!, number: form.number!, variant: form.variant }, checklists, cardsByChecklist)
+    : [];
 
   /** Aplica una carta concreta encontrada en el catálogo del proveedor (elegida por el
    * usuario entre varios candidatos, o la única que había): datos oficiales, incluido el
@@ -166,6 +185,9 @@ export function CollectionQuickForm({
       estimatedValueOverride: match.referencePrice,
       estimatedValueOverrideAt: match.referencePrice !== null ? now : null,
       estimatedValueOverrideNote: match.referencePrice !== null ? "Precio de referencia de Cardmarket (buscador de cartas)" : null,
+      // Una coincidencia nueva puede pertenecer a checklists distintos que la anterior —
+      // no arrastrar una asignación que ya no tiene sentido.
+      checklistId: null,
     }));
   }
 
@@ -385,6 +407,27 @@ export function CollectionQuickForm({
               Coincide con "{appliedMatch.name}" ({appliedMatch.setName}, #{appliedMatch.number}) — datos oficiales aplicados,
               revísalos arriba.
             </p>
+          )}
+          {!searchingCards && canCheckOwnership && duplicateItems.length > 0 && (
+            <p className="text-sm text-[var(--amber)]">
+              📎 Ya tienes {duplicateQuantity} ejemplar{duplicateQuantity === 1 ? "" : "es"} de esta carta en tu colección.
+            </p>
+          )}
+          {!searchingCards && canCheckOwnership && matchingChecklists.length > 0 && (
+            <Field label="Asignar a un set/binder (opcional)">
+              <select
+                className={inputClass}
+                value={form.checklistId ?? ""}
+                onChange={(e) => setForm({ ...form, checklistId: e.target.value || null })}
+              >
+                <option value="">Carta suelta, sin asignar</option>
+                {matchingChecklists.map((checklist) => (
+                  <option key={checklist.id} value={checklist.id}>
+                    {checklist.setNameEs ?? checklist.setName}
+                  </option>
+                ))}
+              </select>
+            </Field>
           )}
           {!searchingCards && hasPendingMatches && (
             <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] p-3">

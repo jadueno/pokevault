@@ -15,10 +15,10 @@ import { IconButton } from "../../components/IconButton";
 import { PhotoLightbox } from "../../components/PhotoLightbox";
 
 /** Buscar un set nuevo en el proveedor y elegir de la lista de candidatos, en vez de
- * adivinar el set a partir de texto libre — comprobado en vivo: el proveedor solo tiene
- * nombres en inglés, así que buscar en español no encuentra nada. El alias en español se
- * autorrellena con lo que se ha buscado, para que la próxima carta de este set se
- * relacione en local aunque se escriba distinto al nombre oficial.
+ * adivinar el set a partir de texto libre. TCGdex ya devuelve el nombre en español
+ * (`candidate.name`, vía el endpoint `/v2/es/`) — se guarda tal cual como `setNameEs`, no
+ * lo que haya escrito el usuario en el buscador (que puede no ser exacto: mayúsculas,
+ * acentos, texto parcial).
  *
  * Sin tarjeta ni título propios: vive siempre dentro de un <Modal> (ver ColeccionScreen),
  * que ya pone su propio título/descripción — así este panel es solo el formulario y los
@@ -59,7 +59,7 @@ export function SetSearchPanel({
   async function handleSync(candidate: SetSearchCandidate) {
     setSyncingId(candidate.externalSetId);
     try {
-      await onSync(candidate.externalSetId, query.trim() || null);
+      await onSync(candidate.externalSetId, candidate.name);
       setResults(null);
       setQuery("");
     } catch (e) {

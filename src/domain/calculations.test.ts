@@ -8,6 +8,8 @@ import {
   countLinkedCollectionItems,
   estimatePlanMonth,
   findChecklistCardImage,
+  findChecklistsContainingCard,
+  findMatchingCollectionItems,
   findOwnedCollectionItemIds,
   formatMoney,
   groupPlanByMonth,
@@ -215,6 +217,60 @@ describe("findChecklistCardImage", () => {
     const card = checklistCard({ number: "1", name: "Slowpoke", setName: "Base Set" });
     const result = findChecklistCardImage("Base Set", "1/102", [binder], { binder1: [card] });
     expect(result).toEqual(card);
+  });
+});
+
+describe("findMatchingCollectionItems", () => {
+  it("encuentra ejemplares con mismo número+variante y expansión parecida, sumando su cantidad", () => {
+    const items = [
+      collectionItem({ id: "i1", setName: "Oscuridad Absoluta", number: "48/120", variant: "holo", quantity: 2 }),
+      collectionItem({ id: "i2", setName: "Oscuridad Absoluta", number: "48/120", variant: "holo", quantity: 1 }),
+    ];
+    const result = findMatchingCollectionItems({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, items);
+    expect(result.map((i) => i.id)).toEqual(["i1", "i2"]);
+  });
+
+  it("no confunde variantes distintas de la misma carta", () => {
+    const items = [collectionItem({ setName: "Oscuridad Absoluta", number: "48/120", variant: "normal" })];
+    const result = findMatchingCollectionItems({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, items);
+    expect(result).toHaveLength(0);
+  });
+
+  it("ignora cartas de otro set aunque compartan número y variante", () => {
+    const items = [collectionItem({ setName: "Base Set", number: "48/102", variant: "holo" })];
+    const result = findMatchingCollectionItems({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, items);
+    expect(result).toHaveLength(0);
+  });
+
+  it("sin ejemplares que coincidan, devuelve un array vacío", () => {
+    expect(findMatchingCollectionItems({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, [])).toEqual([]);
+  });
+});
+
+describe("findChecklistsContainingCard", () => {
+  it("devuelve los checklists cuyo listado incluye esta carta exacta (número+variante)", () => {
+    const official = setChecklist({ id: "cl1", setName: "Pitch Black", setNameEs: "Oscuridad Absoluta" });
+    const binder = setChecklist({ id: "binder1", setName: "Slowpoke y Slowbro", setNameEs: "Slowpoke y Slowbro", kind: "binder" });
+    const cardsByChecklist = {
+      cl1: [checklistCard({ number: "48", variant: "holo" })],
+      binder1: [checklistCard({ number: "1", name: "Slowpoke", setName: "Oscuridad Absoluta", variant: "normal" })],
+    };
+    const result = findChecklistsContainingCard({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, [official, binder], cardsByChecklist);
+    expect(result.map((c) => c.id)).toEqual(["cl1"]);
+  });
+
+  it("no ofrece un checklist que no contenga la carta, aunque esté sincronizado", () => {
+    const official = setChecklist({ id: "cl1", setName: "Pitch Black", setNameEs: "Oscuridad Absoluta" });
+    const cardsByChecklist = { cl1: [checklistCard({ number: "99", variant: "holo" })] };
+    const result = findChecklistsContainingCard({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, [official], cardsByChecklist);
+    expect(result).toHaveLength(0);
+  });
+
+  it("distingue variantes: un set con la normal no cuenta como contener la holo", () => {
+    const official = setChecklist({ id: "cl1", setName: "Pitch Black", setNameEs: "Oscuridad Absoluta" });
+    const cardsByChecklist = { cl1: [checklistCard({ number: "48", variant: "normal" })] };
+    const result = findChecklistsContainingCard({ setName: "Oscuridad Absoluta", number: "48/120", variant: "holo" }, [official], cardsByChecklist);
+    expect(result).toHaveLength(0);
   });
 });
 

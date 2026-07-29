@@ -40,10 +40,9 @@ export function createSetChecklistUseCases(repo: SetChecklistRepository, provide
     },
 
     /** Sincroniza un set elegido explícitamente por su id — nunca adivinado. Si ya está
-     * sincronizado no repite el trabajo (usar `resync` para eso). `setNameEs` es el texto
-     * que escribió el usuario para encontrarlo, para que la próxima carta del mismo set
-     * (aunque la escriba distinto al nombre oficial en inglés) se siga relacionando en
-     * local sin otra llamada de red. */
+     * sincronizado no repite el trabajo (usar `resync` para eso). `setNameEs` es el nombre
+     * en español que devolvió el proveedor al buscarlo (no lo que haya escrito el usuario
+     * en el buscador, que puede no ser exacto — ver SetSearchPanel.handleSync). */
     sync: async (externalSetId: string, setNameEs: string | null): Promise<SetChecklist | null> => {
       assertNonEmpty(externalSetId, "El id del set");
       const existing = await repo.findByExternalId(externalSetId);

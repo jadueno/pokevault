@@ -335,6 +335,62 @@ describe("ColeccionScreen", () => {
     );
   });
 
+  it("tras encontrarla en el catálogo, avisa si ya tienes esa carta exacta en la colección", async () => {
+    const user = userEvent.setup();
+    const existing = item({ id: "i2", name: "Grubbin", setName: "Oscuridad Absoluta", number: "2/120", variant: "normal", quantity: 3 });
+    const handlers = renderScreen([existing]);
+    handlers.onSearchCards.mockResolvedValue([
+      {
+        externalId: "me05-002",
+        number: "002/120",
+        name: "Grubbin",
+        setName: "Oscuridad Absoluta",
+        rarity: "Común",
+        variant: "normal",
+        imageUrl: null,
+        imageUrlLarge: null,
+        referencePrice: 0.02,
+      },
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Cartas" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
+    await user.type(screen.getByPlaceholderText("Charizard"), "Grubbin");
+    await user.click(screen.getByRole("button", { name: "Buscar en el catálogo" }));
+
+    expect(await screen.findByText(/Ya tienes 3 ejemplares de esta carta en tu colección/)).toBeInTheDocument();
+  });
+
+  it("tras encontrarla en el catálogo, si pertenece a un set/binder sincronizado permite asignarla", async () => {
+    const user = userEvent.setup();
+    const checklists = [setChecklist({ id: "cl1", setName: "Pitch Black", setNameEs: "Oscuridad Absoluta" })];
+    const cardsByChecklist = { cl1: [checklistCard({ number: "2", variant: "normal" })] };
+    const handlers = renderScreen([], [], checklists, cardsByChecklist);
+    handlers.onSearchCards.mockResolvedValue([
+      {
+        externalId: "me05-002",
+        number: "002/120",
+        name: "Grubbin",
+        setName: "Oscuridad Absoluta",
+        rarity: "Común",
+        variant: "normal",
+        imageUrl: null,
+        imageUrlLarge: null,
+        referencePrice: 0.02,
+      },
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Cartas" }));
+    await user.click(screen.getByRole("button", { name: "+ Carta" }));
+    await user.type(screen.getByPlaceholderText("Charizard"), "Grubbin");
+    await user.click(screen.getByRole("button", { name: "Buscar en el catálogo" }));
+
+    await user.selectOptions(await screen.findByLabelText("Asignar a un set/binder (opcional)"), "cl1");
+    await user.click(screen.getByRole("button", { name: "Añadir a mi colección" }));
+
+    expect(handlers.onAddItem).toHaveBeenCalledWith(expect.objectContaining({ checklistId: "cl1" }));
+  });
+
   it("si no hay ninguna coincidencia en el catálogo, avisa y deja rellenar a mano", async () => {
     const user = userEvent.setup();
     const handlers = renderScreen([]);
@@ -538,6 +594,20 @@ describe("ColeccionScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Añadir este set" }));
     expect(handlers.onSyncSet).toHaveBeenCalledWith("me5", "Pitch Black");
+  });
+
+  it("en Sets, guarda el nombre en español que devuelve el proveedor, no el texto buscado", async () => {
+    const user = userEvent.setup();
+    const handlers = renderScreen([item()], [], []);
+    handlers.onSearchSets.mockResolvedValue([searchCandidate({ name: "Oscuridad Absoluta" })]);
+
+    await user.click(screen.getByRole("button", { name: "Sets" }));
+    await user.click(screen.getByRole("button", { name: "+ Set" }));
+    await user.type(screen.getByPlaceholderText("Nombre en inglés, p. ej. Pitch Black"), "absoluta");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    await user.click(await screen.findByRole("button", { name: "Añadir este set" }));
+
+    expect(handlers.onSyncSet).toHaveBeenCalledWith("me5", "Oscuridad Absoluta");
   });
 
   it("en Sets, crea un binder personalizado con los Pokémon indicados", async () => {
