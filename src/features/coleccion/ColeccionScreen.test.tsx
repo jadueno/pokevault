@@ -288,7 +288,10 @@ describe("ColeccionScreen", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["foto"], "carta.jpg", { type: "image/jpeg" }));
 
-    expect(await screen.findByText(/Se guardará la foto que acabas de hacer/)).toBeInTheDocument();
+    // Feedback justo donde está el botón de la cámara (no solo el aviso de más abajo en el
+    // formulario) — bug real reportado: sin esto, parecía que "hacer la foto no hacía nada".
+    expect(await screen.findByRole("img", { name: "Foto que has hecho de la carta" })).toBeInTheDocument();
+    expect(screen.getByText(/Se guardará la foto que acabas de hacer/)).toBeInTheDocument();
     expect(handlers.onSearchCards).not.toHaveBeenCalled();
 
     await user.type(screen.getByPlaceholderText("Charizard"), "Mew");

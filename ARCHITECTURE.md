@@ -90,6 +90,12 @@ Pedido explícito del usuario: al hacer una foto/buscar una carta en el alta man
 - Ambos se activan solo tras aplicar una coincidencia real del catálogo (`appliedMatch`), nunca con texto libre a medio escribir — a partir de ahí expansión/número/variante son datos oficiales del proveedor, no una suposición.
 - **Bug real encontrado de paso, no relacionado con lo pedido**: `SetSearchPanel.handleSync` guardaba como `setNameEs` el texto que el usuario había escrito para buscar el set, no el nombre oficial que devolvía el proveedor (`candidate.name`) — con TCGdex (endpoint `/v2/es/`, ya en español) ese nombre ya es el correcto, así que guardar el texto buscado solo introducía mayúsculas/acentos/parciales incorrectos. El comentario que lo explicaba (`SetSearchPanel`) seguía describiendo la razón de la época de pokemontcg.io (proveedor solo en inglés), ya obsoleta desde el cambio de proveedor. Corregido para guardar `candidate.name` directamente.
 
+## Sin feedback visual al hacer una foto en el alta manual (bug real, 2026-07-29)
+
+El usuario reportó "le doy a foto y cuando la hago no hace nada". La captura en sí funcionaba de verdad (comprobado con logs: `handleChange` se disparaba, `compressImage` resolvía, `onCapture` se llamaba) — el problema era puramente de feedback: justo donde está el botón de la cámara (`PhotoCapture.tsx`), al terminar de procesar la foto volvía a mostrarse el mismo botón y el mismo texto de partida, sin ningún cambio visible ahí. El único aviso de que la foto se había guardado era un mensaje de texto aparte, bastante más abajo en `CollectionQuickForm.tsx` (después de varios campos y del botón "Buscar en el catálogo") — fácil de no ver, sobre todo en móvil.
+
+Arreglado pasando la foto ya capturada (`capturedPhoto`) como prop `value` a `PhotoCapture`, que ahora la muestra como miniatura justo en el sitio del botón, con "✓ Foto guardada — cambiar" en vez del texto de partida. Feedback inmediato en el punto de la interacción, no solo un mensaje aparte más abajo.
+
 ## Login de un solo usuario (sin tabla `users`)
 
 A diferencia del resto del brief original (que planteaba un producto abierto a otros coleccionistas), la app es **single-tenant** — sigue sin tabla `users`, sin `user_id` en ninguna tabla. Decisión explícita del usuario al revisar el plan inicial ("por ahora solo la voy a usar yo").

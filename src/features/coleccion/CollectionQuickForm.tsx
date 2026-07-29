@@ -234,7 +234,7 @@ export function CollectionQuickForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {!isEditing && <PhotoCapture onCapture={setCapturedPhoto} />}
+      {!isEditing && <PhotoCapture value={capturedPhoto} onCapture={setCapturedPhoto} />}
 
       {previewMatch && (
         <PhotoLightbox
