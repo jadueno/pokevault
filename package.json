@@ -27,7 +27,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/pg": "^8.20.0",
     "@vitejs/plugin-react": "^6.0.4",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "oxlint": "^1.71.0",
     "pg": "^8.22.0",
     "tailwindcss": "^4.3.2",
