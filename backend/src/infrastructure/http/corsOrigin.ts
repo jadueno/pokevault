@@ -2,10 +2,7 @@
 // cabecera `Authorization`, no en una cookie, así que una web maliciosa nunca podía
 // robar-y-reenviar credenciales solo por tener CORS abierto (no tiene forma de leer el
 // token guardado en el localStorage de este origen distinto). Aun así, "cualquier
-// origen" es más superficie de la necesaria: se restringe al dominio de producción y a
-// las redes desde las que se usa la app en el día a día (localhost, LAN, Tailscale),
-// dejando fuera cualquier web pública al azar — sin esto último, cambiar de red local
-// (casa/oficina/hotel) o entrar por Tailscale rompería la app.
+// origen" es más superficie de la necesaria.
 const PRODUCTION_ORIGIN = "https://pokevault.jadueno.com";
 
 const PRIVATE_NETWORK_ORIGIN = new RegExp(
@@ -19,13 +16,32 @@ const PRIVATE_NETWORK_ORIGIN = new RegExp(
     ")(:\\d+)?$",
 );
 
-/** Callback de origen para `@fastify/cors`. Sin cabecera `Origin` (peticiones no-browser:
- * curl, servidor a servidor) se deja pasar — CORS solo protege peticiones desde un
- * navegador. */
-export function isAllowedOrigin(origin: string | undefined, callback: (err: Error | null, allow: boolean) => void): void {
-  if (!origin || origin === PRODUCTION_ORIGIN || PRIVATE_NETWORK_ORIGIN.test(origin)) {
-    callback(null, true);
-    return;
-  }
-  callback(null, false);
+/**
+ * Callback de origen para `@fastify/cors`, con dos modos:
+ * - **Desplegado** (`isDeployed: true`, VPS con `NODE_ENV=production`): solo el dominio
+ *   real. La instancia desplegada nunca se ve a sí misma desde una IP de LAN/Tailscale
+ *   — esas redes ni siquiera llegan hasta la VPS — así que permitirlas ahí era
+ *   superficie sin ningún uso real detrás.
+ * - **Local** (`isDeployed: false`, `npm run dev` sin `NODE_ENV`): además del dominio,
+ *   localhost/LAN/Tailscale — necesario de verdad aquí, porque en local el frontend y el
+ *   backend corren en puertos distintos (orígenes distintos para CORS) y se acceden
+ *   desde el móvil por Tailscale o la misma red WiFi.
+ *
+ * Sin cabecera `Origin` (peticiones no-browser: curl, servidor a servidor) se deja
+ * pasar siempre — CORS solo protege peticiones desde un navegador.
+ */
+export function createOriginChecker(isDeployed: boolean) {
+  return function isAllowedOrigin(origin: string | undefined, callback: (err: Error | null, allow: boolean) => void): void {
+    if (!origin || origin === PRODUCTION_ORIGIN) {
+      callback(null, true);
+      return;
+    }
+    if (!isDeployed && PRIVATE_NETWORK_ORIGIN.test(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  };
 }
+
+export const isAllowedOrigin = createOriginChecker(process.env.NODE_ENV === "production");
