@@ -106,8 +106,8 @@ export default function App() {
   if (loginRequired && !authenticated) {
     return (
       <LoginScreen
-        onLogin={async (email, password) => {
-          await login(email, password);
+        onLogin={async (email, password, remember) => {
+          await login(email, password, remember);
           setAuthenticated(true);
         }}
       />

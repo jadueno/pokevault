@@ -118,8 +118,22 @@ describe("App — puerta de login", () => {
     await user.type(screen.getByLabelText("Contraseña"), "correcta");
     await user.click(screen.getByRole("button", { name: "Entrar" }));
 
-    expect(login).toHaveBeenCalledWith("jadueno@example.com", "correcta");
+    expect(login).toHaveBeenCalledWith("jadueno@example.com", "correcta", true);
     expect(await screen.findByRole("button", { name: "+ Set" })).toBeInTheDocument();
+  });
+
+  it("con «Recuérdame» desmarcado, se avisa para no guardar la sesión de forma persistente", async () => {
+    const user = userEvent.setup();
+    getAuthConfig.mockResolvedValue({ loginRequired: true });
+    login.mockResolvedValue(undefined);
+    render(<App />);
+
+    await user.type(await screen.findByLabelText("Email"), "jadueno@example.com");
+    await user.type(screen.getByLabelText("Contraseña"), "correcta");
+    await user.click(screen.getByLabelText("Recuérdame en este dispositivo"));
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
+
+    expect(login).toHaveBeenCalledWith("jadueno@example.com", "correcta", false);
   });
 
   it("con contraseña incorrecta, muestra el error y no entra", async () => {

@@ -50,12 +50,12 @@ export function getAuthConfig<T = { loginRequired: boolean }>(): Promise<T> {
   return request("/auth-config");
 }
 
-export async function login(email: string, password: string): Promise<void> {
+export async function login(email: string, password: string, remember: boolean): Promise<void> {
   const { token } = await request<{ token: string }>("/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
-  setStoredToken(token);
+  setStoredToken(token, remember);
 }
 
 export function logout(): void {

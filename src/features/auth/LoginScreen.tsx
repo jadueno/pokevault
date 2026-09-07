@@ -5,9 +5,14 @@ import { Field, inputClass } from "../../components/Field";
 /** Pantalla completa, sin nav ni contenido detrás — se muestra en vez de toda la app
  * (ver App.tsx) mientras no haya una sesión válida, no como un modal superpuesto: no
  * tiene sentido dejar entrever la colección de nadie detrás de un formulario de login. */
-export function LoginScreen({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
+export function LoginScreen({
+  onLogin,
+}: {
+  onLogin: (email: string, password: string, remember: boolean) => Promise<void>;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +21,7 @@ export function LoginScreen({ onLogin }: { onLogin: (email: string, password: st
     setLoading(true);
     setError(null);
     try {
-      await onLogin(email, password);
+      await onLogin(email, password, remember);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se ha podido iniciar sesión");
     } finally {
@@ -66,6 +71,15 @@ export function LoginScreen({ onLogin }: { onLogin: (email: string, password: st
               required
             />
           </Field>
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="size-4 shrink-0 accent-[var(--beacon)]"
+            />
+            Recuérdame en este dispositivo
+          </label>
           {error && (
             <p role="alert" className="text-sm text-[var(--status-critical)]">
               {error}
