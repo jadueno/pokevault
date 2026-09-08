@@ -1,0 +1,35 @@
+name: Deploy
+
+# Se dispara solo cuando el workflow "CI" (ci.yml) termina en verde sobre main —
+# nunca directamente en cada push, para no desplegar un commit que rompe algo.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy a pokevault.jadueno.com
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Desplegar vía SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          # Huella pública del VPS, fijada de antemano (no es secreta): evita
+          # confiar a ciegas en la clave del host la primera vez que se conecta.
+          cat >> ~/.ssh/known_hosts <<'EOF'
+          141.227.189.84 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMpxAaHLuayvRR3nc1dlKxU2uVVauInk6XRz8wqwdlu7
+          EOF
+          # La clave usada aquí solo puede ejecutar /home/ubuntu/deploy-pokevault.sh en
+          # el VPS (forced command en authorized_keys): aunque cambiara este script,
+          # no puede correr nada más en el servidor.
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" deploy
