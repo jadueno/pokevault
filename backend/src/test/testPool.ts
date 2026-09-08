@@ -8,6 +8,11 @@ import { Pool } from "pg";
 // puntero por usuario (ver migración 1784000000019), las cartas cuelgan de
 // "set_catalogs" (set_catalog_cards.catalog_id), y "set_checklists" también referencia
 // "set_catalogs" (catalog_id) — truncar "set_catalogs" en cascada vacía las tres tablas.
+// "users" no está aquí a propósito, a diferencia del resto: server.test.ts crea UN
+// usuario fijo en su beforeAll (no por test) y lo reutiliza en los 36 tests del fichero
+// — truncarla en cada afterEach borraría ese usuario a mitad de la suite y las
+// inserciones siguientes (collection_items, wishlist_items...) fallarían por la FK
+// "user_id" → "users(id)". La propia server.test.ts limpia su usuario en afterAll.
 const TABLES = ["wishlist_items", "collection_items", "sealed_purchases", "plan_items", "set_catalogs"];
 
 /**

@@ -40,6 +40,12 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
+  // resetDatabase (afterEach) no toca "users" a propósito — este usuario fijo se
+  // reutiliza en todos los tests del fichero — así que hay que borrarlo aquí a mano:
+  // si no, sobrevive a esta ejecución y la siguiente vez que corras la suite, el insert
+  // de arriba choca con la fila ya existente ("duplicate key value violates unique
+  // constraint users_email_key").
+  await pool.query("delete from users where id = $1", [userId]);
   await app.close();
   await pool.end();
 });
