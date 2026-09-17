@@ -15,6 +15,7 @@ function item(overrides: Partial<PlanItem> = {}): PlanItem {
     searchTerm: null,
     done: false,
     position: 0,
+    countedElsewhere: false,
     ...overrides,
   };
 }

@@ -134,6 +134,11 @@ export interface PlanItem {
   searchTerm: string | null;
   done: boolean;
   position: number;
+  /** Este objeto físico ya está registrado con su precio real en collection_items o
+   * sealed_purchases (p. ej. una ETB que marcaste "hecho" aquí y también diste de alta en
+   * Sellado) — excluye su `referencePrice` de "Invertido" para no sumar el mismo gasto dos
+   * veces. Ver `totalPlanInvested` en el frontend. */
+  countedElsewhere: boolean;
 }
 
 export type NewPlanItem = Omit<PlanItem, "id">;

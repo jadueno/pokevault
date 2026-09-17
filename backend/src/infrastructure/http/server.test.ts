@@ -281,6 +281,24 @@ describe("/plan-items", () => {
     expect(badCategory.statusCode).toBe(400);
   });
 
+  it("countedElsewhere se guarda a false por defecto si no se envía, y se puede activar/leer", async () => {
+    const payload = { month: "2026-09", category: "comprar", description: "ETB ya registrada en Sellado", referencePrice: 55.9, searchTerm: null, done: true, position: 0 };
+    const create = await injectAuthed({ method: "POST", url: "/plan-items", payload });
+    const created = create.json();
+    expect(created.countedElsewhere).toBe(false);
+
+    const update = await injectAuthed({
+      method: "PUT",
+      url: `/plan-items/${created.id}`,
+      payload: { ...payload, countedElsewhere: true },
+    });
+    expect(update.statusCode).toBe(200);
+    expect(update.json().countedElsewhere).toBe(true);
+
+    const list = await injectAuthed({ method: "GET", url: "/plan-items" });
+    expect(list.json()[0].countedElsewhere).toBe(true);
+  });
+
   it("responde 400 con un precio de referencia negativo", async () => {
     const res = await injectAuthed({
       method: "POST",

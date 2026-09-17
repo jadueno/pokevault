@@ -36,6 +36,25 @@ function collectionItem(overrides: Partial<CollectionItem> = {}): CollectionItem
   };
 }
 
+function sealedPurchase(overrides: Partial<SealedPurchase> = {}): SealedPurchase {
+  return {
+    id: "s1",
+    productName: "ETB",
+    productType: "elite_trainer_box",
+    quantity: 1,
+    purchasePrice: null,
+    purchaseCurrency: "EUR",
+    purchaseDate: null,
+    estimatedValueOverride: null,
+    estimatedValueOverrideAt: null,
+    estimatedValueOverrideNote: null,
+    location: null,
+    notes: null,
+    photo: null,
+    ...overrides,
+  };
+}
+
 function checklist(overrides: Partial<SetChecklist> = {}): SetChecklist {
   return {
     id: "cl1",
@@ -77,6 +96,7 @@ function planItem(overrides: Partial<PlanItem> = {}): PlanItem {
     searchTerm: null,
     done: true,
     position: 0,
+    countedElsewhere: false,
     ...overrides,
   };
 }
@@ -136,6 +156,22 @@ describe("DashboardScreen", () => {
 
     // 300 (colección) + 59 (solo el ítem "comprar" hecho y con precio) = 359,00 €
     expect(screen.getByText(/359,00\s€/)).toBeInTheDocument();
+  });
+
+  it("no cuenta dos veces una ETB marcada hecha en el plan Y ya registrada como compra sellada real (bug real 2026-09-17)", () => {
+    const items: PlanItem[] = [
+      planItem({ id: "p1", description: "Oscuridad Absoluta ETB - Español", referencePrice: 55.9, done: true, countedElsewhere: true }),
+    ];
+    const sealed: SealedPurchase[] = [
+      sealedPurchase({ id: "s1", productName: "Oscuridad Absoluta ETB - Español", purchasePrice: 55.9, quantity: 1 }),
+    ];
+    render(
+      <DashboardScreen summary={summary({ totalInvested: 0 })} items={[]} sealedItems={sealed} planItems={items} checklists={[]} cardsByChecklist={{}} />,
+    );
+
+    // Sin el flag countedElsewhere, esto mostraría 111,80 € (55,90 contado por partida doble).
+    expect(screen.getByText(/55,90\s€/)).toBeInTheDocument();
+    expect(screen.queryByText(/111,80\s€/)).not.toBeInTheDocument();
   });
 
   it("muestra la carta más valiosa y la distribución por rareza/idioma", () => {

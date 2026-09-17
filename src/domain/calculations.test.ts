@@ -30,6 +30,7 @@ function planItem(overrides: Partial<PlanItem> = {}): PlanItem {
     searchTerm: null,
     done: false,
     position: 0,
+    countedElsewhere: false,
     ...overrides,
   };
 }
@@ -496,6 +497,13 @@ describe("estimatePlanMonth", () => {
     expect(estimate.totalCount).toBe(4);
   });
 
+  it("sigue sumando un ítem 'countedElsewhere' (a diferencia de totalPlanInvested): el total del mes es autocontenido, no se combina con otros datos", () => {
+    const items = [planItem({ category: "comprar", referencePrice: 59, done: true, countedElsewhere: true })];
+    const [group] = groupPlanByMonth(items);
+    const estimate = estimatePlanMonth(group);
+    expect(estimate.amount).toBe(59);
+  });
+
   it("mes sin ningún precio de referencia: amount 0 y pricedCount 0", () => {
     const items = [planItem({ description: "Algo sin precio", referencePrice: null })];
     const [group] = groupPlanByMonth(items);
@@ -514,6 +522,14 @@ describe("totalPlanInvested", () => {
       planItem({ id: "p5", month: "2026-08", category: "comprar", referencePrice: null, done: true }), // sin precio
     ];
     expect(totalPlanInvested(items)).toBe(84); // 59 + 25
+  });
+
+  it("excluye un ítem 'countedElsewhere' (ya registrado con su precio real en Colección/Sellado, no sumar dos veces)", () => {
+    const items = [
+      planItem({ id: "p1", month: "2026-09", category: "comprar", referencePrice: 55.9, done: true, countedElsewhere: true }),
+      planItem({ id: "p2", month: "2026-09", category: "comprar", referencePrice: 25, done: true, countedElsewhere: false }),
+    ];
+    expect(totalPlanInvested(items)).toBe(25);
   });
 
   it("sin ítems 'comprar' hechos con precio, devuelve 0", () => {

@@ -116,11 +116,19 @@ export function estimatePlanMonth(group: PlanMonthGroup): PlanMonthEstimate {
  * es un gasto nuevo). Se suma al "Invertido" del Resumen porque bastantes ítems del plan
  * (accesorios, cantidades por rareza) nunca llegan a tener su propia fila en
  * `collection_items`/`sealed_purchases`, así que sin esto ese gasto real no se vería en
- * ningún sitio. */
+ * ningún sitio.
+ *
+ * `countedElsewhere` también se excluye aquí (a diferencia de `estimatePlanMonth`, que sí
+ * lo cuenta: ahí no se combina con ningún otro dato). Cuando el mismo objeto físico SÍ
+ * tiene su propia fila en `collection_items`/`sealed_purchases` (lo normal: marcas "hecho"
+ * el ítem del plan Y registras la compra real para llevar su valor de mercado), su coste
+ * ya llega a "Invertido" por ese otro lado — sumarlo también aquí lo contaba dos veces
+ * (bug real detectado 2026-09-17: una ETB de 55,90 € y otra de 200 €/180 € se sumaban por
+ * partida doble). */
 export function totalPlanInvested(items: PlanItem[]): number {
   let total = 0;
   for (const item of items) {
-    if (item.category === "comprar" && item.done && item.referencePrice !== null) {
+    if (item.category === "comprar" && item.done && item.referencePrice !== null && !item.countedElsewhere) {
       total += item.referencePrice;
     }
   }

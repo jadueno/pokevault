@@ -13,6 +13,7 @@ function validItem(overrides: Partial<NewPlanItem> = {}): NewPlanItem {
     searchTerm: null,
     done: false,
     position: 0,
+    countedElsewhere: false,
     ...overrides,
   };
 }

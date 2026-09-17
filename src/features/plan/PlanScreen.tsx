@@ -182,6 +182,15 @@ function ItemDescription({ item }: { item: PlanItem }) {
         <span className={item.done ? "font-semibold" : "font-semibold text-[var(--amber)]"}> (ref. {formatMoney(item.referencePrice)})</span>
       )}
       {item.searchTerm && <span className="text-[var(--text-muted)] italic"> 🔍 {item.searchTerm}</span>}
+      {item.countedElsewhere && (
+        <span
+          className="text-[var(--text-muted)]"
+          title="Ya está registrado con su precio real en Colección/Sellado — no se suma de nuevo en Invertido"
+        >
+          {" "}
+          · ya contado en Colección/Sellado
+        </span>
+      )}
     </span>
   );
 }
@@ -206,6 +215,7 @@ function PlanItemEditForm({
   const [description, setDescription] = useState(item.description);
   const [referencePrice, setReferencePrice] = useState(item.referencePrice !== null ? String(item.referencePrice) : "");
   const [searchTerm, setSearchTerm] = useState(item.searchTerm ?? "");
+  const [countedElsewhere, setCountedElsewhere] = useState(item.countedElsewhere);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -219,6 +229,7 @@ function PlanItemEditForm({
         description: trimmedDescription,
         referencePrice: referencePrice.trim() === "" ? null : Number(referencePrice),
         searchTerm: searchTerm.trim() === "" ? null : searchTerm.trim(),
+        countedElsewhere,
       });
       onClose();
     } finally {
@@ -258,6 +269,21 @@ function PlanItemEditForm({
             placeholder="Lo que se copiará para pegar en la tienda"
           />
         </Field>
+        <label className="flex items-start gap-2.5 text-sm text-[var(--text-secondary)]">
+          <input
+            type="checkbox"
+            checked={countedElsewhere}
+            onChange={(e) => setCountedElsewhere(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-[var(--status-good)]"
+          />
+          <span>
+            Ya está registrado con su precio real en Colección o Sellado
+            <span className="block text-xs text-[var(--text-muted)]">
+              Marca esto si ya diste de alta esta compra en otra pantalla — evita sumar su precio de referencia dos
+              veces en "Invertido".
+            </span>
+          </span>
+        </label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancelar
@@ -540,7 +566,7 @@ export function PlanScreen({
 
   async function handleAdd(month: string, category: PlanCategory, description: string) {
     const position = items.filter((i) => i.month === month && i.category === category).length;
-    await onAdd({ month, category, description, referencePrice: null, searchTerm: null, done: false, position });
+    await onAdd({ month, category, description, referencePrice: null, searchTerm: null, done: false, position, countedElsewhere: false });
   }
 
   return (

@@ -11,9 +11,10 @@ interface PlanItemRow {
   search_term: string | null;
   done: boolean;
   position: number;
+  counted_elsewhere: boolean;
 }
 
-const COLUMNS = "id, month, category, description, reference_price, search_term, done, position";
+const COLUMNS = "id, month, category, description, reference_price, search_term, done, position, counted_elsewhere";
 
 function toPlanItem(row: PlanItemRow): PlanItem {
   return {
@@ -25,6 +26,7 @@ function toPlanItem(row: PlanItemRow): PlanItem {
     searchTerm: row.search_term,
     done: row.done,
     position: row.position,
+    countedElsewhere: row.counted_elsewhere,
   };
 }
 
@@ -47,10 +49,20 @@ export function createPlanItemRepository(pool: Pool, userId: string): PlanItemRe
 
     async create(entity: NewPlanItem) {
       const { rows } = await pool.query<PlanItemRow>(
-        `insert into plan_items (user_id, month, category, description, reference_price, search_term, done, position)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)
+        `insert into plan_items (user_id, month, category, description, reference_price, search_term, done, position, counted_elsewhere)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          returning ${COLUMNS}`,
-        [userId, entity.month, entity.category, entity.description, entity.referencePrice, entity.searchTerm, entity.done, entity.position],
+        [
+          userId,
+          entity.month,
+          entity.category,
+          entity.description,
+          entity.referencePrice,
+          entity.searchTerm,
+          entity.done,
+          entity.position,
+          entity.countedElsewhere ?? false,
+        ],
       );
       return toPlanItem(rows[0]);
     },
@@ -58,10 +70,22 @@ export function createPlanItemRepository(pool: Pool, userId: string): PlanItemRe
     async update(id: string, entity: NewPlanItem) {
       const { rows } = await pool.query<PlanItemRow>(
         `update plan_items
-         set month = $1, category = $2, description = $3, reference_price = $4, search_term = $5, done = $6, position = $7, updated_at = now()
-         where id = $8 and user_id = $9
+         set month = $1, category = $2, description = $3, reference_price = $4, search_term = $5, done = $6, position = $7,
+             counted_elsewhere = $8, updated_at = now()
+         where id = $9 and user_id = $10
          returning ${COLUMNS}`,
-        [entity.month, entity.category, entity.description, entity.referencePrice, entity.searchTerm, entity.done, entity.position, id, userId],
+        [
+          entity.month,
+          entity.category,
+          entity.description,
+          entity.referencePrice,
+          entity.searchTerm,
+          entity.done,
+          entity.position,
+          entity.countedElsewhere ?? false,
+          id,
+          userId,
+        ],
       );
       return rows[0] ? toPlanItem(rows[0]) : null;
     },
