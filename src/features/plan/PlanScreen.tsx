@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NewPlanItem, PlanCategory, PlanItem, PlanSettings, ShoppingLink } from "../../domain/types";
 import { PLAN_CATEGORIES, PLAN_CATEGORY_LABELS, estimatePlanMonth, formatMoney, groupPlanByMonth, monthLabel } from "../../domain/calculations";
 import { Button } from "../../components/Button";
@@ -29,6 +29,15 @@ function ShoppingLinksCard({
   // de altas rápidas de la app.
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const isEditing = editingIndex !== null;
+  // El formulario es el mismo para alta y edición, y vive debajo de la lista — con varios
+  // enlaces guardados puede quedar fuera de la vista al pulsar "Editar" en uno de arriba.
+  // Encontrado en real: el usuario pulsaba el lápiz, el formulario sí se rellenaba, pero al
+  // no verlo (sin hacer scroll) parecía que el botón no hacía nada.
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (isEditing) formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [isEditing, editingIndex]);
 
   async function saveLinks(links: ShoppingLink[]) {
     setSaving(true);
@@ -100,7 +109,11 @@ function ShoppingLinksCard({
                   className="flex flex-col gap-1 rounded-2xl border p-3"
                   style={{
                     backgroundColor: "color-mix(in srgb, var(--amber) 10%, var(--surface-1))",
-                    borderColor: "color-mix(in srgb, var(--amber) 28%, transparent)",
+                    borderColor:
+                      editingIndex === i
+                        ? "var(--amber)"
+                        : "color-mix(in srgb, var(--amber) 28%, transparent)",
+                    boxShadow: editingIndex === i ? "0 0 0 2px var(--amber)" : undefined,
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -132,7 +145,12 @@ function ShoppingLinksCard({
             </ul>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2 border-t border-[var(--gridline)] pt-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-2 border-t border-[var(--gridline)] pt-3">
+            {isEditing && (
+              <p className="text-xs font-bold tracking-wide text-[var(--amber)] uppercase">
+                Editando "{settings.shoppingLinks[editingIndex].label}"
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <input
                 className={`${inputClass} w-auto min-w-32 flex-1 py-1.5 text-sm`}

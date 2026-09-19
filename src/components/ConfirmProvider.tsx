@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./Button";
 
 type ConfirmFn = (message: string) => Promise<boolean>;
@@ -31,30 +32,37 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      {message && (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="confirm-dialog-message"
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm"
-          style={{ overscrollBehavior: "contain" }}
-          onKeyDown={(e) => e.key === "Escape" && close(false)}
-        >
-          <div className="w-full max-w-sm rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] p-6 shadow-float">
-            <p id="confirm-dialog-message" className="text-sm text-[var(--text-primary)]">
-              {message}
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="ghost" autoFocus onClick={() => close(false)}>
-                Cancelar
-              </Button>
-              <Button tone="critical" onClick={() => close(true)}>
-                Eliminar
-              </Button>
+      {message &&
+        createPortal(
+          // Portal a document.body: mismo motivo que en Modal.tsx — "fixed" solo cubre el
+          // viewport real si ningún ancestro tiene transform/filter/backdrop-filter/contain
+          // (crearía su propio contexto de contención). Hoy ConfirmProvider envuelve <App/>
+          // desde fuera (ver main.tsx) así que no le afecta todavía, pero el portal lo deja
+          // a salvo de que eso cambie más adelante.
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-message"
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4 backdrop-blur-sm"
+            style={{ overscrollBehavior: "contain" }}
+            onKeyDown={(e) => e.key === "Escape" && close(false)}
+          >
+            <div className="w-full max-w-sm rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface-1)] p-6 shadow-float">
+              <p id="confirm-dialog-message" className="text-sm text-[var(--text-primary)]">
+                {message}
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="ghost" autoFocus onClick={() => close(false)}>
+                  Cancelar
+                </Button>
+                <Button tone="critical" onClick={() => close(true)}>
+                  Eliminar
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </ConfirmContext.Provider>
   );
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { focusRing } from "./Field";
 import { useScrollLock } from "./useScrollLock";
 
@@ -23,7 +24,16 @@ export function Modal({
 }) {
   useScrollLock();
 
-  return (
+  // Portal a document.body: sin esto, "fixed inset-0" solo cubre el viewport real si
+  // NINGÚN ancestro en el árbol de React tiene transform/filter/backdrop-filter/contain
+  // (cualquiera de ellos crea su propio "contexto de contención" y "fixed" pasa a fijarse
+  // a ESE ancestro, no a la pantalla). Bug real encontrado 2026-09-19: al editar un ítem
+  // del plan, el modal quedaba encajonado dentro de la Card que lo contenía (backdrop-blur
+  // en Card.tsx) en vez de cubrir la pantalla — el usuario veía el formulario "atascado" a
+  // medio ancho, sin overlay real, con el resto de la página desplazándose alrededor. El
+  // portal hace que el modal cuelgue siempre directamente de <body>, inmune a cualquier
+  // ancestro futuro que añada uno de esos estilos.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -58,6 +68,7 @@ export function Modal({
             (p. ej. un <input type="date">) podía generar scroll horizontal aquí. */}
         <div className="flex-1 overflow-x-hidden overflow-y-auto p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
