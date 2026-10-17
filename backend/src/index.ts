@@ -26,7 +26,9 @@ async function main() {
   // Ya comprobado arriba (con process.exit si faltaba) — TS no retiene el estrechado de
   // un `const` de módulo dentro de una función declarada aparte.
   const app = await buildServer(pool, pokemonTcgProvider, { sessionSecret: sessionSecret! });
-  await app.listen({ port, host: "0.0.0.0" });
+  // Solo localhost por defecto: en el VPS la única puerta de entrada es nginx. HOST=0.0.0.0 para probar
+  // desde el móvil en la misma red.
+  await app.listen({ port, host: process.env.HOST ?? "127.0.0.1" });
 }
 
 main().catch((error) => {

@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-pokevault}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en tu .env (copia .env.example y pon una contraseña propia)}
     ports:
-      - "${POSTGRES_PORT:-5436}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5436}:5432"
     volumes:
       - pokevault-db:/var/lib/postgresql/data
     healthcheck:
