@@ -13,7 +13,19 @@ jobs:
     name: Deploy a pokevault.jadueno.com
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      id-token: write # OIDC: GitHub demuestra a Tailscale quién es, sin claves guardadas en el repo
     steps:
+      - name: Entrar en la red privada (Tailscale)
+        # El SSH del VPS solo escucha dentro de Tailscale. La política de la red deja a
+        # tag:ci llegar al puerto 22 del VPS y a nada más.
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OIDC_CLIENT_ID }}
+          audience: ${{ secrets.TS_OIDC_AUDIENCE }}
+          tags: tag:ci
+
       - name: Desplegar vía SSH
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -32,4 +44,5 @@ jobs:
           # La clave usada aquí solo puede ejecutar /home/ubuntu/deploy-pokevault.sh en
           # el VPS (forced command en authorized_keys): aunque cambiara este script,
           # no puede correr nada más en el servidor.
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" deploy
+          # HostKeyAlias: DEPLOY_HOST es la IP de Tailscale, pero la huella fijada arriba va con la IP pública.
+          ssh -i ~/.ssh/deploy_key -o HostKeyAlias=141.227.189.84 -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" deploy
